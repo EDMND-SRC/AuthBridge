@@ -4,6 +4,9 @@ import {
   recordUploadMetrics,
   recordPresignedUrlMetrics,
   recordValidationFailure,
+  recordOcrMetrics,
+  recordTextractError,
+  recordPoorQualityImage,
 } from './metrics';
 
 // Mock CloudWatch client
@@ -71,6 +74,62 @@ describe('metrics', () => {
 
     it('should record VALIDATION_ERROR', async () => {
       await expect(recordValidationFailure('VALIDATION_ERROR')).resolves.not.toThrow();
+    });
+  });
+
+  describe('recordOcrMetrics', () => {
+    it('should record success metrics', async () => {
+      await expect(
+        recordOcrMetrics(true, 4500, 98.5, 'omang_front', false)
+      ).resolves.not.toThrow();
+    });
+
+    it('should record failure metrics', async () => {
+      await expect(
+        recordOcrMetrics(false, 2000, 0, 'omang_front', false)
+      ).resolves.not.toThrow();
+    });
+
+    it('should record manual review required', async () => {
+      await expect(
+        recordOcrMetrics(true, 4500, 75.0, 'omang_front', true)
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('recordTextractError', () => {
+    it('should record THROTTLING error', async () => {
+      await expect(recordTextractError('THROTTLING')).resolves.not.toThrow();
+    });
+
+    it('should record INVALID_S3_OBJECT error', async () => {
+      await expect(recordTextractError('INVALID_S3_OBJECT')).resolves.not.toThrow();
+    });
+
+    it('should record UNSUPPORTED_DOCUMENT error', async () => {
+      await expect(recordTextractError('UNSUPPORTED_DOCUMENT')).resolves.not.toThrow();
+    });
+
+    it('should record POOR_QUALITY error', async () => {
+      await expect(recordTextractError('POOR_QUALITY')).resolves.not.toThrow();
+    });
+
+    it('should record UNKNOWN error', async () => {
+      await expect(recordTextractError('UNKNOWN')).resolves.not.toThrow();
+    });
+  });
+
+  describe('recordPoorQualityImage', () => {
+    it('should record poor quality image metrics', async () => {
+      await expect(
+        recordPoorQualityImage('omang_front', 25)
+      ).resolves.not.toThrow();
+    });
+
+    it('should record with different document types', async () => {
+      await expect(
+        recordPoorQualityImage('omang_back', 45)
+      ).resolves.not.toThrow();
     });
   });
 });

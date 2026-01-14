@@ -35,6 +35,25 @@ provider:
             - 'arn:aws:s3:::authbridge-documents-${self:provider.stage}/*'
         - Effect: Allow
           Action:
+            - textract:DetectDocumentText
+          Resource: '*'
+        - Effect: Allow
+          Action:
+            - cloudwatch:PutMetricData
+          Resource: '*'
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+            - sqs:GetQueueUrl
+          Resource:
+            - !GetAtt OcrQueue.Arn
+        - Effect: Allow
+          Action:
+            - sns:Publish
+          Resource:
+            - !Ref OcrAlertTopic
+        - Effect: Allow
+          Action:
             - logs:CreateLogGroup
             - logs:CreateLogStream
             - logs:PutLogEvents
@@ -64,6 +83,8 @@ functions:
     description: Upload document to verification case
     memorySize: 1024
     timeout: 30
+    environment:
+      OCR_QUEUE_URL: !Ref OcrQueue
     events:
       - http:
           path: /api/v1/verifications/{verificationId}/documents
@@ -78,6 +99,21 @@ functions:
           path: /api/v1/verifications/{verificationId}/documents/{documentId}/url
           method: post
           cors: true
+
+  processOCR:
+    handler: dist/handlers/process-ocr.handler
+    description: Process OCR extraction from document images
+    memorySize: 512
+    timeout: 60
+    reservedConcurrency: 1  # Respect 1 TPS Textract quota in af-south-1
+    environment:
+      OCR_ALERT_TOPIC_ARN: !Ref OcrAlertTopic
+    events:
+      - sqs:
+          arn: !GetAtt OcrQueue.Arn
+          batchSize: 1  # Process one document at a time due to 1 TPS limit
+          maximumBatchingWindowInSeconds: 0
+          functionResponseType: ReportBatchItemFailures
 
 resources:
   Resources:
@@ -94,6 +130,122 @@ resources:
           BlockPublicPolicy: true
           IgnorePublicAcls: true
           RestrictPublicBuckets: true
+
+    OcrQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: authbridge-ocr-queue-${self:provider.stage}
+        VisibilityTimeout: 360  # 6 minutes (Lambda timeout 60s + buffer)
+        MessageRetentionPeriod: 345600  # 4 days
+        ReceiveMessageWaitTimeSeconds: 0
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt OcrDLQ.Arn
+          maxReceiveCount: 3
+
+    OcrDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: authbridge-ocr-dlq-${self:provider.stage}
+        MessageRetentionPeriod: 1209600  # 14 days
+        ReceiveMessageWaitTimeSeconds: 0
+
+    # SNS Topic for OCR failure alerts
+    OcrAlertTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: authbridge-ocr-alerts-${self:provider.stage}
+        DisplayName: AuthBridge OCR Alerts
+
+    # CloudWatch Alarms for OCR monitoring
+    OcrSuccessRateAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: authbridge-ocr-success-rate-${self:provider.stage}
+        AlarmDescription: OCR success rate below 85%
+        MetricName: OcrSuccess
+        Namespace: AuthBridge/Verification
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 3
+        Threshold: 85
+        ComparisonOperator: LessThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref OcrAlertTopic
+
+    OcrConfidenceAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: authbridge-ocr-confidence-${self:provider.stage}
+        AlarmDescription: Average OCR confidence below 90%
+        MetricName: OcrConfidenceScore
+        Namespace: AuthBridge/Verification
+        Statistic: Average
+        Period: 300
+        EvaluationPeriods: 3
+        Threshold: 90
+        ComparisonOperator: LessThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref OcrAlertTopic
+
+    OcrProcessingTimeAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: authbridge-ocr-processing-time-${self:provider.stage}
+        AlarmDescription: OCR processing time exceeds 10 seconds (p95)
+        MetricName: OcrProcessingTime
+        Namespace: AuthBridge/Verification
+        ExtendedStatistic: p95
+        Period: 300
+        EvaluationPeriods: 2
+        Threshold: 10000
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref OcrAlertTopic
+
+    OcrManualReviewRateAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: authbridge-ocr-manual-review-rate-${self:provider.stage}
+        AlarmDescription: Manual review rate exceeds 30%
+        MetricName: OcrManualReviewRequired
+        Namespace: AuthBridge/Verification
+        Statistic: Sum
+        Period: 3600
+        EvaluationPeriods: 1
+        Threshold: 30
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref OcrAlertTopic
+
+    OcrDLQAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: authbridge-ocr-dlq-messages-${self:provider.stage}
+        AlarmDescription: Messages in OCR Dead Letter Queue
+        MetricName: ApproximateNumberOfMessagesVisible
+        Namespace: AWS/SQS
+        Dimensions:
+          - Name: QueueName
+            Value: !GetAtt OcrDLQ.QueueName
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref OcrAlertTopic
+
+  Outputs:
+    OcrAlertTopicArn:
+      Description: ARN of the OCR Alert SNS Topic
+      Value: !Ref OcrAlertTopic
+      Export:
+        Name: authbridge-ocr-alert-topic-${self:provider.stage}
 
 plugins:
   - serverless-offline

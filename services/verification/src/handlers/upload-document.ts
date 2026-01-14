@@ -1,6 +1,7 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { DynamoDBService } from '../services/dynamodb';
 import { S3Service } from '../services/s3';
+import { SqsService } from '../services/sqs';
 import { DocumentService } from '../services/document';
 import { VerificationService } from '../services/verification';
 import {
@@ -25,6 +26,7 @@ const MAX_DOCUMENTS_PER_VERIFICATION = 20;
 
 const db = new DynamoDBService(TABLE_NAME, REGION);
 const s3 = new S3Service(BUCKET_NAME, REGION);
+const sqs = new SqsService();
 const documentService = new DocumentService(db, s3);
 const verificationService = new VerificationService(TABLE_NAME, REGION);
 
@@ -313,6 +315,59 @@ export async function handler(
       fileSize: parsed.size,
     });
 
+    // Send OCR processing message to SQS queue
+    let ocrQueued = false;
+    try {
+      await sqs.sendOcrMessage({
+        verificationId,
+        documentId: response.documentId,
+        s3Bucket: BUCKET_NAME,
+        s3Key: response.s3Key,
+        documentType: validation.data.documentType,
+      });
+      ocrQueued = true;
+
+      logger.info('OCR message sent to queue', {
+        requestId,
+        verificationId,
+        documentId: response.documentId,
+      });
+    } catch (error) {
+      // Log error and mark document as pending OCR for retry
+      logger.error('Failed to send OCR message to queue', {
+        requestId,
+        verificationId,
+        documentId: response.documentId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+
+      // Store pending OCR job in DynamoDB for retry mechanism
+      try {
+        await db.updateItem({
+          Key: {
+            PK: `CASE#${verificationId}`,
+            SK: `DOC#${response.documentId}`,
+          },
+          UpdateExpression: 'SET #ocrPending = :pending, #ocrError = :error',
+          ExpressionAttributeNames: {
+            '#ocrPending': 'ocrPending',
+            '#ocrError': 'ocrError',
+          },
+          ExpressionAttributeValues: {
+            ':pending': true,
+            ':error': error instanceof Error ? error.message : 'Unknown error',
+          },
+        });
+      } catch (dbError) {
+        logger.error('Failed to mark document as pending OCR', {
+          requestId,
+          verificationId,
+          documentId: response.documentId,
+          error: dbError instanceof Error ? dbError.message : 'Unknown error',
+        });
+      }
+    }
+
     // Record success metrics
     const durationMs = Date.now() - startTime;
     await recordUploadMetrics(true, durationMs, fileSize, documentType);
@@ -320,7 +375,10 @@ export async function handler(
     return {
       statusCode: 201,
       headers: corsHeaders(),
-      body: JSON.stringify(response),
+      body: JSON.stringify({
+        ...response,
+        ocrQueued,
+      }),
     };
   } catch (error) {
     logger.error('Failed to upload document', {
