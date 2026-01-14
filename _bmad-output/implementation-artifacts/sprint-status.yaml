@@ -41,17 +41,30 @@ development_status:
   # ═══════════════════════════════════════════════════════════════════════════
   # EPIC 1: Web SDK Verification Flow (MVP)
   # ═══════════════════════════════════════════════════════════════════════════
-  epic-1: in-progress
+  epic-1: done
   1-1-sdk-initialization-welcome-screen: done
   1-2-document-type-selection: done
   1-3-document-capture-with-camera: done
   1-4-document-upload-fallback: done
-  1-5-selfie-capture-with-liveness-detection: backlog
-  1-6-review-submit-verification: backlog
-  epic-1-retrospective: optional
+  1-5-selfie-capture-with-liveness-detection: done
+  1-6-review-submit-verification: done
+  epic-1-retrospective: done
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # EPIC 1.5: Backend Foundation (MVP - Critical Path)
+  # Added after Epic 1 retrospective to provide infrastructure for Epic 2
+  # ═══════════════════════════════════════════════════════════════════════════
+  epic-1.5: in-progress
+  1.5-1-api-authentication-session-management: done
+  # Stories 1.5.2 and 1.5.4 are batched into single implementation file:
+  # _bmad-output/implementation-artifacts/1.5-2-4-core-verification-infrastructure.md
+  1.5-2-4-core-verification-infrastructure: done
+  1.5-3-document-upload-endpoint-s3: done
+  epic-1.5-retrospective: optional
 
   # ═══════════════════════════════════════════════════════════════════════════
   # EPIC 2: Omang Document Processing (MVP)
+  # Dependencies: Requires Epic 1.5 completion
   # ═══════════════════════════════════════════════════════════════════════════
   epic-2: backlog
   2-1-omang-ocr-extraction: backlog
