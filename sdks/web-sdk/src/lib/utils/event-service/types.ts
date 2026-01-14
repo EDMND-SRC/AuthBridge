@@ -9,6 +9,7 @@ export enum EEventTypes {
   VERIFICATION_ERROR = 'verification.error',
   DOCUMENT_SELECTED = 'document.selected',
   DOCUMENT_CAPTURED = 'document.captured',
+  DOCUMENT_UPLOADED = 'document.uploaded',
 }
 
 export enum EActionNames {
@@ -91,6 +92,27 @@ export interface IDocumentCapturedEvent {
     sdkVersion: string;
     userAgent: string;
     cameraResolution: string;
+  };
+}
+
+export interface IDocumentUploadedEvent {
+  type: EEventTypes.DOCUMENT_UPLOADED;
+  timestamp: string;
+  sessionId: string;
+  data: {
+    documentType: 'omang' | 'passport' | 'driversLicense';
+    side: 'front' | 'back';
+    fileName: string;
+    originalSize: number;
+    compressedSize: number;
+    compressionRatio: number;
+    uploadTime: number;
+  };
+  metadata: {
+    clientId?: string;
+    sdkVersion: string;
+    userAgent: string;
+    uploadMethod: 'button' | 'dragDrop';
   };
 }
 

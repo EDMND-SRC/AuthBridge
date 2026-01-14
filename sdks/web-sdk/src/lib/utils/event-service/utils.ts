@@ -17,8 +17,9 @@ import { EFlowEvent } from '../../services/flow-event-bus/enums';
 import { BALLERINE_EVENT } from './constants';
 import { IEventOptions } from '../../services/flow-event-bus/interfaces';
 
-// SDK version for event metadata - imported from package.json at build time
-// Using dynamic import to avoid issues in test environment
+// SDK version for event metadata
+// Note: Hardcoded to avoid build-time import issues with package.json in Vite/Svelte
+// Keep in sync with package.json version when releasing
 const SDK_VERSION = '1.2.0';
 
 const outerScopeContext = window.__blrn_context;
@@ -264,6 +265,61 @@ export const sendDocumentCapturedEvent = (
   const eventOptions = {
     eventName: BALLERINE_EVENT,
     eventType: EEventTypes.DOCUMENT_CAPTURED,
+    shouldExit: false,
+    payload: event,
+  };
+
+  sendIframeEvent(eventOptions);
+};
+
+/**
+ * Emits a document.uploaded event when user uploads a document file
+ * @param documentType - The document type being uploaded
+ * @param side - Which side of the document (front or back)
+ * @param fileName - Name of the uploaded file
+ * @param originalSize - Original file size in bytes
+ * @param compressedSize - Compressed file size in bytes
+ * @param compressionRatio - Ratio of original size to compressed size
+ * @param uploadTime - Time taken to upload and compress in milliseconds
+ * @param uploadMethod - How the file was uploaded (button or dragDrop)
+ */
+export const sendDocumentUploadedEvent = (
+  documentType: 'omang' | 'passport' | 'driversLicense',
+  side: 'front' | 'back',
+  fileName: string,
+  originalSize: number,
+  compressedSize: number,
+  compressionRatio: number,
+  uploadTime: number,
+  uploadMethod: 'button' | 'dragDrop',
+) => {
+  const sessionId = window.__blrn_context?.endUserInfo?.id || 'unknown';
+  const clientId = window.__blrn_context?.backendConfig?.auth?.clientId;
+
+  const event: IDocumentUploadedEvent = {
+    type: EEventTypes.DOCUMENT_UPLOADED,
+    timestamp: new Date().toISOString(),
+    sessionId,
+    data: {
+      documentType,
+      side,
+      fileName,
+      originalSize,
+      compressedSize,
+      compressionRatio,
+      uploadTime,
+    },
+    metadata: {
+      clientId,
+      sdkVersion: SDK_VERSION,
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+      uploadMethod,
+    },
+  };
+
+  const eventOptions = {
+    eventName: BALLERINE_EVENT,
+    eventType: EEventTypes.DOCUMENT_UPLOADED,
     shouldExit: false,
     payload: event,
   };

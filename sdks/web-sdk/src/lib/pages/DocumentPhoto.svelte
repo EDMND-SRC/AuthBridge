@@ -192,8 +192,8 @@
 
   const handleUploadInstead = () => {
     // Navigate to upload fallback (Story 1.4)
-    // For now, just go to previous step
-    goToPrevStep(currentStepId, $configuration, $currentStepId);
+    // Navigate to DocumentUpload step by setting the step ID directly
+    currentStepId.set('document-upload');
   };
 
   preloadNextStepByCurrent($configuration, configuration, $currentStepId, $uiPack);

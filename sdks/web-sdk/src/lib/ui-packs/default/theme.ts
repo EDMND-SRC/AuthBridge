@@ -239,6 +239,36 @@ const stepsTheme: TSteps = {
       },
     ],
   },
+  [Steps.DocumentUpload]: {
+    name: Steps.DocumentUpload,
+    id: Steps.DocumentUpload,
+    namespace: 'document-upload',
+    elements: [
+      backIconButton,
+      closeIconButton,
+      {
+        type: Elements.Title,
+        props: {
+          style: {
+            'text-align': 'center',
+            padding: '8px 0px 12px',
+            'font-size': '18px',
+          },
+        },
+      },
+      {
+        type: Elements.Paragraph,
+        props: {
+          style: {
+            'text-align': 'center',
+            margin: '0px 0px 8px',
+            'font-size': '14px',
+            color: '#788597',
+          },
+        },
+      },
+    ],
+  },
   [Steps.CheckDocument]: {
     name: Steps.CheckDocument,
     id: Steps.CheckDocument,

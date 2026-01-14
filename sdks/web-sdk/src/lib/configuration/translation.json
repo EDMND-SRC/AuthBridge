@@ -305,6 +305,31 @@
       "errorDocuments": "Error sending documents",
       "errorDocumentVerification": "Error document verification",
       "errorCameraAccess": "Cannot access your device's camera. To proceed, go to the app's settings and enable camera permissions."
+    },
+    "document-upload": {
+      "omang": {
+        "title": "Upload Your Omang",
+        "description": "Select a clear photo of your Omang card"
+      },
+      "passport": {
+        "title": "Upload Your Passport",
+        "description": "Select a clear photo of your passport"
+      },
+      "driversLicense": {
+        "title": "Upload Your Driver's Licence",
+        "description": "Select a clear photo of your driver's licence"
+      },
+      "uploadButton": "Upload from device",
+      "dragDropZone": "Drag and drop your document here, or click to browse",
+      "fileSelected": "File selected: {{fileName}} ({{fileSize}})",
+      "processing": "Processing your document...",
+      "errors": {
+        "fileTooLarge": "File too large (maximum 10MB)",
+        "invalidFileType": "Invalid file type (JPG, PNG, or PDF only)",
+        "imageTooSmall": "Image quality too low (minimum 640x480 pixels)",
+        "fileCorrupted": "File appears corrupted. Please try a different file.",
+        "uploadFailed": "Upload failed. Please try again."
+      }
     }
   },
   "es": {

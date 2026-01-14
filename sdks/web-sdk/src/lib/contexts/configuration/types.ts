@@ -11,6 +11,7 @@ export enum Steps {
   DocumentSelection = 'document-selection',
   DocumentStart = 'document-start',
   DocumentPhoto = 'document-photo',
+  DocumentUpload = 'document-upload',
   CheckDocument = 'check-document',
   DocumentPhotoBackStart = 'document-photo-back-start',
   DocumentPhotoBack = 'document-photo-back',

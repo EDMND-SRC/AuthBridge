@@ -7,6 +7,7 @@ export {
   sendVerificationErrorEvent,
   sendDocumentSelectedEvent,
   sendDocumentCapturedEvent,
+  sendDocumentUploadedEvent,
   subscribe,
 } from './utils';
 
@@ -17,6 +18,7 @@ export type {
   IVerificationErrorEvent,
   IDocumentSelectedEvent,
   IDocumentCapturedEvent,
+  IDocumentUploadedEvent,
 } from './types';
 export {
   EEventTypes,

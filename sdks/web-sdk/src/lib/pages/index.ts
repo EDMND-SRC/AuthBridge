@@ -2,6 +2,7 @@ export { default as Welcome } from './Welcome.svelte';
 export { default as DocumentSelection } from './DocumentSelection.svelte';
 export { default as DocumentStart } from './DocumentStart.svelte';
 export { default as DocumentPhoto } from './DocumentPhoto.svelte';
+export { default as DocumentUpload } from './DocumentUpload.svelte';
 export { default as CheckDocument } from './CheckDocument.svelte';
 export { default as DocumentPhotoBackStart } from './DocumentPhotoBackStart.svelte';
 export { default as DocumentPhotoBack } from './DocumentPhotoBack.svelte';

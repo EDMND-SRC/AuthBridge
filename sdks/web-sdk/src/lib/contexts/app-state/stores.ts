@@ -80,7 +80,20 @@ export interface ICaptureMetadata {
   cameraResolution: string;
 }
 
+// Document upload metadata for event emission on review confirmation
+export interface IUploadMetadata {
+  documentType: 'omang' | 'passport' | 'driversLicense';
+  side: 'front' | 'back';
+  fileName: string;
+  originalSize: number;
+  compressedSize: number;
+  compressionRatio: number;
+  uploadTime: number;
+  uploadMethod: 'button' | 'dragDrop';
+}
+
 export const pendingCaptureMetadata = writable<ICaptureMetadata | null>(null);
+export const pendingUploadMetadata = writable<IUploadMetadata | null>(null);
 
 export function setPendingCaptureMetadata(metadata: ICaptureMetadata) {
   pendingCaptureMetadata.set(metadata);
@@ -88,4 +101,12 @@ export function setPendingCaptureMetadata(metadata: ICaptureMetadata) {
 
 export function clearPendingCaptureMetadata() {
   pendingCaptureMetadata.set(null);
+}
+
+export function setPendingUploadMetadata(metadata: IUploadMetadata) {
+  pendingUploadMetadata.set(metadata);
+}
+
+export function clearPendingUploadMetadata() {
+  pendingUploadMetadata.set(null);
 }

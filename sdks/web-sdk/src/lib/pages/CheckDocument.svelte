@@ -6,12 +6,13 @@
   import { goToPrevStep, goToNextStep } from '../contexts/navigation';
   import { DocumentType, getDocImage, appState } from '../contexts/app-state';
   import { NavigationButtons } from '../molecules';
-  import { documents, currentStepId, selectedDocumentInfo, pendingCaptureMetadata, clearPendingCaptureMetadata } from '../contexts/app-state/stores';
+  import { documents, currentStepId, selectedDocumentInfo, pendingCaptureMetadata, pendingUploadMetadata, clearPendingCaptureMetadata, clearPendingUploadMetadata } from '../contexts/app-state/stores';
   import { preloadNextStepByCurrent } from '../services/preload-service';
   import {
     EActionNames,
     sendButtonClickEvent,
     sendDocumentCapturedEvent,
+    sendDocumentUploadedEvent,
     EVerificationStatuses,
   } from '../utils/event-service';
   import { getLayoutStyles, getStepConfiguration, uiPack } from '../ui-packs';
@@ -51,23 +52,39 @@
     );
   }
 
-  // Handle Continue button click - emit document.captured event per AC5
+  // Handle Continue button click - emit document.captured or document.uploaded event per AC5
   const handleContinue = () => {
-    const metadata = get(pendingCaptureMetadata);
+    const captureMetadata = get(pendingCaptureMetadata);
+    const uploadMetadata = get(pendingUploadMetadata);
 
-    if (metadata) {
+    if (captureMetadata) {
       // Emit document.captured event when user confirms the capture
       sendDocumentCapturedEvent(
-        metadata.documentType,
-        metadata.side,
-        metadata.imageSize,
-        metadata.compressionRatio,
-        metadata.captureTime,
-        metadata.cameraResolution,
+        captureMetadata.documentType,
+        captureMetadata.side,
+        captureMetadata.imageSize,
+        captureMetadata.compressionRatio,
+        captureMetadata.captureTime,
+        captureMetadata.cameraResolution,
       );
 
       // Clear the pending metadata
       clearPendingCaptureMetadata();
+    } else if (uploadMetadata) {
+      // Emit document.uploaded event when user confirms the upload
+      sendDocumentUploadedEvent(
+        uploadMetadata.documentType,
+        uploadMetadata.side,
+        uploadMetadata.fileName,
+        uploadMetadata.originalSize,
+        uploadMetadata.compressedSize,
+        uploadMetadata.compressionRatio,
+        uploadMetadata.uploadTime,
+        uploadMetadata.uploadMethod,
+      );
+
+      // Clear the pending metadata
+      clearPendingUploadMetadata();
     }
 
     // Navigate to next step
