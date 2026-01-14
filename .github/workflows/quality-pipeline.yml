@@ -1,0 +1,443 @@
+name: Quality Pipeline
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  schedule:
+    # Weekly burn-in on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Test environment'
+        required: true
+        default: 'local'
+        type: choice
+        options:
+          - local
+          - staging
+      run_burn_in:
+        description: 'Run burn-in tests'
+        required: false
+        default: false
+        type: boolean
+      burn_in_iterations:
+        description: 'Burn-in iterations'
+        required: false
+        default: '10'
+        type: string
+
+env:
+  NODE_VERSION: 22
+  PNPM_VERSION: 8
+
+jobs:
+  # ============================================================================
+  # Stage 1: Install & Cache Dependencies
+  # ============================================================================
+  install:
+    name: Install Dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate cache key
+        id: cache-key
+        run: echo "key=${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        id: cache-deps
+        with:
+          path: |
+            node_modules
+            **/node_modules
+          key: ${{ steps.cache-key.outputs.key }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: cache-playwright
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Install Playwright browsers
+        if: steps.cache-playwright.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps
+        working-directory: sdks/web-sdk
+
+  # ============================================================================
+  # Stage 2: Lint & Type Check
+  # ============================================================================
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    needs: install
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Restore dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            **/node_modules
+          key: ${{ needs.install.outputs.cache-key }}
+
+      - name: Run lint
+        run: pnpm lint
+        continue-on-error: true
+
+      - name: Run format check
+        run: pnpm format
+        continue-on-error: true
+
+  # ============================================================================
+  # Stage 3: Unit Tests
+  # ============================================================================
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: install
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Restore dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            **/node_modules
+          key: ${{ needs.install.outputs.cache-key }}
+
+      - name: Run unit tests
+        run: pnpm test
+        continue-on-error: true
+
+  # ============================================================================
+  # Stage 4: E2E Tests (Sharded)
+  # ============================================================================
+  e2e-tests:
+    name: E2E Tests (Shard ${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    needs: [install, lint]
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Restore dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            **/node_modules
+          key: ${{ needs.install.outputs.cache-key }}
+
+      - name: Restore Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Install Playwright browsers (if not cached)
+        run: npx playwright install --with-deps chromium
+        working-directory: sdks/web-sdk
+
+      - name: Run E2E tests (shard ${{ matrix.shard }}/4)
+        run: pnpm test:e2e --shard=${{ matrix.shard }}/4
+        working-directory: sdks/web-sdk
+        env:
+          TEST_ENV: ${{ github.event.inputs.environment || 'local' }}
+          CI: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-shard-${{ matrix.shard }}
+          path: |
+            sdks/web-sdk/test-results/
+            sdks/web-sdk/playwright-report/
+          retention-days: 30
+
+  # ============================================================================
+  # Stage 5: Burn-In Tests (Flaky Detection)
+  # ============================================================================
+  burn-in:
+    name: Burn-In Tests (${{ github.event.inputs.burn_in_iterations || '10' }} iterations)
+    runs-on: ubuntu-latest
+    needs: [install, e2e-tests]
+    timeout-minutes: 60
+    if: |
+      github.event_name == 'schedule' ||
+      github.event.inputs.run_burn_in == 'true' ||
+      contains(github.event.pull_request.labels.*.name, 'burn-in')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Restore dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            **/node_modules
+          key: ${{ needs.install.outputs.cache-key }}
+
+      - name: Restore Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Install Playwright browsers (if not cached)
+        run: npx playwright install --with-deps chromium
+        working-directory: sdks/web-sdk
+
+      - name: Detect changed test files
+        id: changed-tests
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            CHANGED_SPECS=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '\.(spec|test)\.(ts|js)$'$' | grep -E '^sdks/web-sdk/e2e/' || echo "")
+          else
+            CHANGED_SPECS=""
+          fi
+          echo "specs=${CHANGED_SPECS}" >> $GITHUB_OUTPUT
+          echo "Changed specs: ${CHANGED_SPECS:-'(none - running full suite)'}"
+
+      - name: Run burn-in loop
+        working-directory: sdks/web-sdk
+        env:
+          ITERATIONS: ${{ github.event.inputs.burn_in_iterations || '10' }}
+          CHANGED_SPECS: ${{ steps.changed-tests.outputs.specs }}
+        run: |
+          echo "🔥 Burn-In Test Runner"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Iterations: $ITERATIONS"
+          echo ""
+
+          TEST_CMD="pnpm test:e2e --project=chromium"
+          if [ -n "$CHANGED_SPECS" ]; then
+            echo "Running burn-in on changed specs only:"
+            echo "$CHANGED_SPECS" | sed 's/^/  - /'
+            TEST_CMD="$TEST_CMD $CHANGED_SPECS"
+          else
+            echo "Running burn-in on full test suite"
+          fi
+          echo ""
+
+          for i in $(seq 1 $ITERATIONS); do
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🔄 Iteration $i/$ITERATIONS"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+            if $TEST_CMD; then
+              echo "✅ Iteration $i passed"
+            else
+              echo "❌ Iteration $i failed"
+              echo ""
+              echo "🛑 BURN-IN FAILED on iteration $i"
+              exit 1
+            fi
+            echo ""
+          done
+
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🎉 BURN-IN PASSED"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "All $ITERATIONS iterations passed"
+
+      - name: Upload burn-in failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: burn-in-failures
+          path: |
+            sdks/web-sdk/test-results/
+            sdks/web-sdk/playwright-report/
+          retention-days: 30
+
+  # ============================================================================
+  # Stage 6: Merge Results & Report
+  # ============================================================================
+  report:
+    name: Merge Results & Report
+    runs-on: ubuntu-latest
+    needs: e2e-tests
+    if: always()
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Download all shard results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-shard-*
+          path: all-results/
+          merge-multiple: true
+
+      - name: List downloaded artifacts
+        run: |
+          echo "Downloaded artifacts:"
+          find all-results/ -type f | head -50
+
+      - name: Generate test summary
+        if: always()
+        run: |
+          echo "## 🧪 E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Count results
+          TOTAL_SHARDS=4
+          PASSED_SHARDS=$(ls -d all-results/test-results-shard-* 2>/dev/null | wc -l || echo "0")
+
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Shards Completed | $PASSED_SHARDS / $TOTAL_SHARDS |" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | ${{ github.event.inputs.environment || 'local' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Trigger | ${{ github.event_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$PASSED_SHARDS" -lt "$TOTAL_SHARDS" ]; then
+            echo "⚠️ Some shards failed. Check artifacts for details." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ All shards completed successfully." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload merged report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: merged-test-results
+          path: all-results/
+          retention-days: 30
+
+  # ============================================================================
+  # Stage 7: Quality Gate
+  # ============================================================================
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: [lint, unit-tests, e2e-tests, report]
+    if: always()
+
+    steps:
+      - name: Check quality gate
+        run: |
+          echo "## 🚦 Quality Gate Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          LINT_RESULT="${{ needs.lint.result }}"
+          UNIT_RESULT="${{ needs.unit-tests.result }}"
+          E2E_RESULT="${{ needs.e2e-tests.result }}"
+
+          echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint | $LINT_RESULT |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit Tests | $UNIT_RESULT |" >> $GITHUB_STEP_SUMMARY
+          echo "| E2E Tests | $E2E_RESULT |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # E2E tests are the critical gate
+          if [ "$E2E_RESULT" == "failure" ]; then
+            echo "❌ **Quality gate FAILED** - E2E tests did not pass" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "✅ **Quality gate PASSED**" >> $GITHUB_STEP_SUMMARY

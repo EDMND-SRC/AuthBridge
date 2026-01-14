@@ -1,10 +1,30 @@
 {
   "en": {
     "welcome": {
-      "title": "Verify your identity",
-      "button": "Choose document type",
-      "description": "We need some information to help us confirm \nyour identity.",
+      "title": "Verify Your Identity",
+      "button": "Start Verification",
+      "description": "We need to verify your identity to complete your application.",
+      "estimatedTime": "⏱ This takes about 2 minutes",
+      "requiredItemsHeading": "You'll need:",
+      "requiredItemDocument": "✓ Your Omang or Passport",
+      "requiredItemLighting": "✓ Good lighting",
+      "requiredItemSteady": "✓ A steady hand for photos",
+      "privacyPolicy": "🔒 Your data is encrypted and protected.",
+      "privacyPolicyLink": "Privacy Policy",
+      "privacyPolicyUrl": "https://authbridge.io/privacy",
       "tip": "Verifying usually takes a few seconds."
+    },
+    "list-welcome": {
+      "title": "You'll need:",
+      "item-1": "✓ Your Omang or Passport",
+      "item-2": "✓ Good lighting",
+      "item-3": "✓ A steady hand for photos"
+    },
+    "list-default": {
+      "title": "You'll need:",
+      "item-1": "✓ Your Omang or Passport",
+      "item-2": "✓ Good lighting",
+      "item-3": "✓ A steady hand for photos"
     },
     "document-selection": {
       "title": "Upload ID",

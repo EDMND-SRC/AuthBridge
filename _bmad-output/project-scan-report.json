@@ -1,0 +1,41 @@
+{
+  "workflow_version": "1.2.0",
+  "timestamps": {
+    "started": "2026-01-13T10:00:00.000Z",
+    "last_updated": "2026-01-13T10:05:00.000Z"
+  },
+  "mode": "full_rescan",
+  "scan_level": "exhaustive",
+  "project_root": ".",
+  "output_folder": "docs",
+  "project_name": "AuthBridge",
+  "base_platform": "Ballerine (open-source)",
+  "repository_type": "monorepo",
+  "completed_steps": [
+    {
+      "step": "step_1",
+      "status": "completed",
+      "timestamp": "2026-01-13T10:05:00.000Z",
+      "summary": "Classified as monorepo with 5 parts: backoffice (web), web-sdk (library), mobile-sdks (mobile), backend (backend), packages (library)"
+    },
+    {
+      "step": "step_2",
+      "status": "completed",
+      "timestamp": "2026-01-13T10:10:00.000Z",
+      "summary": "Found 24 existing docs: README, CONTRIBUTING, STYLE_GUIDE, planning artifacts (PRD, architecture, epics, UX), research docs, SDK docs, CI/CD docs"
+    }
+  ],
+  "current_step": "step_4",
+  "findings": {
+    "project_classification": "AuthBridge - Botswana KYC/KYB identity verification platform based on Ballerine"
+  },
+  "project_types": [
+    {"part_id": "backoffice", "project_type_id": "web", "display_name": "Backoffice Dashboard", "root_path": "apps/backoffice/"},
+    {"part_id": "web-sdk", "project_type_id": "library", "display_name": "Web SDK Library", "root_path": "sdks/web-sdk/"},
+    {"part_id": "mobile-sdks", "project_type_id": "mobile", "display_name": "Mobile SDK Libraries", "root_path": "sdks/"},
+    {"part_id": "backend", "project_type_id": "backend", "display_name": "Backend Services", "root_path": "services/backend/"},
+    {"part_id": "packages", "project_type_id": "library", "display_name": "Shared Packages", "root_path": "packages/"}
+  ],
+  "outputs_generated": ["project-scan-report.json"],
+  "resume_instructions": "Proceeding to step 2 - discover existing documentation"
+}

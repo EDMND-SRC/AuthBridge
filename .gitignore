@@ -44,3 +44,4 @@ stats.html
 # System Files
 .DS_Store
 Thumbs.db
+.env.local

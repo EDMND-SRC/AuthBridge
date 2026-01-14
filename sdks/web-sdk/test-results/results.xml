@@ -1,0 +1,236 @@
+<testsuites id="" name="" tests="45" failures="0" skipped="45" errors="0" time="0.841161">
+<testsuite name="api/example.api.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="chromium" tests="7" failures="0" skipped="7" time="0" errors="0">
+<testcase name="SDK API Health Check › should respond to health endpoint" classname="api/example.api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="SDK API Health Check › should handle 404 gracefully" classname="api/example.api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="SDK Configuration API › should fetch SDK configuration" classname="api/example.api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="SDK Configuration API › should validate API key" classname="api/example.api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Verification API › should create verification session" classname="api/example.api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Verification API › should validate required fields" classname="api/example.api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Verification API › should poll verification status" classname="api/example.api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyb/drivers-license.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="chromium" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYB Drivers License Flow › completes business verification with drivers license" classname="kyb/drivers-license.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyb/id-card.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="chromium" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYB ID Card Flow › completes business verification with ID card" classname="kyb/id-card.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyb/passport.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="chromium" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYB Passport Flow › completes business verification with passport" classname="kyb/passport.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyb/voter-id.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="chromium" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYB Voter ID Flow › completes business verification with voter ID" classname="kyb/voter-id.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyc/drivers-license.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="chromium" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYC Drivers License Flow › completes drivers license verification successfully" classname="kyc/drivers-license.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyc/id-card.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="chromium" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYC ID Card Flow › completes ID card verification successfully" classname="kyc/id-card.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyc/passport.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="chromium" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYC Passport Flow › completes passport verification successfully" classname="kyc/passport.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyc/voter-id.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="chromium" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYC Voter ID Flow › completes voter ID verification successfully" classname="kyc/voter-id.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="api/example.api.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="firefox" tests="7" failures="0" skipped="7" time="0" errors="0">
+<testcase name="SDK API Health Check › should respond to health endpoint" classname="api/example.api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="SDK API Health Check › should handle 404 gracefully" classname="api/example.api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="SDK Configuration API › should fetch SDK configuration" classname="api/example.api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="SDK Configuration API › should validate API key" classname="api/example.api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Verification API › should create verification session" classname="api/example.api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Verification API › should validate required fields" classname="api/example.api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Verification API › should poll verification status" classname="api/example.api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyb/drivers-license.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="firefox" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYB Drivers License Flow › completes business verification with drivers license" classname="kyb/drivers-license.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyb/id-card.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="firefox" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYB ID Card Flow › completes business verification with ID card" classname="kyb/id-card.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyb/passport.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="firefox" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYB Passport Flow › completes business verification with passport" classname="kyb/passport.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyb/voter-id.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="firefox" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYB Voter ID Flow › completes business verification with voter ID" classname="kyb/voter-id.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyc/drivers-license.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="firefox" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYC Drivers License Flow › completes drivers license verification successfully" classname="kyc/drivers-license.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyc/id-card.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="firefox" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYC ID Card Flow › completes ID card verification successfully" classname="kyc/id-card.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyc/passport.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="firefox" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYC Passport Flow › completes passport verification successfully" classname="kyc/passport.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyc/voter-id.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="firefox" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYC Voter ID Flow › completes voter ID verification successfully" classname="kyc/voter-id.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="api/example.api.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="mobile-chrome" tests="7" failures="0" skipped="7" time="0" errors="0">
+<testcase name="SDK API Health Check › should respond to health endpoint" classname="api/example.api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="SDK API Health Check › should handle 404 gracefully" classname="api/example.api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="SDK Configuration API › should fetch SDK configuration" classname="api/example.api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="SDK Configuration API › should validate API key" classname="api/example.api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Verification API › should create verification session" classname="api/example.api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Verification API › should validate required fields" classname="api/example.api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Verification API › should poll verification status" classname="api/example.api.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyb/drivers-license.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="mobile-chrome" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYB Drivers License Flow › completes business verification with drivers license" classname="kyb/drivers-license.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyb/id-card.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="mobile-chrome" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYB ID Card Flow › completes business verification with ID card" classname="kyb/id-card.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyb/passport.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="mobile-chrome" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYB Passport Flow › completes business verification with passport" classname="kyb/passport.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyb/voter-id.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="mobile-chrome" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYB Voter ID Flow › completes business verification with voter ID" classname="kyb/voter-id.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyc/drivers-license.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="mobile-chrome" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYC Drivers License Flow › completes drivers license verification successfully" classname="kyc/drivers-license.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyc/id-card.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="mobile-chrome" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYC ID Card Flow › completes ID card verification successfully" classname="kyc/id-card.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyc/passport.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="mobile-chrome" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYC Passport Flow › completes passport verification successfully" classname="kyc/passport.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="kyc/voter-id.spec.ts" timestamp="2026-01-13T20:03:31.558Z" hostname="mobile-chrome" tests="1" failures="0" skipped="1" time="0" errors="0">
+<testcase name="KYC Voter ID Flow › completes voter ID verification successfully" classname="kyc/voter-id.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+</testsuites>

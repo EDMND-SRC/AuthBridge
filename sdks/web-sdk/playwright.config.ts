@@ -1,48 +1,94 @@
-import type { PlaywrightTestConfig } from '@playwright/test';
-import { devices } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 /**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
+ * AuthBridge Web SDK - Playwright Configuration
+ * Upgraded: January 2026
+ *
+ * Environment-based configuration with standardized timeouts,
+ * artifact capture, and parallel execution support.
  */
+
+// ES Module compatibility for __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables
 import 'dotenv/config';
 
-/**
- * See https://playwright.dev/docs/test-configuration.
- */
-const config: PlaywrightTestConfig = {
-  testDir: './e2e',
-  /* Maximum time one test can run for. */
-  timeout: 30 * 1000,
-  expect: {
-    /**
-     * Maximum time expect() should wait for the condition to be met.
-     * For example in `await expect(locator).toHaveText();`
-     */
-    timeout: 5000,
-  },
-  /* Run tests in files in parallel */
-  fullyParallel: true,
-  /* Fail the build on CI if you accidentally left test.only in the source code. */
-  forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: process.env.CI ? 'github' : 'list',
-  /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
-  use: {
-    /* Maximum time each action such as `click()` can take. Defaults to 0 (no limit). */
-    actionTimeout: 0,
-    /* Base URL to use in actions like `await page.goto('/')`. */
+// Environment configuration map
+const envConfigMap = {
+  local: {
     baseURL: 'http://localhost:9090',
+    webServer: {
+      command: 'pnpm example:standalone',
+      url: 'http://127.0.0.1:9090',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120 * 1000,
+    },
+  },
+  staging: {
+    baseURL: process.env.STAGING_URL || 'https://staging.authbridge.io',
+    webServer: undefined,
+  },
+  production: {
+    baseURL: process.env.PRODUCTION_URL || 'https://sdk.authbridge.io',
+    webServer: undefined,
+  },
+};
 
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
+const environment = (process.env.TEST_ENV || 'local') as keyof typeof envConfigMap;
+
+// Fail fast if environment not supported
+if (!Object.keys(envConfigMap).includes(environment)) {
+  console.error(`❌ No configuration found for environment: ${environment}`);
+  console.error(`   Available environments: ${Object.keys(envConfigMap).join(', ')}`);
+  process.exit(1);
+}
+
+console.log(`✅ Running tests against: ${environment.toUpperCase()}`);
+
+const envConfig = envConfigMap[environment];
+
+export default defineConfig({
+  testDir: './e2e',
+  outputDir: path.resolve(__dirname, './test-results'),
+
+  /* Parallel execution */
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
+
+  /* Standardized timeouts */
+  timeout: 60 * 1000, // Test timeout: 60s
+  expect: {
+    timeout: 10 * 1000, // Assertion timeout: 10s
   },
 
-  /* Configure projects for major browsers */
+  /* Reporters */
+  reporter: [
+    ['html', { outputFolder: 'playwright-report', open: 'never' }],
+    ['junit', { outputFile: 'test-results/results.xml' }],
+    process.env.CI ? ['github'] : ['list'],
+  ],
+
+  /* Shared settings */
+  use: {
+    baseURL: envConfig.baseURL,
+
+    /* Standardized timeouts */
+    actionTimeout: 15 * 1000, // Action timeout: 15s
+    navigationTimeout: 30 * 1000, // Navigation timeout: 30s
+
+    /* Artifact capture (failure-only to save space) */
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
+  },
+
+  /* Browser projects */
   projects: [
     {
       name: 'chromium',
@@ -52,12 +98,11 @@ const config: PlaywrightTestConfig = {
           args: [
             '--use-fake-device-for-media-stream',
             '--use-fake-ui-for-media-stream',
-            '--use-file-for-fake-video-capture=./e2e/fixtures/selfie.mjpeg',
+            '--use-file-for-fake-video-capture=./e2e/assets/selfie.mjpeg',
           ],
         },
       },
     },
-
     {
       name: 'firefox',
       use: {
@@ -84,58 +129,21 @@ const config: PlaywrightTestConfig = {
         },
       },
     },
-
-    // Playwright currently does not support faking video on WebKit
-    // {
-    //   name: 'webkit',
-    //   use: {
-    //     ...devices['Desktop Safari'],
-    //     launchOptions: {
-    //       args: [],
-    //     },
-    //   },
-    // },
-
-    /* Test against mobile viewports. */
-    // {
-    //   name: 'Mobile Chrome',
-    //   use: {
-    //     ...devices['Pixel 5'],
-    //   },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: {
-    //     ...devices['iPhone 12'],
-    //   },
-    // },
-
-    /* Test against branded browsers. */
-    // {
-    //   name: 'Microsoft Edge',
-    //   use: {
-    //     channel: 'msedge',
-    //   },
-    // },
-    // {
-    //   name: 'Google Chrome',
-    //   use: {
-    //     channel: 'chrome',
-    //   },
-    // },
+    {
+      name: 'mobile-chrome',
+      use: {
+        ...devices['Pixel 5'],
+        launchOptions: {
+          args: [
+            '--use-fake-device-for-media-stream',
+            '--use-fake-ui-for-media-stream',
+            '--use-file-for-fake-video-capture=./e2e/assets/selfie.mjpeg',
+          ],
+        },
+      },
+    },
   ],
 
-  /* Folder for test artifacts such as screenshots, videos, traces, etc. */
-  // outputDir: 'test-results/',
-
-  /* Run your local dev server before starting the tests */
-  webServer: {
-    command: `pnpm example:standalone`,
-    url: 'http://127.0.0.1:9090',
-    reuseExistingServer: false,
-    timeout: 120 * 1000,
-    ignoreHTTPSErrors: true,
-  },
-};
-
-export default config;
+  /* Web server (local only) */
+  webServer: envConfig.webServer,
+});

@@ -50,6 +50,7 @@ const stepsTheme: TSteps = {
   [Steps.Welcome]: {
     name: Steps.Welcome,
     id: Steps.Welcome,
+    namespace: 'welcome',
     elements: [
       backWhiteIconButton,
       closeIconButton,
@@ -57,7 +58,28 @@ const stepsTheme: TSteps = {
         type: Elements.Title,
         props: {
           style: {
-            padding: '28px 0px 70px',
+            padding: '28px 0px 12px',
+          },
+        },
+      },
+      {
+        type: Elements.Paragraph,
+        props: {
+          style: {
+            'text-align': 'center',
+            margin: '0px 0px 8px',
+            'font-size': '14px',
+            color: '#926A90',
+          },
+          context: 'estimatedTime',
+        },
+      },
+      {
+        type: Elements.List,
+        props: {
+          style: {
+            margin: '16px 0px',
+            'text-align': 'left',
           },
         },
       },
@@ -71,18 +93,8 @@ const stepsTheme: TSteps = {
           attributes: {
             src: 'https://cdn.ballerine.io/ui-packs/future/welcome.svg',
             alt: 'welcome',
-            width: '218px',
-            height: '218px',
-          },
-        },
-      },
-      {
-        type: Elements.Paragraph,
-        props: {
-          style: {
-            'text-align': 'center',
-            margin: '0px 0px 50px',
-            'font-size': '16px',
+            width: '180px',
+            height: '180px',
           },
         },
       },
@@ -91,6 +103,17 @@ const stepsTheme: TSteps = {
         props: {
           style: {
           }
+        },
+      },
+      {
+        type: Elements.PrivacyLink,
+        props: {
+          style: {
+            margin: '16px 0px 24px',
+            'text-align': 'center',
+            'font-size': '12px',
+            color: '#926A90',
+          },
         },
       },
     ],

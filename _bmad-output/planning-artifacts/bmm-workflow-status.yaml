@@ -1,0 +1,32 @@
+# BMM Workflow Status - AuthBridge
+# Generated: 2026-01-14
+# Track: BMad Method (Brownfield)
+
+generated: "2026-01-14"
+project: "AuthBridge"
+project_type: "brownfield"
+selected_track: "bmad-method"
+field_type: "brownfield"
+workflow_path: "{project-root}/_bmad/bmm/workflows/workflow-status/paths/method-brownfield.yaml"
+
+workflow_status:
+  # Phase 0: Documentation (conditional - if_undocumented)
+  document-project: "_bmad-output/project-context.md"
+
+  # Phase 1: Analysis (Optional)
+  brainstorm-project: "_bmad-output/analysis/brainstorming-session-2026-01-12-revised.md"
+  research: "_bmad-output/research/RESEARCH-SUMMARY-2026-01-13.md"
+  product-brief: "_bmad-output/planning-artifacts/product-brief-AuthBridge-2026-01-13.md"
+
+  # Phase 2: Planning (Required)
+  prd: "_bmad-output/planning-artifacts/prd.md"
+  create-ux-design: "_bmad-output/planning-artifacts/ux-design-spec.md"
+
+  # Phase 3: Solutioning (Required)
+  create-architecture: "_bmad-output/planning-artifacts/architecture.md"
+  create-epics-and-stories: "_bmad-output/planning-artifacts/epics.md"
+  test-design: optional
+  implementation-readiness: "_bmad-output/planning-artifacts/implementation-readiness-report-2026-01-13.md"
+
+  # Phase 4: Implementation (Required)
+  sprint-planning: required

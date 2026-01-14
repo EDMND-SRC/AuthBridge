@@ -44,7 +44,8 @@ export enum Elements {
   VideoContainer = 'video-container',
   List = 'list',
   ErrorText = 'error-text',
-  Loader = 'loader'
+  Loader = 'loader',
+  PrivacyLink = 'privacy-link'
 }
 
 export interface IOpacityColor {

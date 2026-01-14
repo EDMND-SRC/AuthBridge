@@ -44,7 +44,11 @@
     "prepare": "husky install",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "pnpm build && changeset publish"
+    "release": "pnpm build && changeset publish",
+    "ci:local": "bash scripts/ci-local.sh",
+    "ci:local:full": "bash scripts/ci-local.sh --full",
+    "test:changed": "bash scripts/test-changed.sh",
+    "test:burn-in": "bash scripts/burn-in.sh"
   },
   "license": "ISC",
   "devDependencies": {

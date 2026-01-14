@@ -15,14 +15,18 @@ module.exports = {
         https: require.resolve('https-browserify'),
         os: require.resolve('os-browserify'),
         url: require.resolve('url'),
+        process: require.resolve('process/browser.js'),
       });
+
+      // Fix for ESM modules requiring fully specified paths
+      config.resolve.fullySpecified = false;
 
       return config;
     },
     plugins: {
       add: [
         new ProvidePlugin({
-          process: 'process/browser',
+          process: 'process/browser.js',
           Buffer: ['buffer', 'Buffer'],
         }),
       ],

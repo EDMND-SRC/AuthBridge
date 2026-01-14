@@ -1,0 +1,11 @@
+installation:
+  version: 6.0.0-alpha.23
+  installDate: 2026-01-11T12:20:46.498Z
+  lastUpdated: 2026-01-11T12:20:46.498Z
+modules:
+  - core
+  - bmb
+  - bmm
+  - cis
+ides:
+  - kiro-cli

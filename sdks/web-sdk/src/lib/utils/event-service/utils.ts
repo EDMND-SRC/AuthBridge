@@ -1,6 +1,14 @@
 import { appState, IAppState } from '../../contexts/app-state';
 import { currentLanguage, Languages } from '../../contexts/translation';
-import { EActionNames, EEventTypes, IDocumentVerificationResponse, IOuterEvent } from './types';
+import {
+  EActionNames,
+  EEventTypes,
+  EVerificationErrorCodes,
+  IDocumentVerificationResponse,
+  IOuterEvent,
+  IVerificationStartedEvent,
+  IVerificationErrorEvent,
+} from './types';
 import { get } from 'svelte/store';
 import { flowEventBus } from '../../services/flow-event-bus/flow-event-bus';
 import { EFlowEvent } from '../../services/flow-event-bus/enums';
@@ -20,6 +28,9 @@ const docTypeMapping = {
   documentFront: 'document-front',
   selfie: 'face',
 };
+
+// SDK version for event metadata
+const SDK_VERSION = '1.2.0';
 
 export const subscribe = () => {
   window.addEventListener('message', e => {
@@ -105,4 +116,71 @@ export const sendButtonClickEvent = (
   };
 
   window.parent.postMessage(eventOptions, '*');
+};
+
+/**
+ * Emits a verification.started event when user clicks "Start Verification"
+ * @param sessionId - The current session ID
+ * @param clientId - Optional client ID
+ */
+export const sendVerificationStartedEvent = (
+  sessionId: string,
+  clientId?: string,
+) => {
+  const event: IVerificationStartedEvent = {
+    type: EEventTypes.VERIFICATION_STARTED,
+    timestamp: new Date().toISOString(),
+    sessionId,
+    metadata: {
+      clientId,
+      sdkVersion: SDK_VERSION,
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+    },
+  };
+
+  const eventOptions = {
+    eventName: BALLERINE_EVENT,
+    eventType: EEventTypes.VERIFICATION_STARTED,
+    shouldExit: false,
+    payload: event,
+  };
+
+  sendIframeEvent(eventOptions);
+};
+
+/**
+ * Emits a verification.error event when initialization fails
+ * @param errorCode - The error code
+ * @param message - Human-readable error message
+ * @param sessionId - The session ID (may be null if session was invalid)
+ */
+export const sendVerificationErrorEvent = (
+  errorCode: EVerificationErrorCodes,
+  message: string,
+  sessionId: string | null = null,
+) => {
+  const event: IVerificationErrorEvent = {
+    type: EEventTypes.VERIFICATION_ERROR,
+    timestamp: new Date().toISOString(),
+    sessionId,
+    error: {
+      code: errorCode,
+      message,
+    },
+  };
+
+  const eventOptions = {
+    eventName: BALLERINE_EVENT,
+    eventType: EEventTypes.VERIFICATION_ERROR,
+    shouldExit: false,
+    payload: event,
+  };
+
+  sendIframeEvent(eventOptions);
+
+  // Also emit via flow event bus for error handling
+  flowEventBus({
+    type: EFlowEvent.FLOW_ERROR,
+    payload: eventOptions,
+  });
 };

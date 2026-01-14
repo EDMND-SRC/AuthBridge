@@ -8,6 +8,8 @@
   import { t } from './lib/contexts/translation/hooks';
   import { setFlowName } from './lib/contexts/flows';
   import { uiPack } from './lib/ui-packs';
+  import { validateAndReportSession } from './lib/services/session-service';
+  import { onMount } from 'svelte';
 
   subscribe();
   initConnectionCheck(t);
@@ -28,6 +30,17 @@
       $configuration.general?.colors?.secondary || $uiPack.general.colors.secondary
     };
   `;
+
+  // Validate session token on initialization (AC6)
+  onMount(() => {
+    const sessionToken = $configuration.endUserInfo?.id;
+    const isValid = validateAndReportSession(sessionToken, sessionToken || null);
+
+    if (!isValid) {
+      console.error('Session validation failed - invalid or expired token');
+      // Error event already emitted by validateAndReportSession
+    }
+  });
 </script>
 
 <svelte:head>
