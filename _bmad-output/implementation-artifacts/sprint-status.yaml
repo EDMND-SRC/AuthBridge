@@ -78,13 +78,17 @@ development_status:
   # Technical debt and infrastructure improvements from Epic 1.5 retrospective
   # ═══════════════════════════════════════════════════════════════════════════
   prep-sprint:
-    status: in-progress
+    status: done
     started: 2026-01-14
+    completed: 2026-01-14
     tasks:
       dynamodb-swap-auth-service: done  # Replaced in-memory storage with DynamoDB
       aws-textract-quota-research: done  # Documented af-south-1 quotas (1 TPS)
       integration-test-framework: done  # Created test helpers for both services
-      staging-deployment: backlog
+      staging-deployment: done  # Auth + Verification services deployed to af-south-1
+    endpoints:
+      auth: https://zscpgvpyk9.execute-api.af-south-1.amazonaws.com/staging
+      verification: https://maybpud8y5.execute-api.af-south-1.amazonaws.com/staging
 
   # ═══════════════════════════════════════════════════════════════════════════
   # EPIC 3: Case Management Dashboard (MVP)

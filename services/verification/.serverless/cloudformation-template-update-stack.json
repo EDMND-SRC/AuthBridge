@@ -178,45 +178,11 @@
                 {
                   "Effect": "Allow",
                   "Action": [
-                    "kms:Decrypt",
-                    "kms:Encrypt",
-                    "kms:GenerateDataKey"
-                  ],
-                  "Resource": "arn:aws:kms:af-south-1:*:key/*"
-                },
-                {
-                  "Effect": "Allow",
-                  "Action": [
                     "logs:CreateLogGroup",
                     "logs:CreateLogStream",
                     "logs:PutLogEvents"
                   ],
                   "Resource": "arn:aws:logs:af-south-1:*:*"
-                },
-                {
-                  "Effect": "Allow",
-                  "Action": [
-                    "cloudwatch:PutMetricData"
-                  ],
-                  "Resource": "*"
-                },
-                {
-                  "Effect": "Allow",
-                  "Action": [
-                    "xray:PutTraceSegments",
-                    "xray:PutTelemetryRecords"
-                  ],
-                  "Resource": "*"
-                },
-                {
-                  "Effect": "Allow",
-                  "Action": [
-                    "xray:PutTraceSegments",
-                    "xray:PutTelemetryRecords"
-                  ],
-                  "Resource": [
-                    "*"
-                  ]
                 }
               ]
             }
@@ -245,7 +211,7 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/authbridge-verification/staging/1768416823009-2026-01-14T18:53:43.009Z/authbridge-verification.zip"
+          "S3Key": "serverless/authbridge-verification/staging/1768418809248-2026-01-14T19:26:49.248Z/authbridge-verification.zip"
         },
         "Handler": "dist/handlers/create-verification.handler",
         "Runtime": "nodejs20.x",
@@ -253,9 +219,6 @@
         "MemorySize": 512,
         "Timeout": 30,
         "Description": "Create new verification case",
-        "TracingConfig": {
-          "Mode": "Active"
-        },
         "Environment": {
           "Variables": {
             "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
@@ -282,7 +245,7 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/authbridge-verification/staging/1768416823009-2026-01-14T18:53:43.009Z/authbridge-verification.zip"
+          "S3Key": "serverless/authbridge-verification/staging/1768418809248-2026-01-14T19:26:49.248Z/authbridge-verification.zip"
         },
         "Handler": "dist/handlers/get-verification.handler",
         "Runtime": "nodejs20.x",
@@ -290,9 +253,6 @@
         "MemorySize": 512,
         "Timeout": 30,
         "Description": "Get verification case by ID",
-        "TracingConfig": {
-          "Mode": "Active"
-        },
         "Environment": {
           "Variables": {
             "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
@@ -319,7 +279,7 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/authbridge-verification/staging/1768416823009-2026-01-14T18:53:43.009Z/authbridge-verification.zip"
+          "S3Key": "serverless/authbridge-verification/staging/1768418809248-2026-01-14T19:26:49.248Z/authbridge-verification.zip"
         },
         "Handler": "dist/handlers/upload-document.handler",
         "Runtime": "nodejs20.x",
@@ -327,9 +287,6 @@
         "MemorySize": 1024,
         "Timeout": 30,
         "Description": "Upload document to verification case",
-        "TracingConfig": {
-          "Mode": "Active"
-        },
         "Environment": {
           "Variables": {
             "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
@@ -356,7 +313,7 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/authbridge-verification/staging/1768416823009-2026-01-14T18:53:43.009Z/authbridge-verification.zip"
+          "S3Key": "serverless/authbridge-verification/staging/1768418809248-2026-01-14T19:26:49.248Z/authbridge-verification.zip"
         },
         "Handler": "dist/handlers/refresh-document-url.handler",
         "Runtime": "nodejs20.x",
@@ -364,9 +321,6 @@
         "MemorySize": 512,
         "Timeout": 30,
         "Description": "Refresh presigned URL for document access",
-        "TracingConfig": {
-          "Mode": "Active"
-        },
         "Environment": {
           "Variables": {
             "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
@@ -386,7 +340,7 @@
         "RefreshDocumentUrlLogGroup"
       ]
     },
-    "CreateVerificationLambdaVersionmk81OtcZur25k4v47re2sufxNa3gnt9LjapMo3yJ95U": {
+    "CreateVerificationLambdaVersionSvdcWXxP49iaPXPXz3zbjaJrWs72zRSXbl5BrCg": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
@@ -397,7 +351,7 @@
         "Description": "Create new verification case"
       }
     },
-    "GetVerificationLambdaVersion5DZEZSvrz7mglTWpj1I39hws7yeKdS265AbcKt2d8": {
+    "GetVerificationLambdaVersionA8h5xDIlkEaS03NBkajbbPqtzC0Mwxii9nkKocg": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
@@ -408,7 +362,7 @@
         "Description": "Get verification case by ID"
       }
     },
-    "UploadDocumentLambdaVersioneuTV5wJsK9fLVJawQPaMUTgBYy23NSH8Ww1I2o73A": {
+    "UploadDocumentLambdaVersiongRfm7a2RnLMXZctAE9109FLWMcR9jnO8TO1Tja04a8": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
@@ -419,7 +373,7 @@
         "Description": "Upload document to verification case"
       }
     },
-    "RefreshDocumentUrlLambdaVersionVx6gz0gQR77XN9JKxA3Pdr3YD1UsUw1r8io22I4bl8": {
+    "RefreshDocumentUrlLambdaVersions3tThGDBvR0jHNRFxbwi7ivl3qQKoGVrCPDXjMDEe8": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
@@ -721,10 +675,7 @@
           "Ref": "ApiGatewayRestApi"
         },
         "ApiKeyRequired": false,
-        "AuthorizationType": "CUSTOM",
-        "AuthorizerId": {
-          "Ref": "AuthorizerApiGatewayAuthorizer"
-        },
+        "AuthorizationType": "NONE",
         "Integration": {
           "IntegrationHttpMethod": "POST",
           "Type": "AWS_PROXY",
@@ -755,7 +706,7 @@
         "MethodResponses": []
       },
       "DependsOn": [
-        "AuthorizerApiGatewayAuthorizer"
+        "CreateVerificationLambdaPermissionApiGateway"
       ]
     },
     "ApiGatewayMethodApiV1VerificationsVerificationidVarGet": {
@@ -770,10 +721,7 @@
           "Ref": "ApiGatewayRestApi"
         },
         "ApiKeyRequired": false,
-        "AuthorizationType": "CUSTOM",
-        "AuthorizerId": {
-          "Ref": "AuthorizerApiGatewayAuthorizer"
-        },
+        "AuthorizationType": "NONE",
         "Integration": {
           "IntegrationHttpMethod": "POST",
           "Type": "AWS_PROXY",
@@ -804,7 +752,7 @@
         "MethodResponses": []
       },
       "DependsOn": [
-        "AuthorizerApiGatewayAuthorizer"
+        "GetVerificationLambdaPermissionApiGateway"
       ]
     },
     "ApiGatewayMethodApiV1VerificationsVerificationidVarDocumentsPost": {
@@ -819,10 +767,7 @@
           "Ref": "ApiGatewayRestApi"
         },
         "ApiKeyRequired": false,
-        "AuthorizationType": "CUSTOM",
-        "AuthorizerId": {
-          "Ref": "AuthorizerApiGatewayAuthorizer"
-        },
+        "AuthorizationType": "NONE",
         "Integration": {
           "IntegrationHttpMethod": "POST",
           "Type": "AWS_PROXY",
@@ -853,7 +798,7 @@
         "MethodResponses": []
       },
       "DependsOn": [
-        "AuthorizerApiGatewayAuthorizer"
+        "UploadDocumentLambdaPermissionApiGateway"
       ]
     },
     "ApiGatewayMethodApiV1VerificationsVerificationidVarDocumentsDocumentidVarUrlPost": {
@@ -868,10 +813,7 @@
           "Ref": "ApiGatewayRestApi"
         },
         "ApiKeyRequired": false,
-        "AuthorizationType": "CUSTOM",
-        "AuthorizerId": {
-          "Ref": "AuthorizerApiGatewayAuthorizer"
-        },
+        "AuthorizationType": "NONE",
         "Integration": {
           "IntegrationHttpMethod": "POST",
           "Type": "AWS_PROXY",
@@ -902,40 +844,10 @@
         "MethodResponses": []
       },
       "DependsOn": [
-        "AuthorizerApiGatewayAuthorizer"
+        "RefreshDocumentUrlLambdaPermissionApiGateway"
       ]
     },
-    "AuthorizerApiGatewayAuthorizer": {
-      "Type": "AWS::ApiGateway::Authorizer",
-      "Properties": {
-        "AuthorizerResultTtlInSeconds": 300,
-        "IdentitySource": "method.request.header.Authorization",
-        "Name": "authorizer",
-        "RestApiId": {
-          "Ref": "ApiGatewayRestApi"
-        },
-        "AuthorizerUri": {
-          "Fn::Join": [
-            "",
-            [
-              "arn:",
-              {
-                "Ref": "AWS::Partition"
-              },
-              ":apigateway:",
-              {
-                "Ref": "AWS::Region"
-              },
-              ":lambda:path/2015-03-31/functions/",
-              "arn:aws:lambda:af-south-1:*:function:authbridge-auth-staging-authorizer",
-              "/invocations"
-            ]
-          ]
-        },
-        "Type": "TOKEN"
-      }
-    },
-    "ApiGatewayDeployment1768416796074": {
+    "ApiGatewayDeployment1768418717805": {
       "Type": "AWS::ApiGateway::Deployment",
       "Properties": {
         "RestApiId": {
@@ -963,38 +875,6 @@
             "Arn"
           ]
         },
-        "Action": "lambda:InvokeFunction",
-        "Principal": "apigateway.amazonaws.com",
-        "SourceArn": {
-          "Fn::Join": [
-            "",
-            [
-              "arn:",
-              {
-                "Ref": "AWS::Partition"
-              },
-              ":execute-api:",
-              {
-                "Ref": "AWS::Region"
-              },
-              ":",
-              {
-                "Ref": "AWS::AccountId"
-              },
-              ":",
-              {
-                "Ref": "ApiGatewayRestApi"
-              },
-              "/*/*"
-            ]
-          ]
-        }
-      }
-    },
-    "AuthorizerLambdaPermissionApiGateway": {
-      "Type": "AWS::Lambda::Permission",
-      "Properties": {
-        "FunctionName": "arn:aws:lambda:af-south-1:*:function:authbridge-auth-staging-authorizer",
         "Action": "lambda:InvokeFunction",
         "Principal": "apigateway.amazonaws.com",
         "SourceArn": {
@@ -1147,112 +1027,11 @@
             }
           ]
         },
-        "VersioningConfiguration": {
-          "Status": "Enabled"
-        },
-        "LifecycleConfiguration": {
-          "Rules": [
-            {
-              "Id": "DeleteAfter5Years",
-              "Status": "Enabled",
-              "ExpirationInDays": 1825
-            }
-          ]
-        },
         "PublicAccessBlockConfiguration": {
           "BlockPublicAcls": true,
           "BlockPublicPolicy": true,
           "IgnorePublicAcls": true,
           "RestrictPublicBuckets": true
-        },
-        "CorsConfiguration": {
-          "CorsRules": [
-            {
-              "AllowedOrigins": [
-                "*"
-              ],
-              "AllowedMethods": [
-                "PUT",
-                "POST",
-                "GET"
-              ],
-              "AllowedHeaders": [
-                "*"
-              ],
-              "MaxAge": 3000
-            }
-          ]
-        },
-        "LoggingConfiguration": {
-          "DestinationBucketName": {
-            "Ref": "DocumentsAccessLogsBucket"
-          },
-          "LogFilePrefix": "access-logs/"
-        }
-      }
-    },
-    "DocumentsAccessLogsBucket": {
-      "Type": "AWS::S3::Bucket",
-      "Properties": {
-        "BucketName": "authbridge-documents-logs-staging",
-        "BucketEncryption": {
-          "ServerSideEncryptionConfiguration": [
-            {
-              "ServerSideEncryptionByDefault": {
-                "SSEAlgorithm": "AES256"
-              }
-            }
-          ]
-        },
-        "PublicAccessBlockConfiguration": {
-          "BlockPublicAcls": true,
-          "BlockPublicPolicy": true,
-          "IgnorePublicAcls": true,
-          "RestrictPublicBuckets": true
-        },
-        "LifecycleConfiguration": {
-          "Rules": [
-            {
-              "Id": "DeleteLogsAfter1Year",
-              "Status": "Enabled",
-              "ExpirationInDays": 365
-            }
-          ]
-        }
-      }
-    },
-    "DocumentsBucketPolicy": {
-      "Type": "AWS::S3::BucketPolicy",
-      "Properties": {
-        "Bucket": {
-          "Ref": "DocumentsBucket"
-        },
-        "PolicyDocument": {
-          "Version": "2012-10-17",
-          "Statement": [
-            {
-              "Sid": "EnforceHTTPS",
-              "Effect": "Deny",
-              "Principal": "*",
-              "Action": "s3:*",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "DocumentsBucket",
-                    "Arn"
-                  ]
-                },
-                {
-                  "Fn::Sub": "${DocumentsBucket.Arn}/*"
-                }
-              ],
-              "Condition": {
-                "Bool": {
-                  "aws:SecureTransport": "false"
-                }
-              }
-            }
-          ]
         }
       }
     }
@@ -1269,7 +1048,7 @@
     "CreateVerificationLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "CreateVerificationLambdaVersionmk81OtcZur25k4v47re2sufxNa3gnt9LjapMo3yJ95U"
+        "Ref": "CreateVerificationLambdaVersionSvdcWXxP49iaPXPXz3zbjaJrWs72zRSXbl5BrCg"
       },
       "Export": {
         "Name": "sls-authbridge-verification-staging-CreateVerificationLambdaFunctionQualifiedArn"
@@ -1278,7 +1057,7 @@
     "GetVerificationLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "GetVerificationLambdaVersion5DZEZSvrz7mglTWpj1I39hws7yeKdS265AbcKt2d8"
+        "Ref": "GetVerificationLambdaVersionA8h5xDIlkEaS03NBkajbbPqtzC0Mwxii9nkKocg"
       },
       "Export": {
         "Name": "sls-authbridge-verification-staging-GetVerificationLambdaFunctionQualifiedArn"
@@ -1287,7 +1066,7 @@
     "UploadDocumentLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "UploadDocumentLambdaVersioneuTV5wJsK9fLVJawQPaMUTgBYy23NSH8Ww1I2o73A"
+        "Ref": "UploadDocumentLambdaVersiongRfm7a2RnLMXZctAE9109FLWMcR9jnO8TO1Tja04a8"
       },
       "Export": {
         "Name": "sls-authbridge-verification-staging-UploadDocumentLambdaFunctionQualifiedArn"
@@ -1296,7 +1075,7 @@
     "RefreshDocumentUrlLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "RefreshDocumentUrlLambdaVersionVx6gz0gQR77XN9JKxA3Pdr3YD1UsUw1r8io22I4bl8"
+        "Ref": "RefreshDocumentUrlLambdaVersions3tThGDBvR0jHNRFxbwi7ivl3qQKoGVrCPDXjMDEe8"
       },
       "Export": {
         "Name": "sls-authbridge-verification-staging-RefreshDocumentUrlLambdaFunctionQualifiedArn"
