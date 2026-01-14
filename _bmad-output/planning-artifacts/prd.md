@@ -2156,11 +2156,12 @@ AuthBridge serves two distinct markets with appropriate pricing models:
    - Webinars on KYC best practices
 
 3. Use Case Landing Pages
-   - authbridge.co.bw/tenant-verification
-   - authbridge.co.bw/employee-background-checks
-   - authbridge.co.bw/age-verification
-   - authbridge.co.bw/client-onboarding
-   - authbridge.co.bw/seller-verification
+   _Note: These URLs use authbridge.io (MVP domain). Future migration to .co.bw post-funding._
+   - authbridge.io/tenant-verification
+   - authbridge.io/employee-background-checks
+   - authbridge.io/age-verification
+   - authbridge.io/client-onboarding
+   - authbridge.io/seller-verification
 
 4. Partner Channel
    - Dodo Payments (bundled offering)

@@ -10,6 +10,7 @@ import {
   SelfieStart,
   Selfie,
   CheckSelfie,
+  ReviewSubmit,
   Final,
   DocumentPhotoBackStart,
   Loading,
@@ -42,6 +43,7 @@ export const steps = [
   { name: Steps.SelfieStart, component: SelfieStart },
   { name: Steps.Selfie, component: Selfie },
   { name: Steps.CheckSelfie, component: CheckSelfie },
+  { name: Steps.ReviewSubmit, component: ReviewSubmit },
   { name: Steps.Loading, component: Loading },
   {
     name: Steps.Resubmission,

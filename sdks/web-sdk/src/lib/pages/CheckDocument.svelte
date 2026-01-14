@@ -6,13 +6,14 @@
   import { goToPrevStep, goToNextStep } from '../contexts/navigation';
   import { DocumentType, getDocImage, appState } from '../contexts/app-state';
   import { NavigationButtons } from '../molecules';
-  import { documents, currentStepId, selectedDocumentInfo, pendingCaptureMetadata, pendingUploadMetadata, clearPendingCaptureMetadata, clearPendingUploadMetadata } from '../contexts/app-state/stores';
+  import { documents, currentStepId, selectedDocumentInfo, pendingCaptureMetadata, pendingUploadMetadata, pendingSelfieMetadata, clearPendingCaptureMetadata, clearPendingUploadMetadata, clearPendingSelfieMetadata } from '../contexts/app-state/stores';
   import { preloadNextStepByCurrent } from '../services/preload-service';
   import {
     EActionNames,
     sendButtonClickEvent,
     sendDocumentCapturedEvent,
     sendDocumentUploadedEvent,
+    sendSelfieCapturedEvent,
     EVerificationStatuses,
   } from '../utils/event-service';
   import { getLayoutStyles, getStepConfiguration, uiPack } from '../ui-packs';
@@ -52,10 +53,11 @@
     );
   }
 
-  // Handle Continue button click - emit document.captured or document.uploaded event per AC5
+  // Handle Continue button click - emit document.captured, document.uploaded, or selfie.captured event per AC5
   const handleContinue = () => {
     const captureMetadata = get(pendingCaptureMetadata);
     const uploadMetadata = get(pendingUploadMetadata);
+    const selfieMetadata = get(pendingSelfieMetadata);
 
     if (captureMetadata) {
       // Emit document.captured event when user confirms the capture
@@ -85,6 +87,22 @@
 
       // Clear the pending metadata
       clearPendingUploadMetadata();
+    } else if (selfieMetadata) {
+      // Emit selfie.captured event when user confirms the selfie
+      sendSelfieCapturedEvent(
+        selfieMetadata.fileName,
+        selfieMetadata.originalSize,
+        selfieMetadata.compressedSize,
+        selfieMetadata.compressionRatio,
+        selfieMetadata.captureTime,
+        selfieMetadata.cameraResolution,
+        selfieMetadata.livenessChecks,
+        selfieMetadata.totalAttempts,
+        selfieMetadata.faceQuality,
+      );
+
+      // Clear the pending metadata
+      clearPendingSelfieMetadata();
     }
 
     // Navigate to next step

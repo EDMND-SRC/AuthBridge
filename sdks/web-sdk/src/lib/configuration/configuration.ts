@@ -17,6 +17,7 @@ const defaultFlowOrder = [
   Steps.SelfieStart,
   Steps.Selfie,
   Steps.CheckSelfie,
+  Steps.ReviewSubmit,
   Steps.Loading,
 ];
 

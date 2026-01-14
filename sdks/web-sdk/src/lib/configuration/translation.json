@@ -246,6 +246,41 @@
       "title": "Review picture",
       "description": "Make sure your face is clearly visible and fits inside \nthe frame."
     },
+    "selfie-capture": {
+      "selfie": {
+        "title": "Take a Selfie",
+        "description": "Position your face in the oval and follow the prompts",
+        "instructions": {
+          "position": "Position your face in the oval",
+          "tooClose": "Move further away",
+          "tooFar": "Move closer",
+          "notCentered": "Center your face",
+          "multipleFaces": "Only one person should be visible",
+          "noFace": "No face detected"
+        },
+        "liveness": {
+          "blink": "Blink naturally",
+          "turnLeft": "Turn head slightly left",
+          "turnRight": "Turn head slightly right",
+          "progress": "{{current}} of {{total}} checks complete",
+          "success": "Liveness verified!"
+        },
+        "errors": {
+          "blinkFailed": "Please blink naturally",
+          "turnFailed": "Please turn your head as instructed",
+          "livenessFailed": "Liveness check failed. Please try again.",
+          "timeout": "Check timed out. Please try again.",
+          "havingTrouble": "Having trouble? Contact support"
+        },
+        "cameraPermission": {
+          "denied": "Camera access denied",
+          "instructions": "To take a selfie, please enable camera access in your browser settings",
+          "tryAgain": "Try Again"
+        },
+        "capture": "Capture Selfie",
+        "processing": "Processing your selfie..."
+      }
+    },
     "final": {
       "title": "Success",
       "description": "Your identity has been successfully verified.",
@@ -329,6 +364,40 @@
         "imageTooSmall": "Image quality too low (minimum 640x480 pixels)",
         "fileCorrupted": "File appears corrupted. Please try a different file.",
         "uploadFailed": "Upload failed. Please try again."
+      }
+    },
+    "reviewSubmit": {
+      "title": "Review Your Information",
+      "description": "Please review your captured images before submitting",
+      "labels": {
+        "documentFront": "ID Front",
+        "documentBack": "ID Back",
+        "selfie": "Selfie"
+      },
+      "buttons": {
+        "edit": "Edit",
+        "submit": "Submit Verification",
+        "back": "Back",
+        "close": "Close"
+      },
+      "loading": {
+        "title": "Processing...",
+        "message": "Processing your verification. This may take a moment."
+      },
+      "errors": {
+        "submissionFailed": "Submission failed. Please try again.",
+        "networkError": "Network error. Please check your connection.",
+        "serverError": "Server error. Please try again later.",
+        "retry": "Retry"
+      },
+      "confirmation": {
+        "title": "Exit Verification?",
+        "message": "Are you sure you want to exit? Your progress will be lost.",
+        "confirm": "Yes, Exit",
+        "cancel": "Cancel"
+      },
+      "fullScreen": {
+        "close": "Close"
       }
     }
   },
@@ -480,6 +549,41 @@
       "offline": "es: You are offline, please check your connection",
       "errorDocuments": "es: Error sending documents",
       "errorDocumentVerification": "es: Error document verification"
+    },
+    "selfie-capture": {
+      "selfie": {
+        "title": "Tomar una Selfie",
+        "description": "Posiciona tu rostro en el óvalo y sigue las indicaciones",
+        "instructions": {
+          "position": "Posiciona tu rostro en el óvalo",
+          "tooClose": "Aléjate un poco",
+          "tooFar": "Acércate más",
+          "notCentered": "Centra tu rostro",
+          "multipleFaces": "Solo una persona debe ser visible",
+          "noFace": "No se detecta rostro"
+        },
+        "liveness": {
+          "blink": "Parpadea naturalmente",
+          "turnLeft": "Gira la cabeza ligeramente a la izquierda",
+          "turnRight": "Gira la cabeza ligeramente a la derecha",
+          "progress": "{{current}} de {{total}} verificaciones completas",
+          "success": "¡Verificación de vida completada!"
+        },
+        "errors": {
+          "blinkFailed": "Por favor parpadea naturalmente",
+          "turnFailed": "Por favor gira tu cabeza según las instrucciones",
+          "livenessFailed": "Verificación de vida fallida. Por favor intenta de nuevo.",
+          "timeout": "Tiempo de espera agotado. Por favor intenta de nuevo.",
+          "havingTrouble": "¿Tienes problemas? Contacta soporte"
+        },
+        "cameraPermission": {
+          "denied": "Acceso a la cámara denegado",
+          "instructions": "Para tomar una selfie, por favor habilita el acceso a la cámara en la configuración de tu navegador",
+          "tryAgain": "Intentar de Nuevo"
+        },
+        "capture": "Capturar Selfie",
+        "processing": "Procesando tu selfie..."
+      }
     }
   },
   "sw": {
@@ -676,7 +780,78 @@
       "errorDocuments": "Hitilafu katika kutuma hati",
       "errorDocumentVerification": "Hitilafu katika uthibitishaji wa hati",
       "errorCameraAccess": "Imeshindikana kufikia kamera ya kifaa chako. Ili kuendelea, nenda kwenye mipangilio ya aplikesheni na uruhusu matumizi kamera."
+    },
+    "selfie-capture": {
+      "selfie": {
+        "title": "Piga Selfie",
+        "description": "Weka uso wako ndani ya duara na fuata maelekezo",
+        "instructions": {
+          "position": "Weka uso wako ndani ya duara",
+          "tooClose": "Sogea mbali kidogo",
+          "tooFar": "Sogea karibu zaidi",
+          "notCentered": "Weka uso wako katikati",
+          "multipleFaces": "Mtu mmoja tu anapaswa kuonekana",
+          "noFace": "Uso haujagunduliwa"
+        },
+        "liveness": {
+          "blink": "Konyeza macho kwa kawaida",
+          "turnLeft": "Geuza kichwa kidogo kushoto",
+          "turnRight": "Geuza kichwa kidogo kulia",
+          "progress": "{{current}} kati ya {{total}} ukaguzi umekamilika",
+          "success": "Uthibitishaji wa uhai umekamilika!"
+        },
+        "errors": {
+          "blinkFailed": "Tafadhali konyeza macho kwa kawaida",
+          "turnFailed": "Tafadhali geuza kichwa chako kama ilivyoelekezwa",
+          "livenessFailed": "Ukaguzi wa uhai umeshindikana. Tafadhali jaribu tena.",
+          "timeout": "Muda umeisha. Tafadhali jaribu tena.",
+          "havingTrouble": "Una shida? Wasiliana na msaada"
+        },
+        "cameraPermission": {
+          "denied": "Ufikiaji wa kamera umekataliwa",
+          "instructions": "Ili kupiga selfie, tafadhali ruhusu ufikiaji wa kamera katika mipangilio ya kivinjari chako",
+          "tryAgain": "Jaribu Tena"
+        },
+        "capture": "Nasa Selfie",
+        "processing": "Inachakata selfie yako..."
+      }
     }
   },
-  "fr": {}
+  "fr": {
+    "selfie-capture": {
+      "selfie": {
+        "title": "Prendre un Selfie",
+        "description": "Positionnez votre visage dans l'ovale et suivez les instructions",
+        "instructions": {
+          "position": "Positionnez votre visage dans l'ovale",
+          "tooClose": "Éloignez-vous un peu",
+          "tooFar": "Rapprochez-vous",
+          "notCentered": "Centrez votre visage",
+          "multipleFaces": "Une seule personne doit être visible",
+          "noFace": "Aucun visage détecté"
+        },
+        "liveness": {
+          "blink": "Clignez des yeux naturellement",
+          "turnLeft": "Tournez légèrement la tête vers la gauche",
+          "turnRight": "Tournez légèrement la tête vers la droite",
+          "progress": "{{current}} sur {{total}} vérifications terminées",
+          "success": "Vérification de vivacité réussie!"
+        },
+        "errors": {
+          "blinkFailed": "Veuillez cligner des yeux naturellement",
+          "turnFailed": "Veuillez tourner la tête comme indiqué",
+          "livenessFailed": "Échec de la vérification de vivacité. Veuillez réessayer.",
+          "timeout": "Délai d'attente dépassé. Veuillez réessayer.",
+          "havingTrouble": "Vous avez des difficultés? Contactez le support"
+        },
+        "cameraPermission": {
+          "denied": "Accès à la caméra refusé",
+          "instructions": "Pour prendre un selfie, veuillez activer l'accès à la caméra dans les paramètres de votre navigateur",
+          "tryAgain": "Réessayer"
+        },
+        "capture": "Capturer le Selfie",
+        "processing": "Traitement de votre selfie..."
+      }
+    }
+  }
 }

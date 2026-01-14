@@ -552,6 +552,31 @@ const stepsTheme: TSteps = {
       },
     ],
   },
+  [Steps.ReviewSubmit]: {
+    name: Steps.ReviewSubmit,
+    id: Steps.ReviewSubmit,
+    namespace: 'reviewSubmit',
+    elements: [
+      backIconButton,
+      closeIconButton,
+      {
+        type: Elements.Title,
+        props: {
+          style: {
+            padding: '8px 24px 18px',
+          },
+        },
+      },
+      {
+        type: Elements.Paragraph,
+        props: {
+          style: {
+            margin: '0px 0px 24px',
+          },
+        },
+      },
+    ],
+  },
   [Steps.Loading]: {
     name: Steps.Loading,
     id: Steps.Loading,

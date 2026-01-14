@@ -145,7 +145,7 @@ This document provides the complete epic and story breakdown for AuthBridge, dec
 - **ARCH-16:** Netlify for frontend hosting
 - **ARCH-17:** CloudFront CDN for SDK distribution
 - **ARCH-18:** Phased email delivery (Cognito default → SES with custom domain)
-- **ARCH-19:** Domain strategy: authbridge.io (MVP) → authbridge.co.bw (funded)
+- **ARCH-19:** Domain strategy: authbridge.io (MVP, ACTIVE) → authbridge.co.bw (post-funding, FUTURE)
 
 **From UX Design Spec:**
 - **UX-1:** Design System with Botswana Blue (#75AADB) as primary brand color
@@ -230,10 +230,17 @@ Enable end-users to complete identity verification through an embeddable SDK wit
 **FRs covered:** FR1-FR8, FR31-FR34
 **Phase:** MVP
 
+### Epic 1.5: Backend Foundation
+Provide minimal backend infrastructure to make Epic 1 SDK functional and unblock Epic 2 development.
+**FRs covered:** FR24 (partial), FR25, FR26, FR35 (partial)
+**Phase:** MVP (Critical Path)
+**Dependencies:** Required before Epic 2
+
 ### Epic 2: Omang Document Processing
 Process Omang cards with OCR extraction, validation, and biometric matching to verify Botswana citizens.
 **FRs covered:** FR9-FR15
 **Phase:** MVP
+**Dependencies:** Requires Epic 1.5 (Backend Foundation)
 
 ### Epic 3: Case Management Dashboard
 Enable compliance officers to review, approve, and reject verification cases with full audit trail.
@@ -369,6 +376,84 @@ So that I can ensure everything looks correct.
 **When** the user submits
 **Then** a loading indicator shows during processing
 **And** the completion screen displays with reference number
+
+---
+
+## Epic 1.5: Backend Foundation
+
+**Goal:** Provide minimal backend infrastructure to make Epic 1 SDK functional and unblock Epic 2 development.
+
+**Context:** Epic 1 retrospective revealed that the Web SDK cannot function without backend infrastructure. Epic 1.5 provides the foundation Epic 2 needs to succeed.
+
+**Critical Path:** Must complete before Epic 2 can start.
+
+### Story 1.5.1: API Authentication & Session Management
+
+As a developer,
+I want to authenticate API requests and manage verification sessions,
+So that the Web SDK can securely create and track verifications.
+
+**Acceptance Criteria:**
+
+**Given** a client application needs to start a verification
+**When** they request a session token
+**Then** a JWT token is generated with 30-minute expiration
+**And** the token includes client ID and verification ID
+**And** token validation middleware is available for all endpoints
+**And** expired tokens return 401 Unauthorized with clear error message
+
+### Story 1.5.2: Create Verification Endpoint
+
+As the Web SDK,
+I want to create a new verification case via API,
+So that I can initiate the verification flow and store user data.
+
+**Acceptance Criteria:**
+
+**Given** an authenticated request to POST /api/v1/verifications
+**When** valid parameters are provided (document type, customer metadata)
+**Then** a verification case is created in DynamoDB
+**And** a unique verification ID is returned
+**And** case status is set to "created"
+**And** response time is < 500ms (p95)
+**And** the endpoint handles concurrent requests safely
+
+### Story 1.5.3: Document Upload Endpoint with S3 Integration
+
+As the Web SDK,
+I want to upload captured images to secure storage,
+So that documents are persisted for processing and review.
+
+**Acceptance Criteria:**
+
+**Given** an authenticated request to POST /api/v1/verifications/{id}/documents
+**When** a document image is provided (base64 encoded)
+**Then** the image is uploaded to S3 bucket in af-south-1 region
+**And** S3 object key follows pattern: `{clientId}/{verificationId}/{documentType}-{timestamp}.jpg`
+**And** presigned URL is generated for secure access (15-minute expiration)
+**And** document metadata is stored in DynamoDB (S3 key, upload timestamp, file size)
+**And** upload success rate is > 95%
+**And** images > 10MB are rejected with clear error message
+
+### Story 1.5.4: DynamoDB Schema & Basic Case Storage
+
+As the system,
+I want a DynamoDB table to store verification cases and documents,
+So that all verification data is persisted and queryable.
+
+**Acceptance Criteria:**
+
+**Given** the DynamoDB table is created
+**When** data is written
+**Then** single-table design pattern is used with entity prefixes:
+  - `CASE#{verificationId}` for case metadata
+  - `DOC#{verificationId}#{documentId}` for document records
+**And** GSI1 enables querying by client ID and status
+**And** GSI2 enables querying by creation date
+**And** on-demand billing mode is configured
+**And** point-in-time recovery (PITR) is enabled
+**And** encryption at rest is enabled with AWS managed keys
+**And** TTL is configured for expired sessions (30 days)
 
 ---
 
@@ -902,6 +987,7 @@ So that I can integrate verification into my Android app.
 | Epic | Stories | Phase |
 |------|---------|-------|
 | Epic 1: Web SDK Verification Flow | 6 | MVP |
+| Epic 1.5: Backend Foundation | 4 | MVP (Critical Path) |
 | Epic 2: Omang Document Processing | 4 | MVP |
 | Epic 3: Case Management Dashboard | 5 | MVP |
 | Epic 4: REST API & Webhooks | 5 | MVP |
@@ -910,8 +996,10 @@ So that I can integrate verification into my Android app.
 | Epic 7: KYB Business Verification | 3 | Phase 2 |
 | Epic 8: Enhanced Verification & Payments | 3 | Phase 2 |
 | Epic 9: Enterprise & Scale Features | 5 | Phase 3 |
-| **Total** | **38** | |
+| **Total** | **42** | |
 
-**MVP Stories:** 27
+**MVP Stories:** 31 (including Epic 1.5)
 **Phase 2 Stories:** 6
 **Phase 3 Stories:** 5
+
+**Note:** Epic 1.5 (Backend Foundation) was added after Epic 1 retrospective to provide infrastructure required by Epic 2.

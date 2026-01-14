@@ -8,6 +8,7 @@ language: "English (UK)"
 excludedFeatures:
   - "Setswana localisation (on hold)"
   - "Orange Money integration (on hold until API access obtained)"
+domainNote: "URLs in this document use authbridge.co.bw for marketing pages (future state). Current MVP domain is authbridge.io. See deployment-strategy.md for authoritative domain configuration."
 ---
 
 # AuthBridge UX Design Specification

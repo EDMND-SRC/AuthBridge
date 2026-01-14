@@ -110,3 +110,34 @@ export function setPendingUploadMetadata(metadata: IUploadMetadata) {
 export function clearPendingUploadMetadata() {
   pendingUploadMetadata.set(null);
 }
+
+// Selfie capture metadata for event emission on review confirmation
+export interface ISelfieMetadata {
+  fileName: string;
+  originalSize: number;
+  compressedSize: number;
+  compressionRatio: number;
+  captureTime: number;
+  cameraResolution: string;
+  livenessChecks: {
+    blink: { passed: boolean; attempts: number };
+    turnLeft: { passed: boolean; attempts: number };
+    turnRight: { passed: boolean; attempts: number };
+  };
+  totalAttempts: number;
+  faceQuality: {
+    centered: boolean;
+    distance: 'optimal' | 'tooClose' | 'tooFar';
+    message: string;
+  };
+}
+
+export const pendingSelfieMetadata = writable<ISelfieMetadata | null>(null);
+
+export function setPendingSelfieMetadata(metadata: ISelfieMetadata) {
+  pendingSelfieMetadata.set(metadata);
+}
+
+export function clearPendingSelfieMetadata() {
+  pendingSelfieMetadata.set(null);
+}

@@ -44,6 +44,34 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 ---
 
+## Deployment Configuration
+
+### Domain: `authbridge.io`
+
+| Property | Value |
+|----------|-------|
+| Primary Domain | `authbridge.io` |
+| Registrar | AWS Route 53 |
+| Hosted Zone ID | `Z042764728ORST8KRU245` |
+| AWS Region | `af-south-1` (Cape Town) - MANDATORY for DPA 2024 |
+
+### Environment URLs
+
+| Environment | API | Backoffice | SDK |
+|-------------|-----|------------|-----|
+| Production | `api.authbridge.io` | `app.authbridge.io` | `sdk.authbridge.io` |
+| Staging | `api-staging.authbridge.io` | `app-staging.authbridge.io` | `sdk-staging.authbridge.io` |
+
+### Hosting
+
+- **Backend:** AWS Lambda (Serverless Framework)
+- **Frontend:** Netlify
+- **SDK CDN:** CloudFront
+
+**Full deployment details:** See `_bmad-output/planning-artifacts/deployment-strategy.md`
+
+---
+
 ## Technology Stack & Versions
 
 | Category | Technology | Version | Notes |

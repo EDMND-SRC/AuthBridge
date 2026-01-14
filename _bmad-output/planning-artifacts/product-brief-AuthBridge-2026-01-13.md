@@ -1037,11 +1037,12 @@ Government unveiled digital identity infrastructure (with PEMANDU):
 - Case studies from early adopters
 
 **Use Case Landing Pages (API Access Track):**
-- authbridge.co.bw/tenant-verification
-- authbridge.co.bw/employee-background-checks
-- authbridge.co.bw/age-verification
-- authbridge.co.bw/client-onboarding
-- authbridge.co.bw/seller-verification
+_Note: These URLs use the future .co.bw domain. Current MVP uses authbridge.io._
+- authbridge.io/tenant-verification (MVP)
+- authbridge.io/employee-background-checks (MVP)
+- authbridge.io/age-verification (MVP)
+- authbridge.io/client-onboarding (MVP)
+- authbridge.io/seller-verification (MVP)
 
 **Events & Speaking:**
 - Bank of Botswana Fintech events

@@ -8,6 +8,7 @@ export {
   sendDocumentSelectedEvent,
   sendDocumentCapturedEvent,
   sendDocumentUploadedEvent,
+  sendSelfieCapturedEvent,
   subscribe,
 } from './utils';
 
@@ -19,6 +20,7 @@ export type {
   IDocumentSelectedEvent,
   IDocumentCapturedEvent,
   IDocumentUploadedEvent,
+  ISelfieCapturedEvent,
 } from './types';
 export {
   EEventTypes,

@@ -19,6 +19,7 @@ export enum Steps {
   SelfieStart = 'selfie-start',
   Selfie = 'selfie',
   CheckSelfie = 'check-selfie',
+  ReviewSubmit = 'review-submit',
   A4DocumentStart = 'a4-document-start',
   A4DocumentPhoto = 'a4-document-photo',
   CheckA4Document = 'check-a4-document',

@@ -10,6 +10,7 @@ export enum EEventTypes {
   DOCUMENT_SELECTED = 'document.selected',
   DOCUMENT_CAPTURED = 'document.captured',
   DOCUMENT_UPLOADED = 'document.uploaded',
+  SELFIE_CAPTURED = 'selfie.captured',
 }
 
 export enum EActionNames {
@@ -39,6 +40,8 @@ export interface IDocumentVerificationResponse {
   idvResult?: DecisionStatus;
   code?: number;
   reasonCode?: number;
+  verificationId?: string;
+  referenceNumber?: string;
 }
 
 export interface IVerificationStartedEvent {
@@ -113,6 +116,37 @@ export interface IDocumentUploadedEvent {
     sdkVersion: string;
     userAgent: string;
     uploadMethod: 'button' | 'dragDrop';
+  };
+}
+
+export interface ISelfieCapturedEvent {
+  type: EEventTypes.SELFIE_CAPTURED;
+  timestamp: string;
+  sessionId: string;
+  data: {
+    fileName: string;
+    originalSize: number;
+    compressedSize: number;
+    compressionRatio: number;
+    captureTime: number;
+    cameraResolution: string;
+    livenessChecks: {
+      blink: { passed: boolean; attempts: number };
+      turnLeft: { passed: boolean; attempts: number };
+      turnRight: { passed: boolean; attempts: number };
+    };
+    totalAttempts: number;
+    faceQuality: {
+      centered: boolean;
+      distance: 'optimal' | 'tooClose' | 'tooFar';
+      lighting: 'good' | 'poor';
+    };
+  };
+  metadata: {
+    clientId?: string;
+    sdkVersion: string;
+    userAgent: string;
+    deviceType: 'mobile' | 'desktop';
   };
 }
 

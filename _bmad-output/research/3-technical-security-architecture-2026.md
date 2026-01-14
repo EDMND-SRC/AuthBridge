@@ -285,7 +285,7 @@ resources:
 **Secure CORS:**
 ```yaml
 cors:
-  origin: 'https://authbridge.co.bw'  # Specific domain, not '*'
+  origin: 'https://authbridge.io'  # Specific domain, not '*'
   headers:
     - Content-Type
     - Authorization

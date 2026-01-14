@@ -326,3 +326,76 @@ export const sendDocumentUploadedEvent = (
 
   sendIframeEvent(eventOptions);
 };
+
+/**
+ * Send selfie.captured event
+ * @param fileName - Name of the selfie file
+ * @param originalSize - Original file size in bytes
+ * @param compressedSize - Compressed file size in bytes
+ * @param compressionRatio - Ratio of original size to compressed size
+ * @param captureTime - Time taken to capture and compress in milliseconds
+ * @param cameraResolution - Camera resolution used (e.g., "1920x1080")
+ * @param livenessChecks - Results of liveness detection checks
+ * @param totalAttempts - Total number of capture attempts
+ * @param faceQuality - Face quality metrics
+ */
+export const sendSelfieCapturedEvent = (
+  fileName: string,
+  originalSize: number,
+  compressedSize: number,
+  compressionRatio: number,
+  captureTime: number,
+  cameraResolution: string,
+  livenessChecks: {
+    blink: { passed: boolean; attempts: number };
+    turnLeft: { passed: boolean; attempts: number };
+    turnRight: { passed: boolean; attempts: number };
+  },
+  totalAttempts: number,
+  faceQuality: {
+    centered: boolean;
+    distance: 'optimal' | 'tooClose' | 'tooFar';
+    message: string;
+  },
+) => {
+  const sessionId = window.__blrn_context?.endUserInfo?.id || 'unknown';
+  const clientId = window.__blrn_context?.backendConfig?.auth?.clientId;
+  const deviceType =
+    typeof window !== 'undefined' && window.innerWidth < 768 ? 'mobile' : 'desktop';
+
+  const event: ISelfieCapturedEvent = {
+    type: EEventTypes.SELFIE_CAPTURED,
+    timestamp: new Date().toISOString(),
+    sessionId,
+    data: {
+      fileName,
+      originalSize,
+      compressedSize,
+      compressionRatio,
+      captureTime,
+      cameraResolution,
+      livenessChecks,
+      totalAttempts,
+      faceQuality: {
+        centered: faceQuality.centered,
+        distance: faceQuality.distance,
+        lighting: 'good', // Placeholder - would be calculated from video analysis
+      },
+    },
+    metadata: {
+      clientId,
+      sdkVersion: SDK_VERSION,
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+      deviceType,
+    },
+  };
+
+  const eventOptions = {
+    eventName: BALLERINE_EVENT,
+    eventType: EEventTypes.SELFIE_CAPTURED,
+    shouldExit: false,
+    payload: event,
+  };
+
+  sendIframeEvent(eventOptions);
+};
