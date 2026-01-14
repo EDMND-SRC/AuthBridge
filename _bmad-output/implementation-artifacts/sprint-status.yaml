@@ -43,8 +43,8 @@ development_status:
   # ═══════════════════════════════════════════════════════════════════════════
   epic-1: in-progress
   1-1-sdk-initialization-welcome-screen: done
-  1-2-document-type-selection: ready-for-dev
-  1-3-document-capture-with-camera: backlog
+  1-2-document-type-selection: done
+  1-3-document-capture-with-camera: done
   1-4-document-upload-fallback: backlog
   1-5-selfie-capture-with-liveness-detection: backlog
   1-6-review-submit-verification: backlog

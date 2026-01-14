@@ -205,6 +205,27 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - Commit frequently with descriptive messages
 - Never force push to `main` or `develop`
 
+### 🚨 CRITICAL: .env.local Protection Rules
+
+**NEVER DELETE, MODIFY, OR REMOVE `.env.local` FROM THE FILESYSTEM.**
+
+This file contains irreplaceable credentials. Violations of these rules are unacceptable:
+
+1. **NEVER run `git filter-branch`** or any command that rewrites history involving `.env.local`
+2. **NEVER run `git rm` on `.env.local`** — not even with `--cached`
+3. **NEVER add `.env.local` to git** — it's already in `.gitignore`
+4. **If GitHub blocks a push due to secrets:**
+   - DO NOT attempt to remove the file from history
+   - ASK the user how they want to handle it
+   - The user may choose to allowlist the secret on GitHub instead
+5. **Before ANY destructive git operation**, create a backup: `cp .env.local .env.local.backup`
+6. **If you accidentally delete it**, recover immediately from git reflog:
+   ```bash
+   git show <commit-before-deletion>:.env.local > .env.local
+   ```
+
+**This rule exists because an AI agent deleted this file and nearly caused permanent credential loss.**
+
 ---
 
 ## Architecture Decisions (ADRs)

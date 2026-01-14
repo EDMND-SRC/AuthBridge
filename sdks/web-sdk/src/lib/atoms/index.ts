@@ -16,3 +16,5 @@ export { FlyingText } from './FlyingText';
 export { Overlay } from './Overlay';
 export { IconCloseButton } from './IconCloseButton';
 export { PrivacyLink } from './PrivacyLink';
+export { DocumentOption } from './DocumentOption';
+export { QualityFeedback } from './QualityFeedback';

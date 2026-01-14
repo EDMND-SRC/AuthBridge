@@ -7,6 +7,8 @@ export enum EEventTypes {
   BUTTON_CLICK = 'button_click',
   VERIFICATION_STARTED = 'verification.started',
   VERIFICATION_ERROR = 'verification.error',
+  DOCUMENT_SELECTED = 'document.selected',
+  DOCUMENT_CAPTURED = 'document.captured',
 }
 
 export enum EActionNames {
@@ -56,6 +58,39 @@ export interface IVerificationErrorEvent {
   error: {
     code: EVerificationErrorCodes;
     message: string;
+  };
+}
+
+export interface IDocumentSelectedEvent {
+  type: EEventTypes.DOCUMENT_SELECTED;
+  timestamp: string;
+  sessionId: string;
+  data: {
+    documentType: 'omang' | 'passport' | 'driversLicense';
+  };
+  metadata: {
+    clientId?: string;
+    sdkVersion: string;
+    userAgent: string;
+  };
+}
+
+export interface IDocumentCapturedEvent {
+  type: EEventTypes.DOCUMENT_CAPTURED;
+  timestamp: string;
+  sessionId: string;
+  data: {
+    documentType: 'omang' | 'passport' | 'driversLicense';
+    side: 'front' | 'back';
+    imageSize: number;
+    compressionRatio: number;
+    captureTime: number;
+  };
+  metadata: {
+    clientId?: string;
+    sdkVersion: string;
+    userAgent: string;
+    cameraResolution: string;
   };
 }
 

@@ -57,3 +57,35 @@ export const appState = derived(currentRoute, $currentRoute => {
 });
 
 export const currentStepId = writable<string>('welcome');
+
+// Document selection state
+export type DocumentType = 'omang' | 'passport' | 'driversLicense' | null;
+export const selectedDocument = writable<DocumentType>(null);
+
+export function selectDocument(type: DocumentType) {
+  selectedDocument.set(type);
+}
+
+export function clearDocumentSelection() {
+  selectedDocument.set(null);
+}
+
+// Document capture metadata for event emission on review confirmation
+export interface ICaptureMetadata {
+  documentType: 'omang' | 'passport' | 'driversLicense';
+  side: 'front' | 'back';
+  imageSize: number;
+  compressionRatio: number;
+  captureTime: number;
+  cameraResolution: string;
+}
+
+export const pendingCaptureMetadata = writable<ICaptureMetadata | null>(null);
+
+export function setPendingCaptureMetadata(metadata: ICaptureMetadata) {
+  pendingCaptureMetadata.set(metadata);
+}
+
+export function clearPendingCaptureMetadata() {
+  pendingCaptureMetadata.set(null);
+}

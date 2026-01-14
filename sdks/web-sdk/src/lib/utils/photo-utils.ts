@@ -103,3 +103,119 @@ export const updateDocument = (
     return doc;
   });
 };
+
+/**
+ * Quality feedback types for real-time camera analysis
+ */
+export interface QualityFeedback {
+  lighting: 'tooDark' | 'tooBright' | 'good';
+  blur: 'tooBlurry' | 'moveCloser' | 'good';
+  glare: 'detected' | 'good';
+}
+
+/**
+ * Analyze image quality from video stream for real-time feedback
+ * @param videoElement - HTMLVideoElement with active camera stream
+ * @returns QualityFeedback object with lighting, blur, and glare status
+ */
+export function analyzeImageQuality(videoElement: HTMLVideoElement): QualityFeedback {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    return { lighting: 'good', blur: 'good', glare: 'good' };
+  }
+
+  canvas.width = videoElement.videoWidth;
+  canvas.height = videoElement.videoHeight;
+  ctx.drawImage(videoElement, 0, 0);
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  // Analyze lighting (average brightness)
+  let totalBrightness = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    totalBrightness += (r + g + b) / 3;
+  }
+  const avgBrightness = totalBrightness / (data.length / 4);
+
+  let lighting: QualityFeedback['lighting'] = 'good';
+  if (avgBrightness < 50) lighting = 'tooDark';
+  if (avgBrightness > 200) lighting = 'tooBright';
+
+  // Analyze blur (Laplacian variance)
+  const blurScore = calculateLaplacianVariance(imageData);
+  let blur: QualityFeedback['blur'] = 'good';
+  if (blurScore < 100) blur = 'tooBlurry';
+
+  // Analyze glare (detect bright spots)
+  const glareDetected = detectGlare(data, avgBrightness);
+  const glare: QualityFeedback['glare'] = glareDetected ? 'detected' : 'good';
+
+  return { lighting, blur, glare };
+}
+
+/**
+ * Calculate Laplacian variance for blur detection
+ * Higher variance = sharper image
+ */
+function calculateLaplacianVariance(imageData: ImageData): number {
+  const { data, width, height } = imageData;
+  const gray = new Float32Array(width * height);
+
+  // Convert to grayscale
+  for (let i = 0; i < data.length; i += 4) {
+    const idx = i / 4;
+    gray[idx] = (data[i] + data[i + 1] + data[i + 2]) / 3;
+  }
+
+  // Apply Laplacian operator
+  let sum = 0;
+  let sumSq = 0;
+  let count = 0;
+
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const idx = y * width + x;
+      const laplacian =
+        -gray[idx - width - 1] -
+        gray[idx - width] -
+        gray[idx - width + 1] -
+        gray[idx - 1] +
+        8 * gray[idx] -
+        gray[idx + 1] -
+        gray[idx + width - 1] -
+        gray[idx + width] -
+        gray[idx + width + 1];
+
+      sum += laplacian;
+      sumSq += laplacian * laplacian;
+      count++;
+    }
+  }
+
+  const mean = sum / count;
+  const variance = sumSq / count - mean * mean;
+
+  return variance;
+}
+
+/**
+ * Detect glare by finding bright spots significantly above average
+ */
+function detectGlare(data: Uint8ClampedArray, avgBrightness: number): boolean {
+  let brightPixelCount = 0;
+  const threshold = avgBrightness + 50;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
+    if (brightness > threshold) brightPixelCount++;
+  }
+
+  const brightPixelRatio = brightPixelCount / (data.length / 4);
+  return brightPixelRatio > 0.1; // More than 10% bright pixels
+}

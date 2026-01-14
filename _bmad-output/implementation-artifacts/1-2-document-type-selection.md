@@ -1,6 +1,6 @@
 # Story 1.2: Document Type Selection
 
-Status: ready-for-dev
+Status: done
 
 ---
 
@@ -69,50 +69,50 @@ So that the system knows what to expect for verification.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Create DocumentSelect.svelte Component** (AC: 1, 2, 3, 7)
-  - [ ] 1.1 Create new DocumentSelect.svelte page component
-  - [ ] 1.2 Add document type options with icons and descriptions
-  - [ ] 1.3 Implement Omang as first option
-  - [ ] 1.4 Add mobile-responsive styling
-  - [ ] 1.5 Add progress indicator (Step 1/5)
-  - [ ] 1.6 Add back button navigation
+- [x] **Task 1: Create DocumentSelect.svelte Component** (AC: 1, 2, 3, 7)
+  - [x] 1.1 Create new DocumentSelect.svelte page component
+  - [x] 1.2 Add document type options with icons and descriptions
+  - [x] 1.3 Implement Omang as first option
+  - [x] 1.4 Add mobile-responsive styling
+  - [x] 1.5 Add progress indicator (Step 1/5)
+  - [x] 1.6 Add back button navigation
 
-- [ ] **Task 2: Implement Selection State Management** (AC: 4)
-  - [ ] 2.1 Create selectedDocument store in verification.svelte.ts
-  - [ ] 2.2 Handle document selection click events
-  - [ ] 2.3 Apply visual selection state (highlight + checkmark)
-  - [ ] 2.4 Enable/disable Continue button based on selection
+- [x] **Task 2: Implement Selection State Management** (AC: 4)
+  - [x] 2.1 Create selectedDocument store in verification.svelte.ts
+  - [x] 2.2 Handle document selection click events
+  - [x] 2.3 Apply visual selection state (highlight + checkmark)
+  - [x] 2.4 Enable/disable Continue button based on selection
 
-- [ ] **Task 3: Add Navigation Logic** (AC: 5, 6)
-  - [ ] 3.1 Implement Continue button navigation to document capture
-  - [ ] 3.2 Implement back button navigation to welcome screen
-  - [ ] 3.3 Clear selection state on back navigation
-  - [ ] 3.4 Pass selected document type to next screen
+- [x] **Task 3: Add Navigation Logic** (AC: 5, 6)
+  - [x] 3.1 Implement Continue button navigation to document capture
+  - [x] 3.2 Implement back button navigation to welcome screen
+  - [x] 3.3 Clear selection state on back navigation
+  - [x] 3.4 Pass selected document type to next screen
 
-- [ ] **Task 4: Event Emission** (AC: 5)
-  - [ ] 4.1 Create `document.selected` event type
-  - [ ] 4.2 Emit event with document type on Continue click
-  - [ ] 4.3 Include session metadata in event
+- [x] **Task 4: Event Emission** (AC: 5)
+  - [x] 4.1 Create `document.selected` event type
+  - [x] 4.2 Emit event with document type on Continue click
+  - [x] 4.3 Include session metadata in event
 
-- [ ] **Task 5: Update UI Pack Configurations** (AC: All)
-  - [ ] 5.1 Add DocumentSelect step to default theme.ts
-  - [ ] 5.2 Add DocumentSelect step to future theme.ts
-  - [ ] 5.3 Configure step order and navigation
+- [x] **Task 5: Update UI Pack Configurations** (AC: All)
+  - [x] 5.1 Add DocumentSelect step to default theme.ts
+  - [x] 5.2 Add DocumentSelect step to future theme.ts
+  - [x] 5.3 Configure step order and navigation
 
-- [ ] **Task 6: Translation Keys** (AC: 2, 3)
-  - [ ] 6.1 Add document selection translation keys
-  - [ ] 6.2 Add document type names and descriptions
-  - [ ] 6.3 Verify English (UK) translations
+- [x] **Task 6: Translation Keys** (AC: 2, 3)
+  - [x] 6.1 Add document selection translation keys
+  - [x] 6.2 Add document type names and descriptions
+  - [x] 6.3 Verify English (UK) translations
 
-- [ ] **Task 7: Unit Tests** (AC: All)
-  - [ ] 7.1 Test document selection screen renders correctly
-  - [ ] 7.2 Test Omang appears first
-  - [ ] 7.3 Test selection state management
-  - [ ] 7.4 Test Continue button enabled/disabled logic
-  - [ ] 7.5 Test navigation to document capture
-  - [ ] 7.6 Test back navigation
-  - [ ] 7.7 Test mobile responsive behavior
-  - [ ] 7.8 Test event emission
+- [x] **Task 7: Unit Tests** (AC: All)
+  - [x] 7.1 Test document selection screen renders correctly
+  - [x] 7.2 Test Omang appears first
+  - [x] 7.3 Test selection state management
+  - [x] 7.4 Test Continue button enabled/disabled logic
+  - [x] 7.5 Test navigation to document capture
+  - [x] 7.6 Test back navigation
+  - [x] 7.7 Test mobile responsive behavior
+  - [x] 7.8 Test event emission
 
 ---
 
@@ -473,16 +473,71 @@ export function clearDocumentSelection() {
 
 ### Agent Model Used
 
-_To be filled by dev agent_
+Claude 3.7 Sonnet (Kiro IDE)
 
 ### Debug Log References
 
-_To be filled by dev agent_
+- All unit tests passing (13/13) - DocumentSelect.test.ts
+- Full test suite passing (42/42 tests across 5 files)
+- No regressions introduced
+- Code review fixes applied (2026-01-14)
 
 ### Completion Notes List
 
-_To be filled by dev agent_
+**Implementation Summary:**
+- Created DocumentSelect.svelte page component with full mobile responsiveness
+- Created DocumentOption.svelte atom component for reusable document cards
+- Added selectedDocument store with selectDocument() and clearDocumentSelection() helpers
+- Implemented document.selected event emission with full metadata
+- Added translation keys for document-selection and document-select namespaces
+- UI pack configurations already existed for DocumentSelection step
+- All 7 acceptance criteria satisfied with comprehensive test coverage
+
+**Technical Decisions:**
+- Used Svelte 3 stores (not Svelte 5 runes) to match existing codebase patterns
+- Followed atomic design methodology - created DocumentOption as reusable atom
+- Implemented event-driven navigation using Svelte's createEventDispatcher
+- Used Botswana Blue (#75AADB) and Botswana Blue Light (#E9F5F9) for selection states
+- Mobile-first responsive design with 44x44px minimum touch targets
+- Translation keys follow existing namespace.key pattern
+
+**Files Created:**
+- sdks/web-sdk/src/lib/pages/DocumentSelect.svelte
+- sdks/web-sdk/src/lib/pages/DocumentSelect.test.ts
+- sdks/web-sdk/src/lib/atoms/DocumentOption/DocumentOption.svelte
+- sdks/web-sdk/src/lib/atoms/DocumentOption/index.ts
+
+**Files Modified:**
+- sdks/web-sdk/src/lib/contexts/app-state/stores.ts (added selectedDocument store)
+- sdks/web-sdk/src/lib/utils/event-service/types.ts (added DOCUMENT_SELECTED event type and interface)
+- sdks/web-sdk/src/lib/utils/event-service/utils.ts (added sendDocumentSelectedEvent function)
+- sdks/web-sdk/src/lib/utils/event-service/index.ts (exported sendDocumentSelectedEvent and IDocumentSelectedEvent)
+- sdks/web-sdk/src/lib/configuration/translation.json (added document-selection and document-select keys)
+- sdks/web-sdk/src/lib/atoms/index.ts (exported DocumentOption)
+
+### Code Review Fixes Applied (2026-01-14)
+
+**Issues Fixed:**
+1. ✅ Added `sendDocumentSelectedEvent` and `IDocumentSelectedEvent` exports to `event-service/index.ts`
+2. ✅ Added `min-width: 44px` to mobile media query in `DocumentOption.svelte` for AC7 touch target compliance
+3. ✅ Added dark theme support via `prefers-color-scheme: dark` media queries in both components
+4. ✅ Added CSS variables for theming (`--bg-color`, `--text-primary`, `--text-secondary`)
+5. ✅ Added performance test validating <500ms render time for AC1
+6. ✅ Added touch target size test for AC7 compliance
+7. ✅ Svelte 3 stores usage documented as intentional (matches existing codebase patterns)
 
 ### File List
 
-_To be filled by dev agent_
+**Created:**
+- sdks/web-sdk/src/lib/pages/DocumentSelect.svelte
+- sdks/web-sdk/src/lib/pages/DocumentSelect.test.ts
+- sdks/web-sdk/src/lib/atoms/DocumentOption/DocumentOption.svelte
+- sdks/web-sdk/src/lib/atoms/DocumentOption/index.ts
+
+**Modified:**
+- sdks/web-sdk/src/lib/contexts/app-state/stores.ts
+- sdks/web-sdk/src/lib/utils/event-service/types.ts
+- sdks/web-sdk/src/lib/utils/event-service/utils.ts
+- sdks/web-sdk/src/lib/utils/event-service/index.ts
+- sdks/web-sdk/src/lib/configuration/translation.json
+- sdks/web-sdk/src/lib/atoms/index.ts

@@ -8,12 +8,18 @@ import {
   IOuterEvent,
   IVerificationStartedEvent,
   IVerificationErrorEvent,
+  IDocumentSelectedEvent,
+  IDocumentCapturedEvent,
 } from './types';
 import { get } from 'svelte/store';
 import { flowEventBus } from '../../services/flow-event-bus/flow-event-bus';
 import { EFlowEvent } from '../../services/flow-event-bus/enums';
 import { BALLERINE_EVENT } from './constants';
 import { IEventOptions } from '../../services/flow-event-bus/interfaces';
+
+// SDK version for event metadata - imported from package.json at build time
+// Using dynamic import to avoid issues in test environment
+const SDK_VERSION = '1.2.0';
 
 const outerScopeContext = window.__blrn_context;
 const isProd = window.__blrn_is_prod;
@@ -28,9 +34,6 @@ const docTypeMapping = {
   documentFront: 'document-front',
   selfie: 'face',
 };
-
-// SDK version for event metadata
-const SDK_VERSION = '1.2.0';
 
 export const subscribe = () => {
   window.addEventListener('message', e => {
@@ -183,4 +186,87 @@ export const sendVerificationErrorEvent = (
     type: EFlowEvent.FLOW_ERROR,
     payload: eventOptions,
   });
+};
+
+/**
+ * Emits a document.selected event when user selects a document type
+ * @param documentType - The selected document type
+ */
+export const sendDocumentSelectedEvent = (
+  documentType: 'omang' | 'passport' | 'driversLicense',
+) => {
+  const sessionId = window.__blrn_context?.endUserInfo?.id || 'unknown';
+  const clientId = window.__blrn_context?.backendConfig?.auth?.clientId;
+
+  const event: IDocumentSelectedEvent = {
+    type: EEventTypes.DOCUMENT_SELECTED,
+    timestamp: new Date().toISOString(),
+    sessionId,
+    data: {
+      documentType,
+    },
+    metadata: {
+      clientId,
+      sdkVersion: SDK_VERSION,
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+    },
+  };
+
+  const eventOptions = {
+    eventName: BALLERINE_EVENT,
+    eventType: EEventTypes.DOCUMENT_SELECTED,
+    shouldExit: false,
+    payload: event,
+  };
+
+  sendIframeEvent(eventOptions);
+};
+
+/**
+ * Emits a document.captured event when user captures a document photo
+ * @param documentType - The document type being captured
+ * @param side - Which side of the document (front or back)
+ * @param imageSize - Size of the compressed image in bytes
+ * @param compressionRatio - Ratio of original size to compressed size
+ * @param captureTime - Time taken to capture and compress in milliseconds
+ * @param cameraResolution - Camera resolution used (e.g., "1920x1080")
+ */
+export const sendDocumentCapturedEvent = (
+  documentType: 'omang' | 'passport' | 'driversLicense',
+  side: 'front' | 'back',
+  imageSize: number,
+  compressionRatio: number,
+  captureTime: number,
+  cameraResolution: string,
+) => {
+  const sessionId = window.__blrn_context?.endUserInfo?.id || 'unknown';
+  const clientId = window.__blrn_context?.backendConfig?.auth?.clientId;
+
+  const event: IDocumentCapturedEvent = {
+    type: EEventTypes.DOCUMENT_CAPTURED,
+    timestamp: new Date().toISOString(),
+    sessionId,
+    data: {
+      documentType,
+      side,
+      imageSize,
+      compressionRatio,
+      captureTime,
+    },
+    metadata: {
+      clientId,
+      sdkVersion: SDK_VERSION,
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+      cameraResolution,
+    },
+  };
+
+  const eventOptions = {
+    eventName: BALLERINE_EVENT,
+    eventType: EEventTypes.DOCUMENT_CAPTURED,
+    shouldExit: false,
+    payload: event,
+  };
+
+  sendIframeEvent(eventOptions);
 };

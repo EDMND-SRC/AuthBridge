@@ -27,9 +27,25 @@
       "item-3": "✓ A steady hand for photos"
     },
     "document-selection": {
-      "title": "Upload ID",
-      "description": "Choose the document type you would like to \nidentify with",
-      "tip": "Choose document type"
+      "title": "Select Your Document",
+      "description": "Choose the document you'll use to verify your identity.",
+      "continue": "Continue",
+      "back": "Back",
+      "step": "Step 1/5"
+    },
+    "document-select": {
+      "omang": {
+        "name": "Omang",
+        "description": "Botswana National ID"
+      },
+      "passport": {
+        "name": "Passport",
+        "description": "International travel"
+      },
+      "driversLicense": {
+        "name": "Driver's Licence",
+        "description": "Botswana or foreign"
+      }
     },
     "document-options": {
       "passport-title": "Passport",
@@ -69,13 +85,87 @@
     "document-photo": {
       "title": "Document Upload",
       "description": "Place the document inside the frame and take a picture. Make sure it is not cut or has any glare.",
+      "omang": {
+        "title": "Capture Your Omang",
+        "description": "Position your Omang card within the frame",
+        "qualityFeedback": {
+          "lighting": {
+            "tooDark": "Too dark - move to better lighting",
+            "tooBright": "Too bright - reduce glare",
+            "good": "Lighting is good"
+          },
+          "blur": {
+            "tooBlurry": "Hold steady - image is blurry",
+            "moveCloser": "Move closer to document",
+            "good": "Focus is good"
+          },
+          "glare": {
+            "detected": "Reduce glare on document",
+            "good": "No glare detected"
+          }
+        },
+        "errors": {
+          "cameraPermissionDenied": "Camera access is required to capture your document",
+          "cameraPermissionInstructions": "Please enable camera permissions in your browser settings",
+          "tryAgain": "Try Again",
+          "uploadInstead": "Upload Instead"
+        }
+      },
+      "passport": {
+        "title": "Capture Your Passport",
+        "description": "Position your passport within the frame",
+        "qualityFeedback": {
+          "lighting": {
+            "tooDark": "Too dark - move to better lighting",
+            "tooBright": "Too bright - reduce glare",
+            "good": "Lighting is good"
+          },
+          "blur": {
+            "tooBlurry": "Hold steady - image is blurry",
+            "moveCloser": "Move closer to document",
+            "good": "Focus is good"
+          },
+          "glare": {
+            "detected": "Reduce glare on document",
+            "good": "No glare detected"
+          }
+        },
+        "errors": {
+          "cameraPermissionDenied": "Camera access is required to capture your document",
+          "cameraPermissionInstructions": "Please enable camera permissions in your browser settings",
+          "tryAgain": "Try Again",
+          "uploadInstead": "Upload Instead"
+        }
+      },
+      "driversLicense": {
+        "title": "Capture Your Driver's Licence",
+        "description": "Position your driver's licence within the frame",
+        "qualityFeedback": {
+          "lighting": {
+            "tooDark": "Too dark - move to better lighting",
+            "tooBright": "Too bright - reduce glare",
+            "good": "Lighting is good"
+          },
+          "blur": {
+            "tooBlurry": "Hold steady - image is blurry",
+            "moveCloser": "Move closer to document",
+            "good": "Focus is good"
+          },
+          "glare": {
+            "detected": "Reduce glare on document",
+            "good": "No glare detected"
+          }
+        },
+        "errors": {
+          "cameraPermissionDenied": "Camera access is required to capture your document",
+          "cameraPermissionInstructions": "Please enable camera permissions in your browser settings",
+          "tryAgain": "Try Again",
+          "uploadInstead": "Upload Instead"
+        }
+      },
       "id_card": {
         "title": "Upload ID",
         "description": "Place your ID inside the frame and take a picture. \nMake sure it is not cut or has any glare."
-      },
-      "passport": {
-        "title": "Passport",
-        "description": "Place your passport inside the frame and take a \npicture. \nMake sure it is not cut or has any glare."
       },
       "voter_id": {
         "title": "Voter ID front side",
@@ -117,8 +207,10 @@
       }
     },
     "check-document": {
-      "title": "Review picture",
-      "description": "Make sure the information is seen clearly, with no blur \nor glare."
+      "title": "Review Your Document",
+      "description": "Make sure the image is clear and readable",
+      "retake": "Retake",
+      "continue": "Continue"
     },
     "document-photo-back-start": {
       "title": "ID back side",
