@@ -1,0 +1,386 @@
+openapi: 3.0.3
+info:
+  title: AuthBridge Verification API - Document Upload
+  description: |
+    API endpoints for uploading and managing verification documents.
+
+    ## Authentication
+    All endpoints require a valid JWT token in the Authorization header.
+
+    ## Rate Limits
+    - Per verification: 20 documents maximum
+    - Per client: 1,000 uploads/hour
+
+    ## File Requirements
+    - Maximum file size: 10MB
+    - Supported formats: JPEG, PNG, PDF
+    - Minimum image dimensions: 640x480 pixels
+  version: 1.0.0
+  contact:
+    name: AuthBridge API Support
+    email: api@authbridge.io
+
+servers:
+  - url: https://api.authbridge.io
+    description: Production
+  - url: https://api-staging.authbridge.io
+    description: Staging
+
+paths:
+  /api/v1/verifications/{verificationId}/documents:
+    post:
+      summary: Upload Document
+      description: |
+        Upload a document image to a verification case.
+
+        The image must be provided as a base64-encoded data URI.
+        Supported formats: JPEG, PNG, PDF.
+        Maximum file size: 10MB.
+        Minimum image dimensions: 640x480 pixels.
+      operationId: uploadDocument
+      tags:
+        - Documents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: verificationId
+          in: path
+          required: true
+          description: The verification case ID
+          schema:
+            type: string
+            example: ver_abc123def456
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadDocumentRequest'
+            examples:
+              omangFront:
+                summary: Upload Omang front
+                value:
+                  documentType: omang_front
+                  imageData: "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
+                  metadata:
+                    captureMethod: camera
+                    deviceType: mobile
+                    timestamp: "2026-01-14T10:00:00Z"
+              selfie:
+                summary: Upload selfie
+                value:
+                  documentType: selfie
+                  imageData: "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
+                  metadata:
+                    captureMethod: camera
+                    deviceType: mobile
+      responses:
+        '201':
+          description: Document uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadDocumentResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidType:
+                  summary: Invalid document type
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid request parameters
+                      details:
+                        - field: documentType
+                          message: "Invalid enum value"
+                    meta:
+                      requestId: req_abc123
+                      timestamp: "2026-01-14T10:00:00Z"
+                invalidBase64:
+                  summary: Invalid base64 data
+                  value:
+                    error:
+                      code: INVALID_FILE_TYPE
+                      message: Invalid image data format
+                      details:
+                        - field: imageData
+                          message: "Must be a valid base64 data URI"
+                    meta:
+                      requestId: req_abc123
+                      timestamp: "2026-01-14T10:00:00Z"
+                imageTooSmall:
+                  summary: Image dimensions too small
+                  value:
+                    error:
+                      code: IMAGE_TOO_SMALL
+                      message: Image dimensions do not meet minimum requirements
+                      details:
+                        - field: imageData
+                          message: "Image dimensions: 320x240, Minimum: 640x480"
+                    meta:
+                      requestId: req_abc123
+                      timestamp: "2026-01-14T10:00:00Z"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - client does not own verification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Verification not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: FILE_TOO_LARGE
+                  message: File size exceeds maximum allowed size of 10MB
+                  details:
+                    - field: imageData
+                      message: "File size: 12.50MB, Maximum: 10MB"
+                meta:
+                  requestId: req_abc123
+                  timestamp: "2026-01-14T10:00:00Z"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/verifications/{verificationId}/documents/{documentId}/url:
+    post:
+      summary: Refresh Document URL
+      description: |
+        Generate a new presigned URL for accessing a document.
+        Presigned URLs expire after 15 minutes.
+      operationId: refreshDocumentUrl
+      tags:
+        - Documents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: verificationId
+          in: path
+          required: true
+          description: The verification case ID
+          schema:
+            type: string
+            example: ver_abc123def456
+        - name: documentId
+          in: path
+          required: true
+          description: The document ID
+          schema:
+            type: string
+            example: doc_xyz789
+      responses:
+        '200':
+          description: New presigned URL generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshUrlResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Document or verification not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from authentication endpoint
+
+  schemas:
+    UploadDocumentRequest:
+      type: object
+      required:
+        - documentType
+        - imageData
+      properties:
+        documentType:
+          type: string
+          enum:
+            - omang_front
+            - omang_back
+            - selfie
+            - passport
+            - drivers_license_front
+            - drivers_license_back
+            - id_card_front
+            - id_card_back
+          description: Type of document being uploaded
+        imageData:
+          type: string
+          description: Base64-encoded data URI (e.g., data:image/jpeg;base64,...)
+          example: "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
+        metadata:
+          type: object
+          properties:
+            captureMethod:
+              type: string
+              enum: [camera, upload]
+              description: How the image was captured
+            deviceType:
+              type: string
+              enum: [mobile, desktop, tablet]
+              description: Device type used for capture
+            timestamp:
+              type: string
+              format: date-time
+              description: When the image was captured
+
+    UploadDocumentResponse:
+      type: object
+      properties:
+        documentId:
+          type: string
+          description: Unique document identifier
+          example: doc_abc123def456
+        verificationId:
+          type: string
+          description: Associated verification case ID
+          example: ver_abc123def456
+        documentType:
+          type: string
+          description: Type of document
+          example: omang_front
+        s3Key:
+          type: string
+          description: S3 object key
+          example: client_abc123/ver_def456/omang_front-1673616000000.jpg
+        fileSize:
+          type: integer
+          description: File size in bytes
+          example: 1048576
+        mimeType:
+          type: string
+          description: MIME type of the file
+          example: image/jpeg
+        uploadedAt:
+          type: string
+          format: date-time
+          description: Upload timestamp
+          example: "2026-01-14T10:00:00Z"
+        status:
+          type: string
+          enum: [uploaded, processing, processed, failed]
+          description: Document processing status
+          example: uploaded
+        presignedUrl:
+          type: string
+          format: uri
+          description: Presigned URL for document access (expires in 15 minutes)
+          example: "https://authbridge-documents-prod.s3.af-south-1.amazonaws.com/..."
+        presignedUrlExpiresAt:
+          type: string
+          format: date-time
+          description: When the presigned URL expires
+          example: "2026-01-14T10:15:00Z"
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    RefreshUrlResponse:
+      type: object
+      properties:
+        documentId:
+          type: string
+          example: doc_abc123def456
+        verificationId:
+          type: string
+          example: ver_abc123def456
+        presignedUrl:
+          type: string
+          format: uri
+          example: "https://authbridge-documents-prod.s3.af-south-1.amazonaws.com/..."
+        presignedUrlExpiresAt:
+          type: string
+          format: date-time
+          example: "2026-01-14T10:15:00Z"
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              description: Human-readable error message
+              example: Invalid request parameters
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                    description: Field that caused the error
+                  message:
+                    type: string
+                    description: Detailed error message
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    ResponseMeta:
+      type: object
+      properties:
+        requestId:
+          type: string
+          description: Unique request identifier for debugging
+          example: req_abc123
+        timestamp:
+          type: string
+          format: date-time
+          description: Response timestamp
+          example: "2026-01-14T10:00:00Z"
+
+tags:
+  - name: Documents
+    description: Document upload and management endpoints

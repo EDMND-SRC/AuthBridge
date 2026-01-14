@@ -1,0 +1,443 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
+
+// Create mock functions
+const mockGetVerification = vi.fn();
+const mockUpdateStatus = vi.fn();
+const mockUploadDocument = vi.fn();
+const mockCountDocuments = vi.fn();
+
+// Mock services before importing handler
+vi.mock('../services/dynamodb', () => ({
+  DynamoDBService: vi.fn().mockImplementation(() => ({})),
+}));
+
+vi.mock('../services/s3', () => ({
+  S3Service: vi.fn().mockImplementation(() => ({})),
+}));
+
+vi.mock('../services/verification', () => ({
+  VerificationService: vi.fn().mockImplementation(() => ({
+    getVerification: mockGetVerification,
+    updateStatus: mockUpdateStatus,
+  })),
+}));
+
+vi.mock('../services/document', () => ({
+  DocumentService: vi.fn().mockImplementation(() => ({
+    uploadDocument: mockUploadDocument,
+    countDocuments: mockCountDocuments,
+  })),
+}));
+
+// Mock file validation - return valid results by default
+const mockValidateUploadDocumentRequest = vi.fn();
+const mockParseBase64DataUri = vi.fn();
+const mockValidateFileSize = vi.fn();
+const mockValidateMimeType = vi.fn();
+const mockGetImageDimensions = vi.fn();
+const mockValidateImageDimensions = vi.fn();
+const mockScanForViruses = vi.fn();
+const mockCheckImageQuality = vi.fn();
+
+vi.mock('../services/file-validation', () => ({
+  validateUploadDocumentRequest: (...args: unknown[]) => mockValidateUploadDocumentRequest(...args),
+  parseBase64DataUri: (...args: unknown[]) => mockParseBase64DataUri(...args),
+  validateFileSize: (...args: unknown[]) => mockValidateFileSize(...args),
+  validateMimeType: (...args: unknown[]) => mockValidateMimeType(...args),
+  getImageDimensions: (...args: unknown[]) => mockGetImageDimensions(...args),
+  validateImageDimensions: (...args: unknown[]) => mockValidateImageDimensions(...args),
+  scanForViruses: (...args: unknown[]) => mockScanForViruses(...args),
+  checkImageQuality: (...args: unknown[]) => mockCheckImageQuality(...args),
+}));
+
+// Mock metrics - no-op in tests
+vi.mock('../utils/metrics', () => ({
+  recordUploadMetrics: vi.fn().mockResolvedValue(undefined),
+  recordValidationFailure: vi.fn().mockResolvedValue(undefined),
+}));
+
+// Import handler after mocks are set up
+import { handler } from './upload-document';
+
+describe('upload-document handler', () => {
+  let mockEvent: APIGatewayProxyEvent;
+  let mockContext: Context;
+
+  const validBase64Image = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    mockContext = {
+      awsRequestId: 'test-request-id',
+    } as Context;
+
+    mockEvent = {
+      requestContext: {
+        requestId: 'test-request-id',
+        authorizer: {
+          clientId: 'client_123',
+        },
+      },
+      pathParameters: {
+        verificationId: 'ver_456',
+      },
+      body: JSON.stringify({
+        documentType: 'omang_front',
+        imageData: validBase64Image,
+      }),
+    } as unknown as APIGatewayProxyEvent;
+
+    // Setup default mock responses for file validation
+    mockValidateUploadDocumentRequest.mockReturnValue({
+      success: true,
+      data: { documentType: 'omang_front', imageData: validBase64Image },
+    });
+    mockParseBase64DataUri.mockReturnValue({
+      mimeType: 'image/jpeg',
+      data: Buffer.from('test'),
+      size: 1024,
+    });
+    mockValidateFileSize.mockReturnValue({ valid: true });
+    mockValidateMimeType.mockReturnValue({ valid: true });
+    mockGetImageDimensions.mockReturnValue({ width: 800, height: 600 });
+    mockValidateImageDimensions.mockReturnValue({ valid: true });
+    mockScanForViruses.mockReturnValue({ clean: true });
+    mockCheckImageQuality.mockReturnValue({ acceptable: true, metrics: { blur: 0.3, brightness: 0.5, contrast: 0.6 } });
+
+    // Setup default mock responses for services
+    mockGetVerification.mockResolvedValue({
+      verificationId: 'ver_456',
+      clientId: 'client_123',
+      status: 'created',
+    });
+
+    mockCountDocuments.mockResolvedValue(0);
+
+    mockUploadDocument.mockResolvedValue({
+      documentId: 'doc_789',
+      verificationId: 'ver_456',
+      documentType: 'omang_front',
+      s3Key: 'client_123/ver_456/omang_front-123.jpg',
+      fileSize: 1024,
+      mimeType: 'image/jpeg',
+      uploadedAt: '2026-01-14T10:00:00Z',
+      status: 'uploaded',
+      presignedUrl: 'https://presigned.url',
+      presignedUrlExpiresAt: '2026-01-14T10:15:00Z',
+      meta: {
+        requestId: 'test-request-id',
+        timestamp: '2026-01-14T10:00:00Z',
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it('should return 401 when clientId is missing', async () => {
+    mockEvent.requestContext.authorizer = {};
+
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.statusCode).toBe(401);
+    const body = JSON.parse(result.body);
+    expect(body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('should return 400 when verificationId is missing', async () => {
+    mockEvent.pathParameters = {};
+
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.statusCode).toBe(400);
+    const body = JSON.parse(result.body);
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(body.error.message).toContain('Verification ID');
+  });
+
+  it('should return 400 when body is missing', async () => {
+    mockEvent.body = null;
+
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.statusCode).toBe(400);
+    const body = JSON.parse(result.body);
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(body.error.message).toContain('Request body');
+  });
+
+  it('should return 400 when documentType is invalid', async () => {
+    mockEvent.body = JSON.stringify({
+      documentType: 'invalid_type',
+      imageData: validBase64Image,
+    });
+
+    mockValidateUploadDocumentRequest.mockReturnValue({
+      success: false,
+      errors: [{ field: 'documentType', message: 'Invalid document type' }],
+    });
+
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.statusCode).toBe(400);
+    const body = JSON.parse(result.body);
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('should return 400 when imageData is missing', async () => {
+    mockEvent.body = JSON.stringify({
+      documentType: 'omang_front',
+    });
+
+    mockValidateUploadDocumentRequest.mockReturnValue({
+      success: false,
+      errors: [{ field: 'imageData', message: 'Required' }],
+    });
+
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.statusCode).toBe(400);
+  });
+
+  it('should return 400 when imageData is invalid base64', async () => {
+    mockEvent.body = JSON.stringify({
+      documentType: 'omang_front',
+      imageData: 'not-a-valid-base64-uri',
+    });
+
+    mockValidateUploadDocumentRequest.mockReturnValue({
+      success: true,
+      data: { documentType: 'omang_front', imageData: 'not-a-valid-base64-uri' },
+    });
+    mockParseBase64DataUri.mockReturnValue(null);
+
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.statusCode).toBe(400);
+    const body = JSON.parse(result.body);
+    expect(body.error.code).toBe('INVALID_FILE_TYPE');
+  });
+
+  it('should return 400 when mime type is not allowed', async () => {
+    mockEvent.body = JSON.stringify({
+      documentType: 'omang_front',
+      imageData: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+    });
+
+    mockValidateUploadDocumentRequest.mockReturnValue({
+      success: true,
+      data: { documentType: 'omang_front', imageData: 'data:image/gif;base64,...' },
+    });
+    mockParseBase64DataUri.mockReturnValue({
+      mimeType: 'image/gif',
+      data: Buffer.from('test'),
+      size: 100,
+    });
+    mockValidateMimeType.mockReturnValue({
+      valid: false,
+      message: 'Supported types: image/jpeg, image/png, application/pdf',
+    });
+
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.statusCode).toBe(400);
+    const body = JSON.parse(result.body);
+    expect(body.error.code).toBe('INVALID_FILE_TYPE');
+  });
+
+  it('should return 413 when file size exceeds limit', async () => {
+    mockValidateFileSize.mockReturnValue({
+      valid: false,
+      message: 'File size: 15.00MB, Maximum: 10MB',
+    });
+
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.statusCode).toBe(413);
+    const body = JSON.parse(result.body);
+    expect(body.error.code).toBe('FILE_TOO_LARGE');
+  });
+
+  it('should return 400 when image dimensions are too small', async () => {
+    mockGetImageDimensions.mockReturnValue({ width: 320, height: 240 });
+    mockValidateImageDimensions.mockReturnValue({
+      valid: false,
+      message: 'Image dimensions: 320x240, Minimum: 640x480',
+    });
+
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.statusCode).toBe(400);
+    const body = JSON.parse(result.body);
+    expect(body.error.code).toBe('IMAGE_TOO_SMALL');
+  });
+
+  it('should return 404 when verification not found', async () => {
+    mockGetVerification.mockResolvedValue(null);
+
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.statusCode).toBe(404);
+    const body = JSON.parse(result.body);
+    expect(body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('should return 403 when client does not own verification', async () => {
+    mockGetVerification.mockResolvedValue({
+      verificationId: 'ver_456',
+      clientId: 'different_client',
+      status: 'created',
+    });
+
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.statusCode).toBe(403);
+    const body = JSON.parse(result.body);
+    expect(body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('should return 400 when verification status does not allow uploads', async () => {
+    mockGetVerification.mockResolvedValue({
+      verificationId: 'ver_456',
+      clientId: 'client_123',
+      status: 'submitted',
+    });
+
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.statusCode).toBe(400);
+    const body = JSON.parse(result.body);
+    expect(body.error.code).toBe('INVALID_STATE');
+  });
+
+  it('should return 400 when document limit exceeded', async () => {
+    mockCountDocuments.mockResolvedValue(20);
+
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.statusCode).toBe(400);
+    const body = JSON.parse(result.body);
+    expect(body.error.code).toBe('DOCUMENT_LIMIT_EXCEEDED');
+  });
+
+  it('should return 201 on successful upload', async () => {
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.statusCode).toBe(201);
+    const body = JSON.parse(result.body);
+    expect(body.documentId).toBe('doc_789');
+    expect(body.verificationId).toBe('ver_456');
+    expect(body.documentType).toBe('omang_front');
+    expect(body.presignedUrl).toBeDefined();
+  });
+
+  it('should include CORS headers in response', async () => {
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.headers).toHaveProperty('Access-Control-Allow-Origin', '*');
+    expect(result.headers).toHaveProperty('Content-Type', 'application/json');
+  });
+
+  it('should include meta with requestId in response', async () => {
+    const result = await handler(mockEvent, mockContext);
+
+    const body = JSON.parse(result.body);
+    expect(body.meta).toBeDefined();
+    expect(body.meta.requestId).toBe('test-request-id');
+  });
+
+  it('should update verification status to documents_uploading on first upload', async () => {
+    await handler(mockEvent, mockContext);
+
+    expect(mockUpdateStatus).toHaveBeenCalledWith('ver_456', 'documents_uploading');
+  });
+
+  it('should not update status if already documents_uploading', async () => {
+    mockGetVerification.mockResolvedValue({
+      verificationId: 'ver_456',
+      clientId: 'client_123',
+      status: 'documents_uploading',
+    });
+
+    await handler(mockEvent, mockContext);
+
+    expect(mockUpdateStatus).not.toHaveBeenCalled();
+  });
+
+  it('should skip dimension validation for PDF files', async () => {
+    mockParseBase64DataUri.mockReturnValue({
+      mimeType: 'application/pdf',
+      data: Buffer.from('test'),
+      size: 1024,
+    });
+    mockGetImageDimensions.mockReturnValue(null);
+    mockValidateImageDimensions.mockReturnValue({ valid: true });
+
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.statusCode).toBe(201);
+    expect(mockValidateImageDimensions).toHaveBeenCalledWith(null, 'application/pdf');
+  });
+
+  it('should return 400 when virus/malware is detected', async () => {
+    mockScanForViruses.mockReturnValue({
+      clean: false,
+      threat: 'Windows executable (MZ)',
+    });
+
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.statusCode).toBe(400);
+    const body = JSON.parse(result.body);
+    expect(body.error.code).toBe('MALWARE_DETECTED');
+    expect(body.error.details[0].message).toContain('Windows executable');
+  });
+
+  it('should return 400 when image quality is poor (too blurry)', async () => {
+    mockCheckImageQuality.mockReturnValue({
+      acceptable: false,
+      reason: 'Image is too blurry (score: 85%, max: 70%)',
+      metrics: { blur: 0.85, brightness: 0.5, contrast: 0.6 },
+    });
+
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.statusCode).toBe(400);
+    const body = JSON.parse(result.body);
+    expect(body.error.code).toBe('IMAGE_QUALITY_POOR');
+    expect(body.error.details[0].message).toContain('blurry');
+  });
+
+  it('should return 400 when image is too dark', async () => {
+    mockCheckImageQuality.mockReturnValue({
+      acceptable: false,
+      reason: 'Image is too dark (brightness: 10%, min: 15%)',
+      metrics: { blur: 0.3, brightness: 0.1, contrast: 0.6 },
+    });
+
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.statusCode).toBe(400);
+    const body = JSON.parse(result.body);
+    expect(body.error.code).toBe('IMAGE_QUALITY_POOR');
+    expect(body.error.details[0].message).toContain('dark');
+  });
+
+  it('should return 400 when image has low contrast', async () => {
+    mockCheckImageQuality.mockReturnValue({
+      acceptable: false,
+      reason: 'Image has insufficient contrast (score: 10%, min: 20%)',
+      metrics: { blur: 0.3, brightness: 0.5, contrast: 0.1 },
+    });
+
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.statusCode).toBe(400);
+    const body = JSON.parse(result.body);
+    expect(body.error.code).toBe('IMAGE_QUALITY_POOR');
+    expect(body.error.details[0].message).toContain('contrast');
+  });
+});

@@ -1,0 +1,84 @@
+service: authbridge-auth
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: af-south-1
+  stage: ${opt:stage, 'staging'}
+  memorySize: 512
+  timeout: 30
+  environment:
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+    NODE_OPTIONS: '--enable-source-maps'
+    COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID}
+    COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID}
+    JWT_SECRET: ${env:JWT_SECRET}
+    AWS_REGION: ${self:provider.region}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - cognito-idp:AdminGetUser
+            - cognito-idp:AdminInitiateAuth
+          Resource: 'arn:aws:cognito-idp:${self:provider.region}:*:userpool/*'
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:Query
+          Resource: 'arn:aws:dynamodb:${self:provider.region}:*:table/AuthBridgeTable'
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: 'arn:aws:logs:${self:provider.region}:*:*'
+
+functions:
+  authorizer:
+    handler: dist/handlers/authorizer.handler
+    description: JWT token validation Lambda authorizer
+
+  createSession:
+    handler: dist/handlers/create-session.handler
+    description: Create new verification session
+    events:
+      - http:
+          path: /sessions
+          method: post
+          cors: true
+
+  validateSession:
+    handler: dist/handlers/validate-session.handler
+    description: Validate existing session
+    events:
+      - http:
+          path: /sessions/{sessionId}
+          method: get
+          cors: true
+          authorizer:
+            name: authorizer
+            type: token
+
+  createApiKey:
+    handler: dist/handlers/create-api-key.handler
+    description: Create new API key
+    events:
+      - http:
+          path: /api-keys
+          method: post
+          cors: true
+          authorizer:
+            name: authorizer
+            type: token
+
+plugins:
+  - serverless-offline
+
+custom:
+  serverless-offline:
+    httpPort: 3001

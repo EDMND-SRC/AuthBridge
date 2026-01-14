@@ -1,0 +1,196 @@
+service: authbridge-verification
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: af-south-1
+  stage: ${opt:stage, 'staging'}
+  memorySize: 512
+  timeout: 30
+  tracing:
+    lambda: true
+    apiGateway: true
+  environment:
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+    NODE_OPTIONS: '--enable-source-maps'
+    TABLE_NAME: AuthBridgeTable
+    BUCKET_NAME: authbridge-documents-${self:provider.stage}
+    AWS_REGION: ${self:provider.region}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:Query
+          Resource:
+            - 'arn:aws:dynamodb:${self:provider.region}:*:table/AuthBridgeTable'
+            - 'arn:aws:dynamodb:${self:provider.region}:*:table/AuthBridgeTable/index/*'
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:GetObject
+            - s3:DeleteObject
+          Resource:
+            - 'arn:aws:s3:::authbridge-documents-${self:provider.stage}/*'
+        - Effect: Allow
+          Action:
+            - kms:Decrypt
+            - kms:Encrypt
+            - kms:GenerateDataKey
+          Resource: 'arn:aws:kms:${self:provider.region}:*:key/*'
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: 'arn:aws:logs:${self:provider.region}:*:*'
+        - Effect: Allow
+          Action:
+            - cloudwatch:PutMetricData
+          Resource: '*'
+        - Effect: Allow
+          Action:
+            - xray:PutTraceSegments
+            - xray:PutTelemetryRecords
+          Resource: '*'
+
+functions:
+  createVerification:
+    handler: dist/handlers/create-verification.handler
+    description: Create new verification case
+    events:
+      - http:
+          path: /api/v1/verifications
+          method: post
+          cors: true
+          authorizer:
+            name: authorizer
+            arn: 'arn:aws:lambda:${self:provider.region}:*:function:authbridge-auth-${self:provider.stage}-authorizer'
+
+  getVerification:
+    handler: dist/handlers/get-verification.handler
+    description: Get verification case by ID
+    events:
+      - http:
+          path: /api/v1/verifications/{verificationId}
+          method: get
+          cors: true
+          authorizer:
+            name: authorizer
+            arn: 'arn:aws:lambda:${self:provider.region}:*:function:authbridge-auth-${self:provider.stage}-authorizer'
+
+  uploadDocument:
+    handler: dist/handlers/upload-document.handler
+    description: Upload document to verification case
+    memorySize: 1024
+    timeout: 30
+    events:
+      - http:
+          path: /api/v1/verifications/{verificationId}/documents
+          method: post
+          cors: true
+          authorizer:
+            name: authorizer
+            arn: 'arn:aws:lambda:${self:provider.region}:*:function:authbridge-auth-${self:provider.stage}-authorizer'
+
+  refreshDocumentUrl:
+    handler: dist/handlers/refresh-document-url.handler
+    description: Refresh presigned URL for document access
+    events:
+      - http:
+          path: /api/v1/verifications/{verificationId}/documents/{documentId}/url
+          method: post
+          cors: true
+          authorizer:
+            name: authorizer
+            arn: 'arn:aws:lambda:${self:provider.region}:*:function:authbridge-auth-${self:provider.stage}-authorizer'
+
+resources:
+  Resources:
+    # S3 Bucket for document storage
+    DocumentsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: authbridge-documents-${self:provider.stage}
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        VersioningConfiguration:
+          Status: Enabled
+        LifecycleConfiguration:
+          Rules:
+            - Id: DeleteAfter5Years
+              Status: Enabled
+              ExpirationInDays: 1825
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        CorsConfiguration:
+          CorsRules:
+            - AllowedOrigins:
+                - '*'
+              AllowedMethods:
+                - PUT
+                - POST
+                - GET
+              AllowedHeaders:
+                - '*'
+              MaxAge: 3000
+        LoggingConfiguration:
+          DestinationBucketName: !Ref DocumentsAccessLogsBucket
+          LogFilePrefix: access-logs/
+
+    # Access logs bucket for audit trail
+    DocumentsAccessLogsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: authbridge-documents-logs-${self:provider.stage}
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        LifecycleConfiguration:
+          Rules:
+            - Id: DeleteLogsAfter1Year
+              Status: Enabled
+              ExpirationInDays: 365
+
+    # Bucket policy to enforce HTTPS only
+    DocumentsBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref DocumentsBucket
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Sid: EnforceHTTPS
+              Effect: Deny
+              Principal: '*'
+              Action: 's3:*'
+              Resource:
+                - !GetAtt DocumentsBucket.Arn
+                - !Sub '${DocumentsBucket.Arn}/*'
+              Condition:
+                Bool:
+                  'aws:SecureTransport': 'false'
+
+plugins:
+  - serverless-offline
+
+custom:
+  serverless-offline:
+    httpPort: 3002
+
