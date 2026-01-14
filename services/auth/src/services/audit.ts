@@ -6,72 +6,21 @@
 
 import { randomUUID } from 'crypto';
 import { logger, maskPII } from '../utils/logger.js';
-
-export type AuditAction =
-  | 'LOGIN'
-  | 'LOGOUT'
-  | 'TOKEN_REFRESH'
-  | 'TOKEN_VALIDATION'
-  | 'SESSION_CREATE'
-  | 'SESSION_VALIDATE'
-  | 'SESSION_RENEW'
-  | 'SESSION_REVOKE'
-  | 'SESSION_EXPIRE'
-  | 'API_KEY_CREATE'
-  | 'API_KEY_VALIDATE'
-  | 'API_KEY_REVOKE'
-  | 'API_KEY_ROTATE'
-  | 'RATE_LIMIT_EXCEEDED'
-  | 'AUTH_FAILURE'
-  | 'PERMISSION_DENIED';
-
-export interface AuditEntry {
-  eventId: string;
-  timestamp: string;
-  date: string; // YYYY-MM-DD for partitioning
-  userId: string | null;
-  clientId: string | null;
-  action: AuditAction;
-  resourceId: string | null;
-  resourceType: string | null;
-  ipAddress: string | null;
-  userAgent: string | null;
-  status: 'success' | 'failure';
-  errorCode: string | null;
-  metadata: Record<string, unknown>;
-}
-
-export interface CreateAuditEntryInput {
-  userId?: string;
-  clientId?: string;
-  action: AuditAction;
-  resourceId?: string;
-  resourceType?: string;
-  ipAddress?: string;
-  userAgent?: string;
-  status: 'success' | 'failure';
-  errorCode?: string;
-  metadata?: Record<string, unknown>;
-}
-
-// In-memory storage for MVP (replace with DynamoDB in production)
-// DynamoDB Schema:
-// PK: AUDIT#<date>
-// SK: <timestamp>#<eventId>
-// GSI1PK: USER#<userId>, GSI1SK: <timestamp>#<eventId>
-const auditLog: AuditEntry[] = [];
+import { DynamoDBService } from './dynamodb.js';
+import type { AuditLogEntry, AuditAction, CreateAuditEntryInput } from '../types/audit.js';
 
 export class AuditService {
-  // For testing: clear all audit entries
-  clearAllEntries(): void {
-    auditLog.length = 0;
+  private dynamodb: DynamoDBService;
+
+  constructor(dynamodb?: DynamoDBService) {
+    this.dynamodb = dynamodb || new DynamoDBService();
   }
 
-  async logEvent(input: CreateAuditEntryInput): Promise<AuditEntry> {
+  async logEvent(input: CreateAuditEntryInput): Promise<AuditLogEntry> {
     const now = new Date();
     const eventId = randomUUID();
 
-    const entry: AuditEntry = {
+    const entry: AuditLogEntry = {
       eventId,
       timestamp: now.toISOString(),
       date: now.toISOString().split('T')[0],
@@ -88,7 +37,7 @@ export class AuditService {
     };
 
     // Append to audit log (immutable - no updates or deletes)
-    auditLog.push(entry);
+    await this.dynamodb.putAuditLog(entry);
 
     // Also log to CloudWatch for real-time monitoring
     logger.audit(input.action, {
@@ -219,39 +168,23 @@ export class AuditService {
   }
 
   // Query methods (for admin/compliance)
-  async getEntriesByUser(userId: string, limit: number = 100): Promise<AuditEntry[]> {
-    return auditLog
-      .filter(entry => entry.userId === userId)
+  async getEntriesByUser(userId: string, limit: number = 100): Promise<AuditLogEntry[]> {
+    const entries = await this.dynamodb.queryAuditLogsByUser(userId);
+    return entries
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
       .slice(0, limit);
   }
 
-  async getEntriesByDate(date: string, limit: number = 1000): Promise<AuditEntry[]> {
-    return auditLog
-      .filter(entry => entry.date === date)
-      .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
-      .slice(0, limit);
-  }
-
-  async getEntriesByAction(action: AuditAction, limit: number = 100): Promise<AuditEntry[]> {
-    return auditLog
-      .filter(entry => entry.action === action)
-      .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
-      .slice(0, limit);
-  }
-
-  async getFailedAuthAttempts(since: Date, limit: number = 100): Promise<AuditEntry[]> {
-    const sinceStr = since.toISOString();
-    return auditLog
-      .filter(entry =>
-        entry.status === 'failure' &&
-        entry.timestamp >= sinceStr &&
-        ['LOGIN', 'TOKEN_VALIDATION', 'API_KEY_VALIDATE', 'AUTH_FAILURE'].includes(entry.action)
-      )
+  async getEntriesByDate(date: string, limit: number = 1000): Promise<AuditLogEntry[]> {
+    const entries = await this.dynamodb.queryAuditLogsByDate(date);
+    return entries
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
       .slice(0, limit);
   }
 }
 
-// Singleton instance
+// Re-export types for convenience
+export type { AuditLogEntry, AuditAction, CreateAuditEntryInput } from '../types/audit.js';
+
+// Singleton instance for convenience
 export const auditService = new AuditService();

@@ -1,16 +1,15 @@
 import { randomUUID } from 'crypto';
 import type { Session, CreateSessionInput, SessionValidationResult } from '../types/session.js';
+import { DynamoDBService } from './dynamodb.js';
 
 const SESSION_DURATION_MINUTES = 30;
 const MAX_SESSIONS_PER_USER = 50;
 
-// In-memory storage for MVP (replace with DynamoDB in production)
-const sessions = new Map<string, Session>();
-
 export class SessionService {
-  // For testing: clear all sessions
-  clearAllSessions(): void {
-    sessions.clear();
+  private dynamodb: DynamoDBService;
+
+  constructor(dynamodb?: DynamoDBService) {
+    this.dynamodb = dynamodb || new DynamoDBService();
   }
 
   async createSession(input: CreateSessionInput): Promise<Session> {
@@ -19,11 +18,8 @@ export class SessionService {
     const expiresAt = new Date(now.getTime() + SESSION_DURATION_MINUTES * 60 * 1000);
 
     // Check concurrent session limit
-    const userSessions = Array.from(sessions.values()).filter(
-      s => s.userId === input.userId && s.status === 'active'
-    );
-
-    if (userSessions.length >= MAX_SESSIONS_PER_USER) {
+    const activeCount = await this.dynamodb.countActiveUserSessions(input.userId);
+    if (activeCount >= MAX_SESSIONS_PER_USER) {
       throw new Error('Maximum concurrent sessions exceeded');
     }
 
@@ -41,12 +37,12 @@ export class SessionService {
       ttl: Math.floor(expiresAt.getTime() / 1000),
     };
 
-    sessions.set(sessionId, session);
+    await this.dynamodb.putSession(session);
     return session;
   }
 
   async validateSession(sessionId: string): Promise<SessionValidationResult> {
-    const session = sessions.get(sessionId);
+    const session = await this.dynamodb.getSession(sessionId);
 
     if (!session) {
       return {
@@ -67,7 +63,7 @@ export class SessionService {
 
     if (now > expiresAt) {
       session.status = 'expired';
-      sessions.set(sessionId, session);
+      await this.dynamodb.updateSession(session);
       return {
         valid: false,
         error: 'Session expired',
@@ -76,7 +72,7 @@ export class SessionService {
 
     // Update last activity
     session.lastActivity = now.toISOString();
-    sessions.set(sessionId, session);
+    await this.dynamodb.updateSession(session);
 
     return {
       valid: true,
@@ -98,22 +94,21 @@ export class SessionService {
     validation.session.lastActivity = now.toISOString();
     validation.session.ttl = Math.floor(expiresAt.getTime() / 1000);
 
-    sessions.set(sessionId, validation.session);
+    await this.dynamodb.updateSession(validation.session);
     return validation.session;
   }
 
   async revokeSession(sessionId: string): Promise<void> {
-    const session = sessions.get(sessionId);
+    const session = await this.dynamodb.getSession(sessionId);
 
     if (session) {
       session.status = 'revoked';
-      sessions.set(sessionId, session);
+      await this.dynamodb.updateSession(session);
     }
   }
 
   async getUserSessions(userId: string): Promise<Session[]> {
-    return Array.from(sessions.values()).filter(
-      s => s.userId === userId && s.status === 'active'
-    );
+    const sessions = await this.dynamodb.queryUserSessions(userId);
+    return sessions.filter(s => s.status === 'active');
   }
 }

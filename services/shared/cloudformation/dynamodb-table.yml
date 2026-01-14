@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AuthBridge DynamoDB Single-Table Design
+
+Parameters:
+  Stage:
+    Type: String
+    Default: staging
+    AllowedValues:
+      - staging
+      - production
+    Description: Deployment stage
+
+Resources:
+  AuthBridgeTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: AuthBridgeTable
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        # Primary Key
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        # GSI1: Query by client + status (verifications, sessions)
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+        # GSI2: Query by date (verifications, API keys)
+        - AttributeName: GSI2PK
+          AttributeType: S
+        - AttributeName: GSI2SK
+          AttributeType: S
+        # GSI3: Query audit logs by user
+        - AttributeName: GSI3PK
+          AttributeType: S
+        - AttributeName: GSI3SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: GSI2
+          KeySchema:
+            - AttributeName: GSI2PK
+              KeyType: HASH
+            - AttributeName: GSI2SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: GSI3
+          KeySchema:
+            - AttributeName: GSI3PK
+              KeyType: HASH
+            - AttributeName: GSI3SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+      Tags:
+        - Key: Project
+          Value: AuthBridge
+        - Key: Stage
+          Value: !Ref Stage
+
+Outputs:
+  TableName:
+    Description: DynamoDB Table Name
+    Value: !Ref AuthBridgeTable
+    Export:
+      Name: !Sub '${AWS::StackName}-TableName'
+  TableArn:
+    Description: DynamoDB Table ARN
+    Value: !GetAtt AuthBridgeTable.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-TableArn'

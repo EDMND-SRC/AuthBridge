@@ -4,7 +4,7 @@ frameworkVersion: '3'
 
 provider:
   name: aws
-  runtime: nodejs22.x
+  runtime: nodejs20.x
   region: af-south-1
   stage: ${opt:stage, 'staging'}
   memorySize: 512
@@ -12,10 +12,10 @@ provider:
   environment:
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
     NODE_OPTIONS: '--enable-source-maps'
-    COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID}
-    COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID}
-    JWT_SECRET: ${env:JWT_SECRET}
-    AWS_REGION: ${self:provider.region}
+    COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'placeholder-staging'}
+    COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID, 'placeholder-staging'}
+    JWT_SECRET: ${env:JWT_SECRET, 'staging-jwt-secret-change-in-production'}
+    TABLE_NAME: AuthBridgeTable
   iam:
     role:
       statements:
@@ -30,7 +30,9 @@ provider:
             - dynamodb:PutItem
             - dynamodb:UpdateItem
             - dynamodb:Query
-          Resource: 'arn:aws:dynamodb:${self:provider.region}:*:table/AuthBridgeTable'
+          Resource:
+            - 'arn:aws:dynamodb:${self:provider.region}:*:table/AuthBridgeTable'
+            - 'arn:aws:dynamodb:${self:provider.region}:*:table/AuthBridgeTable/index/*'
         - Effect: Allow
           Action:
             - logs:CreateLogGroup

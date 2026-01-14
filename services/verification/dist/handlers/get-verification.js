@@ -5,7 +5,8 @@ const TABLE_NAME = process.env.TABLE_NAME || 'AuthBridgeTable';
 const REGION = process.env.AWS_REGION || 'af-south-1';
 const verificationService = new VerificationService(TABLE_NAME, REGION);
 export async function handler(event, context) {
-    const requestId = event.requestContext.requestId;
+    // Prefer context.awsRequestId for consistency across Lambda invocations
+    const requestId = context.awsRequestId || event.requestContext.requestId;
     try {
         // Extract clientId from authorizer context
         const clientId = event.requestContext.authorizer?.clientId;

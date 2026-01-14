@@ -4,49 +4,19 @@
  */
 
 import { randomUUID } from 'crypto';
-import { generateApiKey, hashApiKey, verifyApiKey } from '../utils/crypto.js';
+import { generateApiKey, hashApiKey } from '../utils/crypto.js';
 import { logger } from '../utils/logger.js';
-
-export interface ApiKey {
-  keyId: string;
-  clientId: string;
-  keyHash: string;
-  name: string;
-  createdAt: string;
-  expiresAt: string | null;
-  lastUsed: string | null;
-  status: 'active' | 'revoked' | 'expired';
-  scopes: string[];
-  rateLimit: number; // requests per minute
-}
-
-export interface CreateApiKeyInput {
-  clientId: string;
-  name: string;
-  scopes?: string[];
-  rateLimit?: number;
-  expiresInDays?: number;
-}
-
-export interface ApiKeyValidationResult {
-  valid: boolean;
-  apiKey?: ApiKey;
-  error?: string;
-}
+import { DynamoDBService } from './dynamodb.js';
+import type { ApiKey, CreateApiKeyInput, ApiKeyValidationResult } from '../types/api-key.js';
 
 const DEFAULT_RATE_LIMIT = 100; // requests per minute
 const DEFAULT_SCOPES = ['read', 'write'];
 
-// In-memory storage for MVP (replace with DynamoDB in production)
-const apiKeys = new Map<string, ApiKey>();
-// Index by hash for fast lookup during validation
-const apiKeysByHash = new Map<string, string>(); // hash -> keyId
-
 export class ApiKeyService {
-  // For testing: clear all API keys
-  clearAllKeys(): void {
-    apiKeys.clear();
-    apiKeysByHash.clear();
+  private dynamodb: DynamoDBService;
+
+  constructor(dynamodb?: DynamoDBService) {
+    this.dynamodb = dynamodb || new DynamoDBService();
   }
 
   async createApiKey(input: CreateApiKeyInput): Promise<{ apiKey: ApiKey; plainTextKey: string }> {
@@ -74,8 +44,7 @@ export class ApiKeyService {
       rateLimit: input.rateLimit || DEFAULT_RATE_LIMIT,
     };
 
-    apiKeys.set(keyId, apiKey);
-    apiKeysByHash.set(keyHash, keyId);
+    await this.dynamodb.putApiKey(apiKey);
 
     logger.audit('API_KEY_CREATED', {
       clientId: input.clientId,
@@ -88,44 +57,42 @@ export class ApiKeyService {
     return { apiKey, plainTextKey };
   }
 
-  async validateApiKey(plainTextKey: string): Promise<ApiKeyValidationResult> {
+  async validateApiKey(plainTextKey: string, clientId: string): Promise<ApiKeyValidationResult> {
     const keyHash = hashApiKey(plainTextKey);
-    const keyId = apiKeysByHash.get(keyHash);
 
-    if (!keyId) {
+    // Query all keys for the client and find matching hash
+    const clientKeys = await this.dynamodb.queryClientApiKeys(clientId);
+    const apiKey = clientKeys.find(k => k.keyHash === keyHash);
+
+    if (!apiKey) {
       logger.warn('API key validation failed: key not found');
       return { valid: false, error: 'Invalid API key' };
     }
 
-    const apiKey = apiKeys.get(keyId);
-    if (!apiKey) {
-      return { valid: false, error: 'API key not found' };
-    }
-
     if (apiKey.status !== 'active') {
-      logger.warn('API key validation failed: key not active', { keyId, status: apiKey.status });
+      logger.warn('API key validation failed: key not active', { keyId: apiKey.keyId, status: apiKey.status });
       return { valid: false, error: `API key is ${apiKey.status}` };
     }
 
     if (apiKey.expiresAt && new Date(apiKey.expiresAt) < new Date()) {
       apiKey.status = 'expired';
-      apiKeys.set(keyId, apiKey);
-      logger.warn('API key validation failed: key expired', { keyId });
+      await this.dynamodb.updateApiKey(apiKey);
+      logger.warn('API key validation failed: key expired', { keyId: apiKey.keyId });
       return { valid: false, error: 'API key has expired' };
     }
 
     // Update last used timestamp
     apiKey.lastUsed = new Date().toISOString();
-    apiKeys.set(keyId, apiKey);
+    await this.dynamodb.updateApiKey(apiKey);
 
     return { valid: true, apiKey };
   }
 
-  async revokeApiKey(keyId: string): Promise<void> {
-    const apiKey = apiKeys.get(keyId);
+  async revokeApiKey(clientId: string, keyId: string): Promise<void> {
+    const apiKey = await this.dynamodb.getApiKey(clientId, keyId);
     if (apiKey) {
       apiKey.status = 'revoked';
-      apiKeys.set(keyId, apiKey);
+      await this.dynamodb.updateApiKey(apiKey);
 
       logger.audit('API_KEY_REVOKED', {
         clientId: apiKey.clientId,
@@ -135,14 +102,14 @@ export class ApiKeyService {
     }
   }
 
-  async rotateApiKey(keyId: string): Promise<{ apiKey: ApiKey; plainTextKey: string } | null> {
-    const oldKey = apiKeys.get(keyId);
+  async rotateApiKey(clientId: string, keyId: string): Promise<{ apiKey: ApiKey; plainTextKey: string } | null> {
+    const oldKey = await this.dynamodb.getApiKey(clientId, keyId);
     if (!oldKey) {
       return null;
     }
 
     // Revoke old key
-    await this.revokeApiKey(keyId);
+    await this.revokeApiKey(clientId, keyId);
 
     // Create new key with same settings
     const result = await this.createApiKey({
@@ -162,12 +129,11 @@ export class ApiKeyService {
   }
 
   async getClientApiKeys(clientId: string): Promise<ApiKey[]> {
-    return Array.from(apiKeys.values()).filter(
-      key => key.clientId === clientId && key.status === 'active'
-    );
+    const keys = await this.dynamodb.queryClientApiKeys(clientId);
+    return keys.filter(key => key.status === 'active');
   }
 
-  async getApiKeyById(keyId: string): Promise<ApiKey | undefined> {
-    return apiKeys.get(keyId);
+  async getApiKeyById(clientId: string, keyId: string): Promise<ApiKey | null> {
+    return this.dynamodb.getApiKey(clientId, keyId);
   }
 }

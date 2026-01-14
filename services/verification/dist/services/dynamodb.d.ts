@@ -1,4 +1,5 @@
 import type { VerificationEntity, VerificationStatus } from '../types/verification';
+import type { DocumentEntity } from '../types/document';
 export declare class DynamoDBService {
     private client;
     private tableName;
@@ -23,5 +24,17 @@ export declare class DynamoDBService {
      * Update verification status
      */
     updateVerificationStatus(verificationId: string, status: VerificationStatus, updatedAt: string): Promise<void>;
+    /**
+     * Put document entity
+     */
+    putDocument(document: DocumentEntity): Promise<void>;
+    /**
+     * Get document by verification ID and document ID
+     */
+    getDocument(verificationId: string, documentId: string): Promise<DocumentEntity | null>;
+    /**
+     * Query all documents for a verification
+     */
+    queryDocuments(verificationId: string): Promise<DocumentEntity[]>;
 }
 //# sourceMappingURL=dynamodb.d.ts.map

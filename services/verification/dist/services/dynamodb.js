@@ -103,5 +103,44 @@ export class DynamoDBService {
         });
         await this.client.send(command);
     }
+    /**
+     * Put document entity
+     */
+    async putDocument(document) {
+        const command = new PutCommand({
+            TableName: this.tableName,
+            Item: document,
+        });
+        await this.client.send(command);
+    }
+    /**
+     * Get document by verification ID and document ID
+     */
+    async getDocument(verificationId, documentId) {
+        const command = new GetCommand({
+            TableName: this.tableName,
+            Key: {
+                PK: `CASE#${verificationId}`,
+                SK: `DOC#${documentId}`,
+            },
+        });
+        const result = await this.client.send(command);
+        return result.Item || null;
+    }
+    /**
+     * Query all documents for a verification
+     */
+    async queryDocuments(verificationId) {
+        const command = new QueryCommand({
+            TableName: this.tableName,
+            KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
+            ExpressionAttributeValues: {
+                ':pk': `CASE#${verificationId}`,
+                ':skPrefix': 'DOC#',
+            },
+        });
+        const result = await this.client.send(command);
+        return result.Items || [];
+    }
 }
 //# sourceMappingURL=dynamodb.js.map
