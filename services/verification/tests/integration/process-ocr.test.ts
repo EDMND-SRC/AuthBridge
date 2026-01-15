@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SQSEvent } from 'aws-lambda';
 import { handler } from '../../src/handlers/process-ocr';
 import { OmangOcrService } from '../../src/services/omang-ocr';
@@ -28,6 +28,7 @@ vi.mock('../../src/utils/metrics', () => ({
   recordOcrMetrics: vi.fn(),
   recordTextractError: vi.fn(),
   recordPoorQualityImage: vi.fn(),
+  recordOmangValidationMetrics: vi.fn(),
 }));
 
 describe('OCR Processing Integration Tests', () => {
@@ -45,6 +46,8 @@ describe('OCR Processing Integration Tests', () => {
           omangNumber: '123456789',
           dateOfBirth: '15/03/1985',
           sex: 'M',
+          dateOfIssue: '15/03/2020',
+          dateOfExpiry: '15/03/2030',
         },
         confidence: { overall: 98.5 },
         rawTextractResponse: { Blocks: [] },
@@ -182,7 +185,8 @@ describe('OCR Processing Integration Tests', () => {
           confidence: { overall: 100 },
           requiresManualReview: false,
         }),
-        null  // No quality result for selfies
+        null,  // No quality result for selfies
+        null   // No validation result for selfies
       );
     });
   });
@@ -410,7 +414,8 @@ describe('OCR Processing Integration Tests', () => {
         'doc_status_test',
         'omang_front',
         expect.any(Object),
-        expect.any(Object)  // qualityResult
+        expect.any(Object),  // qualityResult
+        expect.any(Object)   // validationResult
       );
     });
   });

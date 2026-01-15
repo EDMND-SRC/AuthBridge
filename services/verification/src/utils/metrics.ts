@@ -138,3 +138,105 @@ export async function recordPoorQualityImage(
     recordMetric('ImageQualityScore', qualityScore, 'Percent', dimensions),
   ]);
 }
+
+/**
+ * Record Omang validation metrics
+ */
+export async function recordOmangValidationMetrics(
+  valid: boolean,
+  documentType: string,
+  errors: string[],
+  warnings: string[]
+): Promise<void> {
+  const dimensions: MetricDimension[] = [
+    { Name: 'DocumentType', Value: documentType },
+  ];
+
+  const promises: Promise<void>[] = [
+    recordMetric('ValidationCount', 1, 'Count', dimensions),
+    recordMetric(valid ? 'ValidationValid' : 'ValidationInvalid', 1, 'Count', dimensions),
+  ];
+
+  // Record specific error types
+  if (errors.length > 0) {
+    for (const error of errors) {
+      if (error.includes('9 digits')) {
+        promises.push(recordMetric('ValidationError/InvalidLength', 1, 'Count', dimensions));
+      } else if (error.includes('numeric')) {
+        promises.push(recordMetric('ValidationError/InvalidCharacters', 1, 'Count', dimensions));
+      } else if (error.includes('expired')) {
+        promises.push(recordMetric('ValidationError/Expired', 1, 'Count', dimensions));
+      } else if (error.includes('10-year validity')) {
+        promises.push(recordMetric('ValidationError/ExpiryMismatch', 1, 'Count', dimensions));
+      } else if (error.includes('date')) {
+        promises.push(recordMetric('ValidationError/InvalidDates', 1, 'Count', dimensions));
+      }
+    }
+  }
+
+  // Record warnings
+  if (warnings.length > 0) {
+    for (const warning of warnings) {
+      if (warning.includes('expires soon')) {
+        promises.push(recordMetric('ValidationWarning/ExpiringSoon', 1, 'Count', dimensions));
+      }
+    }
+  }
+
+  await Promise.all(promises);
+}
+
+/**
+ * Record biometric processing metrics
+ */
+export async function recordBiometricMetrics(
+  success: boolean,
+  durationMs: number,
+  livenessScore: number,
+  similarityScore: number,
+  overallScore: number,
+  passed: boolean,
+  requiresManualReview: boolean
+): Promise<void> {
+  const promises: Promise<void>[] = [
+    recordMetric('BiometricProcessingCount', 1, 'Count'),
+    recordMetric(success ? 'BiometricSuccess' : 'BiometricFailure', 1, 'Count'),
+    recordMetric('BiometricProcessingTime', durationMs, 'Milliseconds'),
+    recordMetric('BiometricLivenessScore', livenessScore, 'Percent'),
+    recordMetric('BiometricSimilarityScore', similarityScore, 'Percent'),
+    recordMetric('BiometricOverallScore', overallScore, 'Percent'),
+    recordMetric(passed ? 'BiometricPassed' : 'BiometricFailed', 1, 'Count'),
+  ];
+
+  if (requiresManualReview) {
+    promises.push(recordMetric('BiometricManualReviewRequired', 1, 'Count'));
+  }
+
+  await Promise.all(promises);
+}
+
+/**
+ * Record Rekognition API error metrics
+ */
+export async function recordRekognitionError(
+  errorType: 'THROTTLING' | 'NO_FACE_DETECTED' | 'MULTIPLE_FACES' | 'POOR_QUALITY' | 'UNKNOWN',
+  operation: 'COMPARE_FACES' | 'DETECT_LIVENESS'
+): Promise<void> {
+  await recordMetric('RekognitionError', 1, 'Count', [
+    { Name: 'ErrorType', Value: errorType },
+    { Name: 'Operation', Value: operation },
+  ]);
+}
+
+/**
+ * Record face detection issues
+ */
+export async function recordFaceDetectionIssue(
+  issueType: 'NO_FACE' | 'MULTIPLE_FACES' | 'FACE_TOO_SMALL' | 'POOR_QUALITY',
+  imageType: 'SELFIE' | 'ID_PHOTO'
+): Promise<void> {
+  await recordMetric('FaceDetectionIssue', 1, 'Count', [
+    { Name: 'IssueType', Value: issueType },
+    { Name: 'ImageType', Value: imageType },
+  ]);
+}

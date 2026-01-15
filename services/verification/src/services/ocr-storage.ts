@@ -1,6 +1,7 @@
 import { DynamoDBService } from './dynamodb';
 import { OcrResult } from '../types/ocr';
 import { ImageQualityResult } from './image-quality';
+import { OmangValidationResult } from '../types/validation';
 
 /**
  * Service for storing OCR results in DynamoDB
@@ -22,6 +23,7 @@ export class OcrStorageService {
    * @param documentType - Type of document (omang_front, omang_back, selfie, etc.)
    * @param ocrResult - The OCR extraction result from Textract processing
    * @param qualityResult - Optional image quality assessment result
+   * @param validationResult - Optional Omang validation result
    * @throws Error if DynamoDB update fails
    */
   async storeOcrResults(
@@ -29,7 +31,8 @@ export class OcrStorageService {
     documentId: string,
     documentType: string,
     ocrResult: OcrResult,
-    qualityResult?: ImageQualityResult | null
+    qualityResult?: ImageQualityResult | null,
+    validationResult?: OmangValidationResult | null
   ): Promise<void> {
     const now = new Date().toISOString();
 
@@ -53,6 +56,24 @@ export class OcrStorageService {
       };
     }
 
+    // Add validation results if available
+    if (validationResult) {
+      ocrData.validation = {
+        omangNumber: validationResult.omangNumber,
+        expiry: validationResult.expiry,
+        overall: validationResult.overall,
+        validatedAt: validationResult.validatedAt,
+      };
+    }
+
+    // Determine document status based on validation
+    let documentStatus = 'processed';
+    if (validationResult && !validationResult.overall.valid) {
+      documentStatus = 'validation_failed';
+    } else if (validationResult && validationResult.overall.valid) {
+      documentStatus = 'validated';
+    }
+
     await this.dynamoDBService.updateItem({
       Key: {
         PK: `CASE#${verificationId}`,
@@ -67,7 +88,7 @@ export class OcrStorageService {
       },
       ExpressionAttributeValues: {
         ':ocrData': ocrData,
-        ':status': 'processed',
+        ':status': documentStatus,
         ':processedAt': now,
       },
     });

@@ -1,10 +1,14 @@
 import { SQSEvent, SQSBatchResponse } from 'aws-lambda';
 import { OmangOcrService } from '../services/omang-ocr';
 import { OcrStorageService } from '../services/ocr-storage';
+import { OmangValidationService } from '../services/omang-validation';
+import { SqsService } from '../services/sqs';
 import { assessImageQuality, shouldRequestRecapture } from '../services/image-quality';
 import { notifyOcrFailure, notifyPoorQualityImage } from '../services/notification';
-import { recordOcrMetrics, recordTextractError, recordPoorQualityImage } from '../utils/metrics';
+import { recordOcrMetrics, recordTextractError, recordPoorQualityImage, recordOmangValidationMetrics } from '../utils/metrics';
 import { TextractBlock } from '../types/ocr';
+
+const BIOMETRIC_QUEUE_URL = process.env.BIOMETRIC_QUEUE_URL || '';
 
 interface OcrMessage {
   verificationId: string;
@@ -13,6 +17,9 @@ interface OcrMessage {
   s3Key: string;
   documentType: string;
   attemptCount?: number;
+  livenessSessionId?: string;  // For selfie documents
+  selfieDocumentId?: string;   // For triggering biometric after omang_front
+  omangFrontDocumentId?: string; // For triggering biometric after selfie
 }
 
 const REQUIRED_FRONT_FIELDS = 7;
@@ -25,6 +32,8 @@ const REQUIRED_BACK_FIELDS = 3;
 export async function handler(event: SQSEvent): Promise<SQSBatchResponse> {
   const ocrService = new OmangOcrService();
   const storageService = new OcrStorageService();
+  const validationService = new OmangValidationService();
+  const sqsService = new SqsService();
   const batchItemFailures: SQSBatchResponse['batchItemFailures'] = [];
 
   // Process each message in the batch
@@ -92,13 +101,61 @@ export async function handler(event: SQSEvent): Promise<SQSBatchResponse> {
         }
       }
 
+      // Validate Omang data (for omang_front documents only)
+      let validationResult = null;
+      if (
+        message.documentType === 'omang_front' &&
+        ocrResult.extractedFields.omangNumber &&
+        ocrResult.extractedFields.dateOfIssue &&
+        ocrResult.extractedFields.dateOfExpiry
+      ) {
+        validationResult = validationService.validate({
+          omangNumber: ocrResult.extractedFields.omangNumber as string,
+          dateOfIssue: ocrResult.extractedFields.dateOfIssue as string,
+          dateOfExpiry: ocrResult.extractedFields.dateOfExpiry as string,
+        });
+
+        // Record validation metrics
+        await recordOmangValidationMetrics(
+          validationResult.overall.valid,
+          message.documentType,
+          validationResult.overall.errors,
+          validationResult.overall.warnings
+        );
+
+        // If validation fails, mark for manual review
+        if (!validationResult.overall.valid) {
+          ocrResult.requiresManualReview = true;
+          ocrResult.missingFields = [
+            ...ocrResult.missingFields,
+            ...validationResult.overall.errors.map(err => `VALIDATION:${err}`),
+          ];
+
+          console.log('Validation failed', {
+            verificationId: message.verificationId,
+            documentId: message.documentId,
+            errors: validationResult.overall.errors,
+          });
+        }
+
+        // Log warnings even if validation passes
+        if (validationResult.overall.warnings.length > 0) {
+          console.log('Validation warnings', {
+            verificationId: message.verificationId,
+            documentId: message.documentId,
+            warnings: validationResult.overall.warnings,
+          });
+        }
+      }
+
       // Store OCR results in document entity
       await storageService.storeOcrResults(
         message.verificationId,
         message.documentId,
         message.documentType,
         ocrResult,
-        qualityResult
+        qualityResult,
+        validationResult
       );
 
       // Update verification case with extracted customer data
@@ -126,6 +183,30 @@ export async function handler(event: SQSEvent): Promise<SQSBatchResponse> {
         qualityScore: qualityResult?.qualityScore,
         durationMs,
       });
+
+      // Trigger biometric processing if validation passed and we have both documents
+      // This happens when omang_front validation passes and selfie info is available
+      if (
+        message.documentType === 'omang_front' &&
+        validationResult?.overall.valid &&
+        !ocrResult.requiresManualReview &&
+        message.selfieDocumentId &&
+        message.livenessSessionId &&
+        BIOMETRIC_QUEUE_URL
+      ) {
+        await sqsService.sendMessage(BIOMETRIC_QUEUE_URL, {
+          verificationId: message.verificationId,
+          selfieDocumentId: message.selfieDocumentId,
+          omangFrontDocumentId: message.documentId,
+          livenessSessionId: message.livenessSessionId,
+        });
+
+        console.log('Biometric processing triggered', {
+          verificationId: message.verificationId,
+          selfieDocumentId: message.selfieDocumentId,
+          omangFrontDocumentId: message.documentId,
+        });
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       let message: OcrMessage;

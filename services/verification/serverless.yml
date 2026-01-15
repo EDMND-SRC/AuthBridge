@@ -39,6 +39,12 @@ provider:
           Resource: '*'
         - Effect: Allow
           Action:
+            - rekognition:CompareFaces
+            - rekognition:DetectFaces
+            - rekognition:GetFaceLivenessSessionResults
+          Resource: '*'
+        - Effect: Allow
+          Action:
             - cloudwatch:PutMetricData
           Resource: '*'
         - Effect: Allow
@@ -47,6 +53,7 @@ provider:
             - sqs:GetQueueUrl
           Resource:
             - !GetAtt OcrQueue.Arn
+            - !GetAtt BiometricQueue.Arn
         - Effect: Allow
           Action:
             - sns:Publish
@@ -108,10 +115,26 @@ functions:
     reservedConcurrency: 1  # Respect 1 TPS Textract quota in af-south-1
     environment:
       OCR_ALERT_TOPIC_ARN: !Ref OcrAlertTopic
+      BIOMETRIC_QUEUE_URL: !Ref BiometricQueue
     events:
       - sqs:
           arn: !GetAtt OcrQueue.Arn
           batchSize: 1  # Process one document at a time due to 1 TPS limit
+          maximumBatchingWindowInSeconds: 0
+          functionResponseType: ReportBatchItemFailures
+
+  processBiometric:
+    handler: dist/handlers/process-biometric.handler
+    description: Process biometric face matching (liveness + comparison)
+    memorySize: 1024
+    timeout: 60
+    reservedConcurrency: 5  # Respect 5 TPS Rekognition quota in af-south-1
+    environment:
+      BIOMETRIC_QUEUE_URL: !Ref BiometricQueue
+    events:
+      - sqs:
+          arn: !GetAtt BiometricQueue.Arn
+          batchSize: 1  # Process one verification at a time
           maximumBatchingWindowInSeconds: 0
           functionResponseType: ReportBatchItemFailures
 
@@ -146,6 +169,24 @@ resources:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: authbridge-ocr-dlq-${self:provider.stage}
+        MessageRetentionPeriod: 1209600  # 14 days
+        ReceiveMessageWaitTimeSeconds: 0
+
+    BiometricQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: authbridge-biometric-queue-${self:provider.stage}
+        VisibilityTimeout: 360  # 6 minutes (Lambda timeout 60s + buffer)
+        MessageRetentionPeriod: 345600  # 4 days
+        ReceiveMessageWaitTimeSeconds: 0
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt BiometricDLQ.Arn
+          maxReceiveCount: 3
+
+    BiometricDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: authbridge-biometric-dlq-${self:provider.stage}
         MessageRetentionPeriod: 1209600  # 14 days
         ReceiveMessageWaitTimeSeconds: 0
 
@@ -231,6 +272,106 @@ resources:
         Dimensions:
           - Name: QueueName
             Value: !GetAtt OcrDLQ.QueueName
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref OcrAlertTopic
+
+    # CloudWatch Alarms for Biometric monitoring
+    BiometricPassRateAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: authbridge-biometric-pass-rate-${self:provider.stage}
+        AlarmDescription: Biometric pass rate below 70%
+        MetricName: BiometricPassed
+        Namespace: AuthBridge/Verification
+        Statistic: Sum
+        Period: 3600
+        EvaluationPeriods: 1
+        Threshold: 70
+        ComparisonOperator: LessThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref OcrAlertTopic
+
+    BiometricSimilarityAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: authbridge-biometric-similarity-${self:provider.stage}
+        AlarmDescription: Average biometric similarity score below 85%
+        MetricName: BiometricSimilarityScore
+        Namespace: AuthBridge/Verification
+        Statistic: Average
+        Period: 300
+        EvaluationPeriods: 3
+        Threshold: 85
+        ComparisonOperator: LessThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref OcrAlertTopic
+
+    BiometricProcessingTimeAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: authbridge-biometric-processing-time-${self:provider.stage}
+        AlarmDescription: Biometric processing time exceeds 5 seconds (p95)
+        MetricName: BiometricProcessingTime
+        Namespace: AuthBridge/Verification
+        ExtendedStatistic: p95
+        Period: 300
+        EvaluationPeriods: 2
+        Threshold: 5000
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref OcrAlertTopic
+
+    BiometricManualReviewRateAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: authbridge-biometric-manual-review-rate-${self:provider.stage}
+        AlarmDescription: Biometric manual review rate exceeds 40%
+        MetricName: BiometricManualReviewRequired
+        Namespace: AuthBridge/Verification
+        Statistic: Sum
+        Period: 3600
+        EvaluationPeriods: 1
+        Threshold: 40
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref OcrAlertTopic
+
+    BiometricFaceDetectionIssueAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: authbridge-biometric-face-detection-issues-${self:provider.stage}
+        AlarmDescription: Face detection issue rate exceeds 15%
+        MetricName: FaceDetectionIssue
+        Namespace: AuthBridge/Verification
+        Statistic: Sum
+        Period: 3600
+        EvaluationPeriods: 1
+        Threshold: 15
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref OcrAlertTopic
+
+    BiometricDLQAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: authbridge-biometric-dlq-messages-${self:provider.stage}
+        AlarmDescription: Messages in Biometric Dead Letter Queue
+        MetricName: ApproximateNumberOfMessagesVisible
+        Namespace: AWS/SQS
+        Dimensions:
+          - Name: QueueName
+            Value: !GetAtt BiometricDLQ.QueueName
         Statistic: Sum
         Period: 300
         EvaluationPeriods: 1

@@ -23,6 +23,7 @@ vi.mock('../utils/metrics', () => ({
   recordOcrMetrics: vi.fn(),
   recordTextractError: vi.fn(),
   recordPoorQualityImage: vi.fn(),
+  recordOmangValidationMetrics: vi.fn(),
 }));
 
 describe('process-ocr handler', () => {
@@ -97,7 +98,8 @@ describe('process-ocr handler', () => {
       'doc_456',
       'omang_front',
       mockOcrResult,
-      expect.any(Object)  // qualityResult
+      expect.any(Object),  // qualityResult
+      expect.any(Object)   // validationResult
     );
     expect(mockOcrStorageService.updateVerificationWithExtractedData).toHaveBeenCalledWith(
       'ver_123',
@@ -193,7 +195,8 @@ describe('process-ocr handler', () => {
         confidence: { overall: 100 },
         requiresManualReview: false,
       }),
-      null  // No quality result for selfies
+      null,  // No quality result for selfies
+      null   // No validation result for selfies
     );
   });
 
@@ -286,5 +289,185 @@ describe('process-ocr handler', () => {
 
     expect(result.batchItemFailures).toHaveLength(0);
     expect(mockOmangOcrService.extractOmangFront).toHaveBeenCalledTimes(2);
+  });
+
+  it('should run validation for omang_front with complete OCR data', async () => {
+    const mockOcrResult = {
+      extractedFields: {
+        surname: 'MOGOROSI',
+        omangNumber: '123456789',
+        dateOfIssue: '15/03/2020',
+        dateOfExpiry: '15/03/2030',
+      },
+      confidence: { overall: 98.5 },
+      rawTextractResponse: { Blocks: [] },
+      extractionMethod: 'pattern' as const,
+      processingTimeMs: 4500,
+      requiresManualReview: false,
+      missingFields: [],
+    };
+
+    mockOmangOcrService.extractOmangFront.mockResolvedValue(mockOcrResult);
+    mockOcrStorageService.storeOcrResults.mockResolvedValue(undefined);
+    mockOcrStorageService.updateVerificationWithExtractedData.mockResolvedValue(undefined);
+
+    const event: SQSEvent = {
+      Records: [
+        {
+          messageId: 'msg-validation',
+          receiptHandle: 'receipt-validation',
+          body: JSON.stringify({
+            verificationId: 'ver_validation',
+            documentId: 'doc_validation',
+            s3Bucket: 'test-bucket',
+            s3Key: 'client_abc/ver_validation/omang_front.jpg',
+            documentType: 'omang_front',
+          }),
+          attributes: {} as any,
+          messageAttributes: {},
+          md5OfBody: '',
+          eventSource: 'aws:sqs',
+          eventSourceARN: 'arn:aws:sqs:af-south-1:123456789:test-queue',
+          awsRegion: 'af-south-1',
+        },
+      ],
+    };
+
+    const result = await handler(event);
+
+    expect(result.batchItemFailures).toHaveLength(0);
+    // Validation should have been called and result passed to storage
+    expect(mockOcrStorageService.storeOcrResults).toHaveBeenCalledWith(
+      'ver_validation',
+      'doc_validation',
+      'omang_front',
+      expect.any(Object),
+      expect.any(Object),
+      expect.objectContaining({
+        overall: expect.objectContaining({
+          valid: true,
+        }),
+      })
+    );
+  });
+
+  it('should mark document for manual review when validation fails', async () => {
+    const mockOcrResult = {
+      extractedFields: {
+        surname: 'MOGOROSI',
+        omangNumber: '12345678', // Invalid: 8 digits
+        dateOfIssue: '15/03/2020',
+        dateOfExpiry: '15/03/2030',
+      },
+      confidence: { overall: 98.5 },
+      rawTextractResponse: { Blocks: [] },
+      extractionMethod: 'pattern' as const,
+      processingTimeMs: 4500,
+      requiresManualReview: false,
+      missingFields: [],
+    };
+
+    mockOmangOcrService.extractOmangFront.mockResolvedValue(mockOcrResult);
+    mockOcrStorageService.storeOcrResults.mockResolvedValue(undefined);
+    mockOcrStorageService.updateVerificationWithExtractedData.mockResolvedValue(undefined);
+
+    const event: SQSEvent = {
+      Records: [
+        {
+          messageId: 'msg-invalid',
+          receiptHandle: 'receipt-invalid',
+          body: JSON.stringify({
+            verificationId: 'ver_invalid',
+            documentId: 'doc_invalid',
+            s3Bucket: 'test-bucket',
+            s3Key: 'client_abc/ver_invalid/omang_front.jpg',
+            documentType: 'omang_front',
+          }),
+          attributes: {} as any,
+          messageAttributes: {},
+          md5OfBody: '',
+          eventSource: 'aws:sqs',
+          eventSourceARN: 'arn:aws:sqs:af-south-1:123456789:test-queue',
+          awsRegion: 'af-south-1',
+        },
+      ],
+    };
+
+    const result = await handler(event);
+
+    expect(result.batchItemFailures).toHaveLength(0);
+    // Validation should fail and result passed to storage
+    expect(mockOcrStorageService.storeOcrResults).toHaveBeenCalledWith(
+      'ver_invalid',
+      'doc_invalid',
+      'omang_front',
+      expect.objectContaining({
+        requiresManualReview: true,
+        missingFields: expect.arrayContaining([
+          expect.stringContaining('VALIDATION:'),
+        ]),
+      }),
+      expect.any(Object),
+      expect.objectContaining({
+        overall: expect.objectContaining({
+          valid: false,
+        }),
+      })
+    );
+  });
+
+  it('should skip validation when OCR data is incomplete', async () => {
+    const mockOcrResult = {
+      extractedFields: {
+        surname: 'MOGOROSI',
+        omangNumber: '123456789',
+        // Missing dateOfIssue and dateOfExpiry
+      },
+      confidence: { overall: 98.5 },
+      rawTextractResponse: { Blocks: [] },
+      extractionMethod: 'pattern' as const,
+      processingTimeMs: 4500,
+      requiresManualReview: false,
+      missingFields: ['dateOfIssue', 'dateOfExpiry'],
+    };
+
+    mockOmangOcrService.extractOmangFront.mockResolvedValue(mockOcrResult);
+    mockOcrStorageService.storeOcrResults.mockResolvedValue(undefined);
+    mockOcrStorageService.updateVerificationWithExtractedData.mockResolvedValue(undefined);
+
+    const event: SQSEvent = {
+      Records: [
+        {
+          messageId: 'msg-incomplete',
+          receiptHandle: 'receipt-incomplete',
+          body: JSON.stringify({
+            verificationId: 'ver_incomplete',
+            documentId: 'doc_incomplete',
+            s3Bucket: 'test-bucket',
+            s3Key: 'client_abc/ver_incomplete/omang_front.jpg',
+            documentType: 'omang_front',
+          }),
+          attributes: {} as any,
+          messageAttributes: {},
+          md5OfBody: '',
+          eventSource: 'aws:sqs',
+          eventSourceARN: 'arn:aws:sqs:af-south-1:123456789:test-queue',
+          awsRegion: 'af-south-1',
+        },
+      ],
+    };
+
+    const result = await handler(event);
+
+    expect(result.batchItemFailures).toHaveLength(0);
+    // Validation should be skipped (null) when data is incomplete
+    expect(mockOcrStorageService.storeOcrResults).toHaveBeenCalledWith(
+      'ver_incomplete',
+      'doc_incomplete',
+      'omang_front',
+      expect.any(Object),
+      expect.any(Object),
+      null // No validation result
+    );
   });
 });

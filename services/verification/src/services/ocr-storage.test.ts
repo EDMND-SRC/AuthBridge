@@ -76,6 +76,99 @@ describe('OcrStorageService', () => {
       );
     });
 
+    it('should store validation result and set status to validated', async () => {
+      const ocrResult: OcrResult = {
+        extractedFields: {
+          surname: 'MOGOROSI',
+          omangNumber: '123456789',
+          dateOfIssue: '15/03/2020',
+          dateOfExpiry: '15/03/2030',
+        },
+        confidence: { overall: 98.5 },
+        rawTextractResponse: {},
+        extractionMethod: 'pattern',
+        processingTimeMs: 4500,
+        requiresManualReview: false,
+        missingFields: [],
+      };
+
+      const validationResult = {
+        omangNumber: { valid: true, format: 'valid' as const, value: '123456789' },
+        expiry: { valid: true, expired: false, daysUntilExpiry: 1825 },
+        overall: { valid: true, errors: [], warnings: [] },
+        validatedAt: '2026-01-15T10:00:00Z',
+      };
+
+      mockDynamoDBService.updateItem.mockResolvedValue({});
+
+      await ocrStorageService.storeOcrResults(
+        'ver_123',
+        'doc_456',
+        'omang_front',
+        ocrResult,
+        null,
+        validationResult
+      );
+
+      expect(mockDynamoDBService.updateItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ExpressionAttributeValues: expect.objectContaining({
+            ':ocrData': expect.objectContaining({
+              validation: expect.objectContaining({
+                omangNumber: validationResult.omangNumber,
+                expiry: validationResult.expiry,
+                overall: validationResult.overall,
+              }),
+            }),
+            ':status': 'validated',
+          }),
+        })
+      );
+    });
+
+    it('should set status to validation_failed when validation fails', async () => {
+      const ocrResult: OcrResult = {
+        extractedFields: {
+          surname: 'MOGOROSI',
+          omangNumber: '12345678', // Invalid
+          dateOfIssue: '15/03/2020',
+          dateOfExpiry: '15/03/2030',
+        },
+        confidence: { overall: 98.5 },
+        rawTextractResponse: {},
+        extractionMethod: 'pattern',
+        processingTimeMs: 4500,
+        requiresManualReview: true,
+        missingFields: [],
+      };
+
+      const validationResult = {
+        omangNumber: { valid: false, format: 'invalid' as const, error: 'Omang number must be exactly 9 digits' },
+        expiry: { valid: true, expired: false, daysUntilExpiry: 1825 },
+        overall: { valid: false, errors: ['Omang number must be exactly 9 digits'], warnings: [] },
+        validatedAt: '2026-01-15T10:00:00Z',
+      };
+
+      mockDynamoDBService.updateItem.mockResolvedValue({});
+
+      await ocrStorageService.storeOcrResults(
+        'ver_123',
+        'doc_456',
+        'omang_front',
+        ocrResult,
+        null,
+        validationResult
+      );
+
+      expect(mockDynamoDBService.updateItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ExpressionAttributeValues: expect.objectContaining({
+            ':status': 'validation_failed',
+          }),
+        })
+      );
+    });
+
     it('should throw error when DynamoDB update fails', async () => {
       const ocrResult: OcrResult = {
         extractedFields: { surname: 'TEST' },
