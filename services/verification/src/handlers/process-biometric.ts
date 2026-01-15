@@ -6,8 +6,15 @@ import type { SQSHandler, SQSBatchResponse } from 'aws-lambda';
 import { createRekognitionClient, RekognitionService } from '../services/rekognition';
 import { BiometricService } from '../services/biometric';
 import { BiometricStorageService } from '../services/biometric-storage';
+import { DuplicateDetectionService } from '../services/duplicate-detection';
+import { DuplicateStorageService } from '../services/duplicate-storage';
 import { DynamoDBService } from '../services/dynamodb';
-import { recordBiometricMetrics, recordRekognitionError } from '../utils/metrics';
+import {
+  recordBiometricMetrics,
+  recordRekognitionError,
+  recordDuplicateDetectionMetrics,
+  recordDuplicateCheckError,
+} from '../utils/metrics';
 import { logger } from '../utils/logger';
 
 const rekognitionClient = createRekognitionClient();
@@ -15,6 +22,8 @@ const rekognitionService = new RekognitionService(rekognitionClient);
 const biometricService = new BiometricService(rekognitionService);
 const biometricStorageService = new BiometricStorageService();
 const dynamoDBService = new DynamoDBService();
+const duplicateDetectionService = new DuplicateDetectionService(dynamoDBService);
+const duplicateStorageService = new DuplicateStorageService(dynamoDBService);
 
 const BUCKET_NAME = process.env.BUCKET_NAME || '';
 const MAX_RETRIES = 3;
@@ -110,6 +119,77 @@ async function processBiometricWithRetry(
       overallScore: biometricData.overallScore,
       processingTimeMs,
     });
+
+    // NEW: Trigger duplicate detection if biometric passed
+    if (biometricData.passed) {
+      try {
+        const duplicateStartTime = Date.now();
+
+        // Get verification case to extract Omang number and client ID
+        const verification = await dynamoDBService.getVerification(verificationId);
+
+        if (!verification) {
+          logger.warn('Verification not found for duplicate check', { verificationId });
+          return;
+        }
+
+        // Extract Omang number from customer data
+        const omangNumber = (verification as any).customerData?.omangNumber;
+        const clientId = verification.clientId;
+
+        if (!omangNumber) {
+          logger.warn('No Omang number found for duplicate check', { verificationId });
+          return;
+        }
+
+        // Check for duplicates
+        const duplicateResult = await duplicateDetectionService.checkDuplicates(
+          omangNumber,
+          verificationId,
+          clientId,
+          biometricData.overallScore
+        );
+
+        const duplicateCheckTimeMs = Date.now() - duplicateStartTime;
+
+        // Store duplicate detection results
+        await duplicateStorageService.storeDuplicateResults(
+          verificationId,
+          duplicateResult
+        );
+
+        // Record metrics
+        await recordDuplicateDetectionMetrics(
+          duplicateResult.checked,
+          duplicateResult.duplicatesFound,
+          duplicateResult.sameClientDuplicates,
+          duplicateResult.crossClientDuplicates,
+          duplicateResult.riskLevel,
+          duplicateResult.riskScore,
+          duplicateResult.requiresManualReview,
+          duplicateCheckTimeMs
+        );
+
+        logger.info('Duplicate detection completed', {
+          verificationId,
+          duplicatesFound: duplicateResult.duplicatesFound,
+          riskLevel: duplicateResult.riskLevel,
+          requiresManualReview: duplicateResult.requiresManualReview,
+          checkTimeMs: duplicateCheckTimeMs,
+        });
+      } catch (duplicateError) {
+        // Log error but don't fail biometric processing
+        const errorMessage =
+          duplicateError instanceof Error ? duplicateError.message : 'Unknown error';
+
+        logger.error('Duplicate detection failed', {
+          verificationId,
+          error: errorMessage,
+        });
+
+        await recordDuplicateCheckError('UNKNOWN');
+      }
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorName = error instanceof Error ? error.name : 'UnknownError';

@@ -112,14 +112,14 @@ export class OcrStorageService {
     // Build customer data object
     const customerData: any = {};
 
-    // Full name
-    if (extractedFields.surname && extractedFields.firstNames) {
-      customerData.fullName = `${extractedFields.firstNames} ${extractedFields.surname}`;
+    // Full name (forenames + surname)
+    if (extractedFields.surname && extractedFields.forenames) {
+      customerData.fullName = `${extractedFields.forenames} ${extractedFields.surname}`;
     }
 
-    // Omang number (will be encrypted in production)
-    if (extractedFields.omangNumber) {
-      customerData.omangNumber = extractedFields.omangNumber;
+    // ID number (will be encrypted in production)
+    if (extractedFields.idNumber) {
+      customerData.idNumber = extractedFields.idNumber;
     }
 
     // Date of birth (convert to ISO 8601)
@@ -127,12 +127,32 @@ export class OcrStorageService {
       customerData.dateOfBirth = this.convertToISO8601(extractedFields.dateOfBirth);
     }
 
+    // Place of birth
+    if (extractedFields.placeOfBirth) {
+      customerData.placeOfBirth = extractedFields.placeOfBirth;
+    }
+
+    // Nationality
+    if (extractedFields.nationality) {
+      customerData.nationality = extractedFields.nationality;
+    }
+
     // Sex
     if (extractedFields.sex) {
       customerData.sex = extractedFields.sex;
     }
 
-    // Address (only if all fields present)
+    // Colour of eyes
+    if (extractedFields.colourOfEyes) {
+      customerData.colourOfEyes = extractedFields.colourOfEyes;
+    }
+
+    // Place of application
+    if (extractedFields.placeOfApplication) {
+      customerData.placeOfApplication = extractedFields.placeOfApplication;
+    }
+
+    // Address (only if any address fields present)
     if (extractedFields.plot || extractedFields.locality || extractedFields.district) {
       customerData.address = {
         plot: extractedFields.plot,
@@ -150,18 +170,35 @@ export class OcrStorageService {
     customerData.extractionConfidence = confidence.overall;
     customerData.extractedAt = now;
 
+    // Build update expression
+    let updateExpression = 'SET #customerData = :customerData';
+    const expressionAttributeNames: Record<string, string> = {
+      '#customerData': 'customerData',
+    };
+    const expressionAttributeValues: Record<string, any> = {
+      ':customerData': customerData,
+    };
+
+    // Add GSI2PK with ID number hash for duplicate detection
+    if (extractedFields.idNumber) {
+      const { createOmangHashKey } = await import('../utils/omang-hash.js');
+      const omangHashKey = createOmangHashKey(extractedFields.idNumber);
+
+      updateExpression += ', #GSI2PK = :GSI2PK, #GSI2SK = :GSI2SK';
+      expressionAttributeNames['#GSI2PK'] = 'GSI2PK';
+      expressionAttributeNames['#GSI2SK'] = 'GSI2SK';
+      expressionAttributeValues[':GSI2PK'] = omangHashKey;
+      expressionAttributeValues[':GSI2SK'] = `CASE#${verificationId}`;
+    }
+
     await this.dynamoDBService.updateItem({
       Key: {
         PK: `CASE#${verificationId}`,
         SK: 'META',
       },
-      UpdateExpression: 'SET #customerData = :customerData',
-      ExpressionAttributeNames: {
-        '#customerData': 'customerData',
-      },
-      ExpressionAttributeValues: {
-        ':customerData': customerData,
-      },
+      UpdateExpression: updateExpression,
+      ExpressionAttributeNames: expressionAttributeNames,
+      ExpressionAttributeValues: expressionAttributeValues,
     });
   }
 

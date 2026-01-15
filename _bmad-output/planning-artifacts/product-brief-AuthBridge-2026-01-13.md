@@ -1118,6 +1118,51 @@ _Note: These URLs use the future .co.bw domain. Current MVP uses authbridge.io._
 - Expiry date check (10-year validity)
 - Photo extraction for biometric matching
 
+**2a. Country-Based Document Extractor Architecture**
+
+AuthBridge uses a country-based extractor architecture to support regional expansion. Each country has specific document formats and validation rules.
+
+*Currently Supported (Botswana - BW):*
+- Omang (National Identity Card) - with OCR and MRZ support
+- Passport (ICAO TD3 format with MRZ parsing)
+- Driver's Licence (Department of Road Transport and Safety)
+
+*Regional Expansion Roadmap:*
+| Phase | Country | Code | Priority |
+|-------|---------|------|----------|
+| Phase 1 (MVP) | Botswana | BW | ✅ Done |
+| Phase 2 (Year 2) | South Africa | ZA | HIGH |
+| Phase 2 (Year 2) | Namibia | NA | HIGH |
+| Phase 3 (Year 3) | Zimbabwe | ZW | MEDIUM |
+| Phase 3 (Year 3) | Zambia | ZM | MEDIUM |
+
+*Country Selection Criteria:*
+1. Target market alignment (SADC region)
+2. Population size and economic activity
+3. Country reputation and regulatory stability
+4. Clear KYC/AML laws and documentation
+5. Risk profile (fraud rates, sanctions status)
+
+**2b. Proof of Address Documents (Roadmap)**
+
+Planned for Phase 2 implementation to support address verification:
+
+| Document Type | Issuing Institution |
+|---------------|---------------------|
+| WUC Statement | Water Utilities Corporation |
+| BPC Electricity Bill | Botswana Power Corporation |
+| Rent Bill/Invoice | Registered Landlords |
+| Bank Statement | Licensed Botswana Banks |
+| Internet Bill | BTCL, Mascom, Orange |
+| Medical Aid Statement | BPOMAS, Bomaid, Pula Medical Aid |
+| Pension Fund Statement | BPOPF, Debswana Pension Fund |
+
+*Validation Rules:*
+- Document must be dated within the last 3 months
+- Must show full name matching identity document
+- Must show physical address (not P.O. Box)
+- Must be from a recognized Botswana institution
+
 **3. Case Management Dashboard (Backoffice)**
 - Case listing with filters (status, date, type)
 - Case detail view with document preview

@@ -13,14 +13,16 @@ export class DynamoDBService {
   private client: DynamoDBDocumentClient;
   private tableName: string;
 
-  constructor(tableName: string, region: string) {
-    const dynamoClient = new DynamoDBClient({ region });
+  constructor(tableName?: string, region?: string) {
+    const dynamoClient = new DynamoDBClient({
+      region: region || process.env.AWS_REGION || 'af-south-1',
+    });
     this.client = DynamoDBDocumentClient.from(dynamoClient, {
       marshallOptions: {
         removeUndefinedValues: true,
       },
     });
-    this.tableName = tableName;
+    this.tableName = tableName || process.env.TABLE_NAME || 'AuthBridgeTable';
   }
 
   /**
@@ -179,5 +181,61 @@ export class DynamoDBService {
 
     const result = await this.client.send(command);
     return (result.Items as DocumentEntity[]) || [];
+  }
+
+  /**
+   * Query verifications by Omang hash (GSI2)
+   * Used for duplicate detection
+   *
+   * @param omangHashKey - GSI2PK key (OMANG#<hash>)
+   * @returns Array of verification entities with matching Omang
+   */
+  async queryByOmangHash(omangHashKey: string): Promise<VerificationEntity[]> {
+    const command = new QueryCommand({
+      TableName: this.tableName,
+      IndexName: 'GSI2',
+      KeyConditionExpression: 'GSI2PK = :pk',
+      ExpressionAttributeValues: {
+        ':pk': omangHashKey,
+      },
+      ProjectionExpression:
+        'verificationId, clientId, #status, createdAt, biometricSummary',
+      ExpressionAttributeNames: {
+        '#status': 'status',
+      },
+    });
+
+    const result = await this.client.send(command);
+    return (result.Items as VerificationEntity[]) || [];
+  }
+
+  /**
+   * Generic update item method for flexible updates
+   */
+  async updateItem(params: {
+    Key: Record<string, string>;
+    UpdateExpression: string;
+    ExpressionAttributeNames?: Record<string, string>;
+    ExpressionAttributeValues?: Record<string, unknown>;
+    ConditionExpression?: string;
+  }): Promise<void> {
+    const command = new UpdateCommand({
+      TableName: this.tableName,
+      ...params,
+    });
+
+    await this.client.send(command);
+  }
+
+  /**
+   * Generic get item method
+   */
+  async getItem(params: { Key: Record<string, string> }): Promise<{ Item?: unknown }> {
+    const command = new GetCommand({
+      TableName: this.tableName,
+      ...params,
+    });
+
+    return await this.client.send(command);
   }
 }

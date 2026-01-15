@@ -1,8 +1,8 @@
-# Omang OCR Extraction Documentation
+# Omang & Driver's Licence OCR Extraction Documentation
 
 ## Overview
 
-The OCR extraction system uses AWS Textract to extract text from Omang ID card images. This document covers field extraction patterns, confidence score thresholds, and manual review triggers.
+The OCR extraction system uses AWS Textract to extract text from Botswana identity documents. This document covers field extraction patterns, confidence score thresholds, and manual review triggers for both Omang (National ID) and Driver's Licence documents.
 
 ## Omang Card Field Extraction
 
@@ -10,21 +10,96 @@ The OCR extraction system uses AWS Textract to extract text from Omang ID card i
 
 | Field | Pattern | Example | Weight |
 |-------|---------|---------|--------|
-| Surname | `SURNAME:?\s*([A-Z\s]+)` | MOGOROSI | 1.5x |
-| First Names | `FIRST\s+NAMES?:?\s*([A-Z\s]+)` | KGOSI THABO | 1.5x |
-| Omang Number | `OMANG\s+(?:NO\|NUMBER)\.?:?\s*(\d{9})` | 123456789 | 2.0x |
-| Date of Birth | `DATE\s+OF\s+BIRTH:?\s*(\d{2}\/\d{2}\/\d{4})` | 15/03/1985 | 1.0x |
-| Sex | `SEX:?\s*([MF])` | M | 0.5x |
-| Date of Issue | `DATE\s+OF\s+ISSUE:?\s*(\d{2}\/\d{2}\/\d{4})` | 15/03/2015 | 0.5x |
-| Date of Expiry | `DATE\s+OF\s+EXPIRY:?\s*(\d{2}\/\d{2}\/\d{4})` | 15/03/2025 | 0.5x |
+| Surname | `SURNAME:?\s*([A-Z\s]+)` | MOEPSWA | 1.5x |
+| Forenames | `FORENAMES?:?\s*([A-Z\s]+)` | MOTLOTLEGI EDMOND P | 1.5x |
+| ID Number | `ID\s+NUMBER:?\s*(\d{9})` | 059016012 | 2.0x |
+| Date of Birth | `DATE\s+OF\s+BIRTH:?\s*(\d{2}\/\d{2}\/\d{4})` | 25/08/1994 | 1.0x |
+| Place of Birth | `PLACE\s+OF\s+BIRTH:?\s*([A-Z\s]+)` | FRANCISTOWN | 0.5x |
 
-### Back Side Fields (Address)
+### Back Side Fields
+
+| Field | Pattern | Example | Weight |
+|-------|---------|---------|--------|
+| Nationality | `NATIONALITY:?\s*([A-Z\s]+)` | MOTSWANA | 0.5x |
+| Sex | `SEX:?\s*([MF])` | M | 0.5x |
+| Colour of Eyes | `COLOUR\s+OF\s+EYES:?\s*([A-Z\s]+)` | BROWN | 0.3x |
+| Date of Expiry | `DATE\s+OF\s+EXPIRY:?\s*(\d{2}\/\d{2}\/\d{4})` | 22/05/2032 | 0.5x |
+| Place of Application | `PLACE\s+OF\s+APPLICATION:?\s*([A-Z\s]+)` | GABORONE | 0.3x |
+
+### Back Side Fields (Address - Optional)
 
 | Field | Pattern | Example |
 |-------|---------|---------|
 | Plot | `PLOT\s+(\d+[A-Z]?)` | 12345 |
 | Locality | Heuristic (middle line) | GABORONE |
 | District | `(.*?)\s+DISTRICT` | SOUTH EAST DISTRICT |
+
+## Driver's Licence Field Extraction
+
+### Front Side Fields
+
+| Field | Pattern | Example | Weight |
+|-------|---------|---------|--------|
+| Surname | First all-caps name line | MOEPSWA | 1.5x |
+| Forenames | Second all-caps name line | MOTLOTLEGI EDMOND P | 1.5x |
+| ID: Omang | `ID:?\s*Omang\s*(\d{9})` | 059016012 | 2.0x |
+| Gender | `Gender:?\s*([MF])` | M | 0.5x |
+| Date of Birth | `Date\s+of\s+Birth:?\s*(\d{2}\/\d{2}\/\d{4})` | 25/08/1994 | 1.0x |
+| Licence Number | `Licence\s+Number:?\s*(\d+)` | 687215 | 1.5x |
+| Class | `Class\s+([A-Z0-9]+)` | B | 1.0x |
+| Validity Period | `Validity\s+Period:?\s*([A-Za-z]+\s+\d{4})\s*-\s*([A-Za-z]+\s+\d{4})` | Oct 2024 - Oct 2029 | 0.5x |
+| First Issue | `First\s+Issue:?\s*(\d{2}\/\d{2}\/\d{4})` | 04/10/2024 | 0.3x |
+| Driver Restriction | `Driver\s+Restriction:?\s*(\d)` | 0 | 0.3x |
+| Veh. Restr. | `Veh\.?\s*Restr\.?:?\s*(\d)` | 0 | 0.3x |
+| Endorsement | `Endorsement:?\s*(Yes\|No)` | No | 0.3x |
+
+### Driver Restriction Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | None |
+| 1 | Glasses/contact lenses |
+| 2 | Artificial limb |
+
+### Vehicle Restriction Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | None |
+| 1 | Automatic transmission |
+| 2 | Electrically powered |
+| 3 | Physically disabled |
+| 4 | Bus >16,000kg (GVM) permitted |
+
+### Licence Class Categories
+
+| Class | Description |
+|-------|-------------|
+| A | Motorcycle >125cc |
+| A1 | Motorcycle ≤125cc |
+| B | Light vehicle ≤3500kg, GVM ≤750kg |
+| C1 | Medium vehicle, GVM ≤16,000kg |
+| C | Heavy vehicle, GVM >16,000kg |
+| EB | Light vehicle with trailer |
+| EC1 | Medium vehicle with trailer |
+| EC | Heavy vehicle with trailer |
+
+### PrDP Categories (Professional Driving Permit)
+
+| Code | Meaning |
+|------|---------|
+| P | Passengers |
+| G | Goods |
+| H | Hazardous |
+
+### Back Side Fields
+
+The back of the driver's licence contains:
+- Vehicle class category icons and descriptions
+- Driver restrictions legend
+- Vehicle restrictions legend
+- PrDP categories legend
+- Barcode with licence reference number
 
 ## Confidence Score Thresholds
 
@@ -35,14 +110,22 @@ Textract provides a confidence score (0-100%) for each detected text block. We c
 ### Overall Confidence Calculation
 
 ```
-overallConfidence = (
+// Front side
+overallConfidenceFront = (
   (surnameConfidence * 1.5) +
-  (firstNamesConfidence * 1.5) +
-  (omangNumberConfidence * 2.0) +  // Most critical
+  (forenamesConfidence * 1.5) +
+  (idNumberConfidence * 2.0) +  // Most critical
   (dobConfidence * 1.0) +
+  (placeOfBirthConfidence * 0.5)
+) / totalWeight
+
+// Back side
+overallConfidenceBack = (
+  (nationalityConfidence * 0.5) +
   (sexConfidence * 0.5) +
-  (dateOfIssueConfidence * 0.5) +
-  (dateOfExpiryConfidence * 0.5)
+  (colourOfEyesConfidence * 0.3) +
+  (dateOfExpiryConfidence * 0.5) +
+  (placeOfApplicationConfidence * 0.3)
 ) / totalWeight
 ```
 
@@ -97,8 +180,8 @@ Request recapture when:
 | Trigger | Condition | Severity |
 |---------|-----------|----------|
 | Low Overall Confidence | < 80% | HIGH |
-| Critical Field Low Confidence | Omang number < 70% | HIGH |
-| Missing Critical Fields | surname, firstNames, omangNumber, DOB | HIGH |
+| Critical Field Low Confidence | ID Number < 70% | HIGH |
+| Missing Critical Fields | surname, forenames, idNumber, DOB | HIGH |
 | Poor Image Quality | Quality score < 30% | MEDIUM |
 | Textract API Errors | After 3 retries | HIGH |
 | Validation Failures | Invalid format, expired document | MEDIUM |
@@ -222,12 +305,16 @@ Error Details:
   PK: "CASE#<verificationId>",
   SK: "META",
   customerData: {
-    fullName: "KGOSI THABO MOGOROSI",
-    omangNumber: "123456789",
-    dateOfBirth: "1985-03-15",
+    fullName: "MOTLOTLEGI EDMOND P MOEPSWA",
+    idNumber: "059016012",
+    dateOfBirth: "1994-08-25",
+    placeOfBirth: "FRANCISTOWN",
+    nationality: "MOTSWANA",
     sex: "M",
+    colourOfEyes: "BROWN",
     address: { plot: "12345", locality: "GABORONE", district: "SOUTH EAST DISTRICT" },
-    documentExpiry: "2025-03-15",
+    documentExpiry: "2032-05-22",
+    placeOfApplication: "GABORONE",
     extractionConfidence: 98.4,
     extractedAt: "2026-01-14T10:00:05Z"
   }

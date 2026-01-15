@@ -21,9 +21,9 @@ describe('image-quality', () => {
     it('should return readable for high quality image', () => {
       const blocks: TextractBlock[] = [
         { BlockType: 'LINE', Id: '1', Text: 'REPUBLIC OF BOTSWANA', Confidence: 99.5 },
-        { BlockType: 'LINE', Id: '2', Text: 'SURNAME: MOGOROSI', Confidence: 98.2 },
-        { BlockType: 'LINE', Id: '3', Text: 'OMANG NO: 123456789', Confidence: 99.1 },
-        { BlockType: 'LINE', Id: '4', Text: 'DATE OF BIRTH: 15/03/1985', Confidence: 97.8 },
+        { BlockType: 'LINE', Id: '2', Text: 'SURNAME: MOEPSWA', Confidence: 98.2 },
+        { BlockType: 'LINE', Id: '3', Text: 'ID NUMBER: 059016012', Confidence: 99.1 },
+        { BlockType: 'LINE', Id: '4', Text: 'DATE OF BIRTH: 25/08/1994', Confidence: 97.8 },
         { BlockType: 'LINE', Id: '5', Text: 'SEX: M', Confidence: 99.9 },
       ];
 
@@ -37,8 +37,8 @@ describe('image-quality', () => {
     it('should detect blurry image with low confidence', () => {
       const blocks: TextractBlock[] = [
         { BlockType: 'LINE', Id: '1', Text: 'REPUBLIC OF BOTSWANA', Confidence: 45.0 },
-        { BlockType: 'LINE', Id: '2', Text: 'SURNAME: MOGOROSI', Confidence: 42.0 },
-        { BlockType: 'LINE', Id: '3', Text: 'OMANG NO: 123456789', Confidence: 48.0 },
+        { BlockType: 'LINE', Id: '2', Text: 'SURNAME: MOEPSWA', Confidence: 42.0 },
+        { BlockType: 'LINE', Id: '3', Text: 'ID NUMBER: 059016012', Confidence: 48.0 },
         { BlockType: 'LINE', Id: '4', Text: 'DATE OF BIRTH', Confidence: 40.0 },
       ];
 

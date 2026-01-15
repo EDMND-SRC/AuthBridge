@@ -411,6 +411,77 @@ EmailConfiguration:
 
 **Pricing:** $1.50 per 1,000 pages (text extraction)
 
+### ADR-007a: Country-Based Document Extractor Architecture
+
+**Decision:** Implement a country-based extractor architecture to support regional expansion with country-specific document formats.
+
+**Rationale:**
+- Different countries have different document formats (e.g., Botswana Omang vs South Africa ID)
+- Driver's licences and passports vary significantly by country
+- Enables clean separation of country-specific logic
+- Supports phased regional expansion (SADC region)
+- Allows for country-specific validation rules and field patterns
+
+**Architecture:**
+```
+src/extractors/
+├── types.ts              # Common types and interfaces
+├── registry.ts           # Extractor registry
+├── index.ts              # Public exports
+└── botswana/             # Botswana-specific extractors
+    ├── index.ts
+    ├── types.ts          # Botswana-specific types
+    ├── omang-extractor.ts
+    ├── drivers-licence-extractor.ts
+    └── passport-extractor.ts
+```
+
+**Extractor Interface:**
+```typescript
+interface DocumentExtractor<T extends ExtractedDocumentFields> {
+  readonly country: SupportedCountry;
+  readonly documentType: DocumentType;
+  readonly requiredFields: string[];
+  extract(blocks: TextractBlock[]): ExtractionResult<T>;
+  validate(fields: T): { valid: boolean; errors: string[] };
+}
+```
+
+**Registry Pattern:**
+```typescript
+// Get extractor for specific country/document
+const extractor = getExtractor('BW', 'passport');
+const result = extractor.extract(textractBlocks);
+
+// Check if extractor exists
+if (hasExtractor('ZA', 'national_id')) { ... }
+
+// Get all supported countries
+const countries = getSupportedCountries(); // ['BW']
+```
+
+**Currently Supported (Botswana - BW):**
+- `national_id` - Omang (National Identity Card)
+- `drivers_licence` - Botswana Driver's Licence
+- `passport` - Botswana Passport (ICAO TD3 with MRZ)
+
+**Regional Expansion Roadmap:**
+| Phase | Country | Code | Priority | Rationale |
+|-------|---------|------|----------|-----------|
+| Phase 1 (MVP) | Botswana | BW | ✅ Done | Home market |
+| Phase 2 (Year 2) | South Africa | ZA | HIGH | Largest SADC economy, clear regulations |
+| Phase 2 (Year 2) | Namibia | NA | HIGH | Close ties, similar legal framework |
+| Phase 3 (Year 3) | Zimbabwe | ZW | MEDIUM | Large population, growing fintech |
+| Phase 3 (Year 3) | Zambia | ZM | MEDIUM | Regional hub, stable regulations |
+
+**Country Selection Criteria:**
+1. Target market alignment (SADC region)
+2. Population size and economic activity
+3. Country reputation and stability
+4. Regulatory clarity (clear KYC/AML laws)
+5. Risk profile (fraud, sanctions)
+6. Document standardization
+
 ### ADR-008: React 19 + Mantine 8 for Backoffice
 
 **Decision:** Upgrade Backoffice to React 19.2 and Mantine 8.3.

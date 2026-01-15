@@ -240,3 +240,65 @@ export async function recordFaceDetectionIssue(
     { Name: 'ImageType', Value: imageType },
   ]);
 }
+
+/**
+ * Record duplicate detection metrics
+ */
+export async function recordDuplicateDetectionMetrics(
+  checked: boolean,
+  duplicatesFound: number,
+  sameClientCount: number,
+  crossClientCount: number,
+  riskLevel: string,
+  riskScore: number,
+  requiresManualReview: boolean,
+  checkTimeMs: number
+): Promise<void> {
+  const promises: Promise<void>[] = [
+    recordMetric('Duplicate/ChecksPerformed', 1, 'Count'),
+    recordMetric('Duplicate/CheckTime', checkTimeMs, 'Milliseconds'),
+  ];
+
+  if (checked) {
+    promises.push(recordMetric('Duplicate/CheckSuccess', 1, 'Count'));
+
+    if (duplicatesFound > 0) {
+      promises.push(
+        recordMetric('Duplicate/DuplicatesFound', duplicatesFound, 'Count'),
+        recordMetric('Duplicate/SameClientDuplicates', sameClientCount, 'Count'),
+        recordMetric('Duplicate/CrossClientDuplicates', crossClientCount, 'Count'),
+        recordMetric('Duplicate/RiskScore', riskScore, 'Count')
+      );
+
+      // Record risk level
+      promises.push(
+        recordMetric(`Duplicate/RiskLevel/${riskLevel}`, 1, 'Count')
+      );
+
+      // Record high-risk cases
+      if (riskLevel === 'high' || riskLevel === 'critical') {
+        promises.push(recordMetric('Duplicate/HighRiskCases', 1, 'Count'));
+      }
+
+      // Record manual review triggers
+      if (requiresManualReview) {
+        promises.push(recordMetric('Duplicate/ManualReviewTriggered', 1, 'Count'));
+      }
+    }
+  } else {
+    promises.push(recordMetric('Duplicate/CheckFailure', 1, 'Count'));
+  }
+
+  await Promise.all(promises);
+}
+
+/**
+ * Record duplicate check error metrics
+ */
+export async function recordDuplicateCheckError(
+  errorType: 'DYNAMODB_ERROR' | 'ENCRYPTION_ERROR' | 'UNKNOWN'
+): Promise<void> {
+  await recordMetric('Duplicate/CheckError', 1, 'Count', [
+    { Name: 'ErrorType', Value: errorType },
+  ]);
+}

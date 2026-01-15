@@ -3071,12 +3071,47 @@ AuthBridge serves two distinct markets with appropriate pricing models:
 4. Business Registration
 5. Proof of Business Tax ID
 
+**Proof of Address Documents (Botswana):**
+1. Water Utilities Corporation (WUC) Statement
+2. Botswana Power Corporation (BPC) Electricity Bill
+3. Rent Bill/Invoice (from registered landlord)
+4. Bank Statement (from licensed Botswana bank)
+5. Internet Service Provider Bill (e.g., BTCL, Mascom, Orange)
+6. Medical Aid Statement (e.g., BPOMAS, Bomaid, Pula Medical Aid)
+7. Pension Fund Account Statement (e.g., BPOPF, Debswana Pension Fund)
+
+**Proof of Address Validation Rules:**
+- Document must be dated within the last 3 months
+- Must show full name matching identity document
+- Must show physical address (not P.O. Box)
+- Must be from a recognized Botswana institution
+- OCR extraction of: name, address, date, issuing institution
+
 **Financial Documents:**
 1. Bank Statement
 2. Utility Bill (proof of address)
 
 **Biometric:**
 1. Selfie (with liveness detection)
+
+**Country-Based Document Support:**
+
+AuthBridge uses a country-based extractor architecture to support regional expansion. Each country has specific document formats and validation rules.
+
+| Country | Code | Documents Supported | Status |
+|---------|------|---------------------|--------|
+| Botswana | BW | Omang, Passport, Driver's Licence, Proof of Address | ✅ Implemented |
+| South Africa | ZA | Smart ID, Passport, Driver's Licence | 🗓️ Year 2 |
+| Namibia | NA | National ID, Passport, Driver's Licence | 🗓️ Year 2 |
+| Zimbabwe | ZW | National ID, Passport | 🗓️ Year 3 |
+| Zambia | ZM | NRC, Passport | 🗓️ Year 3 |
+
+**Country Selection Criteria:**
+1. Target market alignment (SADC region focus)
+2. Population size and economic activity
+3. Country reputation and regulatory stability
+4. Clear KYC/AML laws and documentation
+5. Risk profile (fraud rates, sanctions status)
 
 ### Appendix F: API Endpoints Summary
 

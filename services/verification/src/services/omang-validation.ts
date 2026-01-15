@@ -1,4 +1,4 @@
-import { parse, isValid, isBefore, isAfter, differenceInDays, addYears } from 'date-fns';
+import { parse, isValid, isBefore, isAfter, differenceInDays } from 'date-fns';
 import {
   OmangNumberValidationResult,
   ExpiryValidationResult,
@@ -9,12 +9,15 @@ import {
  * Service for validating Omang document data
  *
  * Validates:
- * - Omang number format (9 digits, numeric only)
- * - Expiry date (10-year validity, not expired)
+ * - ID number format (9 digits, numeric only)
+ * - Expiry date (not expired)
+ *
+ * Note: Omang cards do NOT have a Date of Issue field.
+ * The 10-year validity period cannot be verified from the card itself.
  */
 export class OmangValidationService {
   /**
-   * Validate Omang number format
+   * Validate ID number format
    *
    * Rules:
    * - Exactly 9 digits
@@ -22,30 +25,30 @@ export class OmangValidationService {
    * - No spaces, dashes, or special characters
    * - Leading zeros allowed
    */
-  validateOmangNumber(omangNumber: string): OmangNumberValidationResult {
+  validateIdNumber(idNumber: string): OmangNumberValidationResult {
     // Handle null/undefined
-    if (!omangNumber) {
+    if (!idNumber) {
       return {
         valid: false,
-        error: 'Omang number must be exactly 9 digits',
+        error: 'ID number must be exactly 9 digits',
         format: 'invalid',
       };
     }
 
     // Check numeric only first (catches special chars, spaces, letters)
-    if (!/^\d+$/.test(omangNumber)) {
+    if (!/^\d+$/.test(idNumber)) {
       return {
         valid: false,
-        error: 'Omang number must be numeric only',
+        error: 'ID number must be numeric only',
         format: 'invalid',
       };
     }
 
     // Then check length
-    if (omangNumber.length !== 9) {
+    if (idNumber.length !== 9) {
       return {
         valid: false,
-        error: 'Omang number must be exactly 9 digits',
+        error: 'ID number must be exactly 9 digits',
         format: 'invalid',
       };
     }
@@ -53,7 +56,7 @@ export class OmangValidationService {
     return {
       valid: true,
       format: 'valid',
-      value: omangNumber,
+      value: idNumber,
     };
   }
 
@@ -61,60 +64,34 @@ export class OmangValidationService {
    * Validate expiry date
    *
    * Rules:
-   * - Expiry must be exactly 10 years from issue date
    * - Document must not be expired
-   * - Issue date must not be in the future
-   * - Expiry must not be before issue
+   * - Expiry must not be in the past
    * - Flag documents expiring within 30 days
+   *
+   * Note: Omang cards do NOT have a Date of Issue field,
+   * so we cannot verify the 10-year validity period.
    */
-  validateExpiry(issueDate: string, expiryDate: string): ExpiryValidationResult {
-    // Handle missing dates
-    if (!issueDate || !expiryDate) {
+  validateExpiry(expiryDate: string): ExpiryValidationResult {
+    // Handle missing date
+    if (!expiryDate) {
       return {
         valid: false,
-        error: 'Issue date and expiry date are required',
+        error: 'Expiry date is required',
       };
     }
 
-    // Parse dates (DD/MM/YYYY format)
-    const parsedIssue = parse(issueDate, 'dd/MM/yyyy', new Date());
+    // Parse date (DD/MM/YYYY format)
     const parsedExpiry = parse(expiryDate, 'dd/MM/yyyy', new Date());
 
-    // Check if dates are valid
-    if (!isValid(parsedIssue) || !isValid(parsedExpiry)) {
+    // Check if date is valid
+    if (!isValid(parsedExpiry)) {
       return {
         valid: false,
-        error: 'Invalid date format - dates must be in DD/MM/YYYY format',
+        error: 'Invalid date format - date must be in DD/MM/YYYY format',
       };
     }
 
     const today = new Date();
-
-    // Check if issue date is in the future
-    if (isAfter(parsedIssue, today)) {
-      return {
-        valid: false,
-        error: 'Issue date cannot be in the future',
-      };
-    }
-
-    // Check if expiry is before issue
-    if (isBefore(parsedExpiry, parsedIssue)) {
-      return {
-        valid: false,
-        error: 'Expiry date cannot be before issue date',
-      };
-    }
-
-    // Check if expiry is approximately 10 years from issue (allow 1 day tolerance for leap years)
-    const expectedExpiry = addYears(parsedIssue, 10);
-    const daysDifference = Math.abs(differenceInDays(parsedExpiry, expectedExpiry));
-    if (daysDifference > 1) {
-      return {
-        valid: false,
-        error: 'Expiry date does not match 10-year validity period',
-      };
-    }
 
     // Check if document is expired
     if (isBefore(parsedExpiry, today)) {
@@ -125,7 +102,6 @@ export class OmangValidationService {
         expired: true,
         expiredDays,
         expiryDate: expiryDate,
-        issueDate: issueDate,
       };
     }
 
@@ -138,7 +114,6 @@ export class OmangValidationService {
         expired: false,
         daysUntilExpiry,
         expiryDate: expiryDate,
-        issueDate: issueDate,
       };
     }
 
@@ -147,7 +122,6 @@ export class OmangValidationService {
       expired: false,
       daysUntilExpiry,
       expiryDate: expiryDate,
-      issueDate: issueDate,
     };
   }
 
@@ -157,18 +131,17 @@ export class OmangValidationService {
    * Combines all validation checks and returns comprehensive result
    */
   validate(ocrData: {
-    omangNumber: string;
-    dateOfIssue: string;
+    idNumber: string;
     dateOfExpiry: string;
   }): OmangValidationResult {
-    const omangNumberResult = this.validateOmangNumber(ocrData.omangNumber);
-    const expiryResult = this.validateExpiry(ocrData.dateOfIssue, ocrData.dateOfExpiry);
+    const idNumberResult = this.validateIdNumber(ocrData.idNumber);
+    const expiryResult = this.validateExpiry(ocrData.dateOfExpiry);
 
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    if (!omangNumberResult.valid && omangNumberResult.error) {
-      errors.push(omangNumberResult.error);
+    if (!idNumberResult.valid && idNumberResult.error) {
+      errors.push(idNumberResult.error);
     }
 
     if (!expiryResult.valid && expiryResult.error) {
@@ -180,14 +153,19 @@ export class OmangValidationService {
     }
 
     return {
-      omangNumber: omangNumberResult,
+      omangNumber: idNumberResult,
       expiry: expiryResult,
       overall: {
-        valid: omangNumberResult.valid && expiryResult.valid,
+        valid: idNumberResult.valid && expiryResult.valid,
         errors,
         warnings,
       },
       validatedAt: new Date().toISOString(),
     };
+  }
+
+  // Backward compatibility alias
+  validateOmangNumber(omangNumber: string): OmangNumberValidationResult {
+    return this.validateIdNumber(omangNumber);
   }
 }

@@ -1,11 +1,13 @@
 ---
 project_name: 'AuthBridge'
 user_name: 'Edmond'
-date: '2026-01-14'
-sections_completed: ['technology_stack', 'critical_implementation_rules', 'adrs', 'testing_rules', 'workflow_rules']
+date: '2026-01-15'
+sections_completed: ['technology_stack', 'critical_implementation_rules', 'adrs', 'testing_rules', 'workflow_rules', 'deployment_status']
 status: 'complete'
 rule_count: 47
 optimized_for_llm: true
+last_deployment: '2026-01-15'
+netlify_sites_live: true
 ---
 
 # Project Context for AI Agents
@@ -59,16 +61,36 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 | Environment | API | Backoffice | SDK |
 |-------------|-----|------------|-----|
-| Production | `api.authbridge.io` | `app.authbridge.io` | `sdk.authbridge.io` |
+| Production | `api.authbridge.io` | `app.authbridge.io` ✅ | `sdk.authbridge.io` |
 | Staging | `api-staging.authbridge.io` | `app-staging.authbridge.io` | `sdk-staging.authbridge.io` |
 
 ### Hosting
 
 - **Backend:** AWS Lambda (Serverless Framework)
-- **Frontend:** Netlify
+- **Frontend:** Netlify (✅ LIVE: backoffice + docs)
 - **SDK CDN:** CloudFront
 
 **Full deployment details:** See `_bmad-output/planning-artifacts/deployment-strategy.md`
+
+### Netlify Sites (LIVE as of 2026-01-15)
+
+| Site | Domain | Netlify URL | Status |
+|------|--------|-------------|--------|
+| Backoffice | `app.authbridge.io` | `authbridge-backoffice.netlify.app` | ✅ LIVE |
+| Docs | `docs.authbridge.io` | `authbridge-docs.netlify.app` | ✅ LIVE |
+
+**GitHub Integration:**
+- Repo: `BridgeArc/AuthBridge`
+- Branch: `main`
+- Auto-deploy on push enabled
+
+**Config Files:**
+- `apps/backoffice/netlify.toml`
+- `apps/docs/netlify.toml`
+
+**Route 53 DNS:**
+- `app.authbridge.io` CNAME → `authbridge-backoffice.netlify.app`
+- `docs.authbridge.io` CNAME → `authbridge-docs.netlify.app`
 
 ---
 
@@ -287,6 +309,42 @@ This file contains irreplaceable credentials. Violations of these rules are unac
 - Client polls or receives webhook for result
 - Never block on Textract/Rekognition calls
 
+**ADR-007: Country-Based Document Extractor Architecture**
+- Use country-based extractors for OCR field extraction
+- Each country has its own folder: `src/extractors/<country>/`
+- Extractors implement `DocumentExtractor` interface
+- Registry pattern for extractor lookup: `getExtractor('BW', 'passport')`
+- Field patterns based on ACTUAL document images, not assumptions
+
+**Currently Implemented (Botswana - BW):**
+
+| Document Type | Extractor | Key Fields |
+|---------------|-----------|------------|
+| Omang (National ID) | `omang-extractor.ts` | idNumber, surname, forenames, dateOfBirth, sex, dateOfExpiry |
+| Driver's Licence | `drivers-licence-extractor.ts` | licenceNumber, omangNumber, licenceClass, validityPeriod |
+| Passport | `passport-extractor.ts` | passportNumber, personalNumber (Omang), MRZ parsing |
+
+**Extractor Location:** `services/verification/src/extractors/botswana/`
+
+**Usage:**
+```typescript
+import { getExtractor, hasExtractor } from './extractors';
+
+if (hasExtractor('BW', 'passport')) {
+  const extractor = getExtractor('BW', 'passport');
+  const result = extractor.extract(textractBlocks);
+}
+```
+
+**Regional Expansion Roadmap:**
+- Phase 1 (MVP): Botswana (BW) ✅
+- Phase 2 (Year 2): South Africa (ZA), Namibia (NA)
+- Phase 3 (Year 3): Zimbabwe (ZW), Zambia (ZM)
+
+**Proof of Address Documents (Planned):**
+- WUC Statement, BPC Electricity Bill, Bank Statement
+- Rent Bill, Internet Bill, Medical Aid Statement, Pension Fund Statement
+
 ---
 
 ## Testing Rules
@@ -392,4 +450,54 @@ pnpm test:changed      # Test only changed files
 
 ---
 
-_Last Updated: 2026-01-14_
+---
+
+## Recent Deployments
+
+### 2026-01-15: Country-Based OCR Extractors
+
+**Completed:**
+- ✅ Implemented country-based extractor architecture
+- ✅ Botswana Omang extractor (corrected field patterns from actual images)
+- ✅ Botswana Driver's Licence extractor with all fields
+- ✅ Botswana Passport extractor with MRZ parsing and check digit validation
+- ✅ Extractor registry with `getExtractor()`, `hasExtractor()` functions
+- ✅ All 21 extractor tests passing
+- ✅ Updated planning artifacts with regional expansion roadmap
+- ✅ Added proof of address document types to documentation
+
+**Key Corrections Made:**
+- `FIRST NAMES` → `FORENAMES` (actual Omang card label)
+- `OMANG NO` → `ID NUMBER` (actual Omang card label)
+- Removed `DATE OF ISSUE` (doesn't exist on Omang cards)
+- Moved `SEX` field from front to back side
+
+**Files Created/Updated:**
+- `services/verification/src/extractors/` (new architecture)
+- `services/verification/docs/botswana-document-fields.md`
+- `services/verification/project-context.md`
+- `_bmad-output/planning-artifacts/architecture.md`
+- `_bmad-output/planning-artifacts/prd.md`
+- `_bmad-output/planning-artifacts/product-brief-AuthBridge-2026-01-13.md`
+
+### 2026-01-15: Netlify Sites Live
+
+**Completed:**
+- ✅ Created Netlify sites for backoffice and docs
+- ✅ Connected to GitHub `BridgeArc/AuthBridge` main branch
+- ✅ Configured Route 53 DNS records
+- ✅ Created `netlify.toml` config files
+- ✅ Auto-deploy on push enabled
+
+**Site IDs:**
+- Backoffice: `ca6360e9-d21a-471a-8b2a-500b2206fff8`
+- Docs: `97eb94d1-4293-4d09-affa-225dda2be026`
+
+**Next Steps:**
+- Push to main to trigger first deploy
+- Verify SSL certificates auto-provision
+- Set environment variables in Netlify dashboard
+
+---
+
+_Last Updated: 2026-01-15_

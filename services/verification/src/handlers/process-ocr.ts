@@ -22,8 +22,8 @@ interface OcrMessage {
   omangFrontDocumentId?: string; // For triggering biometric after selfie
 }
 
-const REQUIRED_FRONT_FIELDS = 7;
-const REQUIRED_BACK_FIELDS = 3;
+const REQUIRED_FRONT_FIELDS = 4;  // surname, forenames, idNumber, dateOfBirth
+const REQUIRED_BACK_FIELDS = 3;   // nationality, sex, dateOfExpiry
 
 /**
  * Lambda handler for processing OCR from SQS queue
@@ -102,16 +102,15 @@ export async function handler(event: SQSEvent): Promise<SQSBatchResponse> {
       }
 
       // Validate Omang data (for omang_front documents only)
+      // Note: Validation now only requires idNumber and dateOfExpiry (no dateOfIssue on actual Omang)
       let validationResult = null;
       if (
         message.documentType === 'omang_front' &&
-        ocrResult.extractedFields.omangNumber &&
-        ocrResult.extractedFields.dateOfIssue &&
+        ocrResult.extractedFields.idNumber &&
         ocrResult.extractedFields.dateOfExpiry
       ) {
         validationResult = validationService.validate({
-          omangNumber: ocrResult.extractedFields.omangNumber as string,
-          dateOfIssue: ocrResult.extractedFields.dateOfIssue as string,
+          idNumber: ocrResult.extractedFields.idNumber as string,
           dateOfExpiry: ocrResult.extractedFields.dateOfExpiry as string,
         });
 

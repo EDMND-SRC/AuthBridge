@@ -381,6 +381,205 @@ resources:
         AlarmActions:
           - !Ref OcrAlertTopic
 
+    # CloudWatch Alarms for Duplicate Detection monitoring
+    DuplicateCrossClientRateAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: authbridge-duplicate-cross-client-rate-${self:provider.stage}
+        AlarmDescription: Cross-client duplicate rate exceeds 5% over 1 hour
+        MetricName: Duplicate/CrossClientDuplicates
+        Namespace: AuthBridge/Verification
+        Statistic: Sum
+        Period: 3600
+        EvaluationPeriods: 1
+        Threshold: 5
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref OcrAlertTopic
+
+    DuplicateRiskScoreAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: authbridge-duplicate-risk-score-${self:provider.stage}
+        AlarmDescription: Average risk score exceeds 50 over 1 hour
+        MetricName: Duplicate/RiskScore
+        Namespace: AuthBridge/Verification
+        Statistic: Average
+        Period: 3600
+        EvaluationPeriods: 1
+        Threshold: 50
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref OcrAlertTopic
+
+    DuplicateCheckFailureAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: authbridge-duplicate-check-failures-${self:provider.stage}
+        AlarmDescription: Duplicate check failure rate exceeds 10% over 5 minutes
+        MetricName: Duplicate/CheckFailure
+        Namespace: AuthBridge/Verification
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 2
+        Threshold: 10
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref OcrAlertTopic
+
+    # CloudWatch Dashboard for Duplicate Detection
+    DuplicateDetectionDashboard:
+      Type: AWS::CloudWatch::Dashboard
+      Properties:
+        DashboardName: authbridge-duplicate-detection-${self:provider.stage}
+        DashboardBody: !Sub |
+          {
+            "widgets": [
+              {
+                "type": "metric",
+                "properties": {
+                  "metrics": [
+                    ["AuthBridge/Verification", "Duplicate/ChecksPerformed", {"stat": "Sum", "label": "Total Checks"}],
+                    [".", "Duplicate/DuplicatesFound", {"stat": "Sum", "label": "Duplicates Found"}],
+                    [".", "Duplicate/CrossClientDuplicates", {"stat": "Sum", "label": "Cross-Client"}]
+                  ],
+                  "period": 300,
+                  "stat": "Sum",
+                  "region": "af-south-1",
+                  "title": "Duplicate Detection Overview",
+                  "yAxis": {
+                    "left": {
+                      "min": 0
+                    }
+                  }
+                }
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "metrics": [
+                    ["AuthBridge/Verification", "Duplicate/RiskLevel/low", {"stat": "Sum", "label": "Low Risk"}],
+                    [".", "Duplicate/RiskLevel/medium", {"stat": "Sum", "label": "Medium Risk"}],
+                    [".", "Duplicate/RiskLevel/high", {"stat": "Sum", "label": "High Risk"}],
+                    [".", "Duplicate/RiskLevel/critical", {"stat": "Sum", "label": "Critical Risk"}]
+                  ],
+                  "period": 300,
+                  "stat": "Sum",
+                  "region": "af-south-1",
+                  "title": "Risk Level Distribution",
+                  "yAxis": {
+                    "left": {
+                      "min": 0
+                    }
+                  }
+                }
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "metrics": [
+                    ["AuthBridge/Verification", "Duplicate/RiskScore", {"stat": "Average", "label": "Average Risk Score"}]
+                  ],
+                  "period": 300,
+                  "stat": "Average",
+                  "region": "af-south-1",
+                  "title": "Average Risk Score (0-100)",
+                  "yAxis": {
+                    "left": {
+                      "min": 0,
+                      "max": 100
+                    }
+                  },
+                  "annotations": {
+                    "horizontal": [
+                      {
+                        "value": 25,
+                        "label": "Low/Medium Threshold",
+                        "fill": "below"
+                      },
+                      {
+                        "value": 50,
+                        "label": "Medium/High Threshold",
+                        "fill": "below"
+                      },
+                      {
+                        "value": 75,
+                        "label": "High/Critical Threshold",
+                        "fill": "below"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "metrics": [
+                    ["AuthBridge/Verification", "Duplicate/ManualReviewTriggered", {"stat": "Sum", "label": "Manual Review Required"}]
+                  ],
+                  "period": 300,
+                  "stat": "Sum",
+                  "region": "af-south-1",
+                  "title": "Manual Review Queue",
+                  "yAxis": {
+                    "left": {
+                      "min": 0
+                    }
+                  }
+                }
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "metrics": [
+                    ["AuthBridge/Verification", "Duplicate/CheckTime", {"stat": "p50", "label": "p50"}],
+                    ["...", {"stat": "p95", "label": "p95"}],
+                    ["...", {"stat": "p99", "label": "p99"}]
+                  ],
+                  "period": 300,
+                  "stat": "Average",
+                  "region": "af-south-1",
+                  "title": "Duplicate Check Latency (ms)",
+                  "yAxis": {
+                    "left": {
+                      "min": 0
+                    }
+                  },
+                  "annotations": {
+                    "horizontal": [
+                      {
+                        "value": 500,
+                        "label": "Target (p95 < 500ms)",
+                        "fill": "above"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "metrics": [
+                    ["AuthBridge/Verification", "Duplicate/CheckSuccess", {"stat": "Sum", "label": "Success"}],
+                    [".", "Duplicate/CheckFailure", {"stat": "Sum", "label": "Failure"}]
+                  ],
+                  "period": 300,
+                  "stat": "Sum",
+                  "region": "af-south-1",
+                  "title": "Duplicate Check Success/Failure Rate",
+                  "yAxis": {
+                    "left": {
+                      "min": 0
+                    }
+                  }
+                }
+              }
+            ]
+          }
+
   Outputs:
     OcrAlertTopicArn:
       Description: ARN of the OCR Alert SNS Topic

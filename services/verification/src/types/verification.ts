@@ -37,8 +37,16 @@ export interface VerificationEntity {
   ttl: number; // Unix timestamp for DynamoDB TTL
   GSI1PK: string; // CLIENT#<clientId>
   GSI1SK: string; // <status>#<createdAt>
-  GSI2PK: string; // DATE#<YYYY-MM-DD>
-  GSI2SK: string; // <createdAt>#<verificationId>
+  GSI2PK: string; // DATE#<YYYY-MM-DD> or OMANG#<hash> for duplicate detection
+  GSI2SK: string; // <createdAt>#<verificationId> or CASE#<verificationId>
+  biometricSummary?: {
+    livenessScore: number;
+    similarityScore: number;
+    overallScore: number;
+    passed: boolean;
+    requiresManualReview: boolean;
+    processedAt: string;
+  };
 }
 
 export interface DocumentEntity {

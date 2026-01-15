@@ -49,8 +49,8 @@ describe('process-ocr handler', () => {
   it('should process OCR for omang_front document', async () => {
     const mockOcrResult = {
       extractedFields: {
-        surname: 'MOGOROSI',
-        omangNumber: '123456789',
+        surname: 'MOEPSWA',
+        idNumber: '059016012',
       },
       confidence: { overall: 98.5 },
       rawTextractResponse: {},
@@ -110,8 +110,9 @@ describe('process-ocr handler', () => {
   it('should process OCR for omang_back document', async () => {
     const mockOcrResult = {
       extractedFields: {
-        plot: '12345',
-        locality: 'GABORONE',
+        nationality: 'MOTSWANA',
+        sex: 'M',
+        dateOfExpiry: '22/05/2032',
       },
       confidence: { overall: 97.5 },
       rawTextractResponse: {},
@@ -294,10 +295,9 @@ describe('process-ocr handler', () => {
   it('should run validation for omang_front with complete OCR data', async () => {
     const mockOcrResult = {
       extractedFields: {
-        surname: 'MOGOROSI',
-        omangNumber: '123456789',
-        dateOfIssue: '15/03/2020',
-        dateOfExpiry: '15/03/2030',
+        surname: 'MOEPSWA',
+        idNumber: '059016012',
+        dateOfExpiry: '22/05/2032',
       },
       confidence: { overall: 98.5 },
       rawTextractResponse: { Blocks: [] },
@@ -354,10 +354,9 @@ describe('process-ocr handler', () => {
   it('should mark document for manual review when validation fails', async () => {
     const mockOcrResult = {
       extractedFields: {
-        surname: 'MOGOROSI',
-        omangNumber: '12345678', // Invalid: 8 digits
-        dateOfIssue: '15/03/2020',
-        dateOfExpiry: '15/03/2030',
+        surname: 'MOEPSWA',
+        idNumber: '12345678', // Invalid: 8 digits
+        dateOfExpiry: '22/05/2032',
       },
       confidence: { overall: 98.5 },
       rawTextractResponse: { Blocks: [] },
@@ -419,16 +418,16 @@ describe('process-ocr handler', () => {
   it('should skip validation when OCR data is incomplete', async () => {
     const mockOcrResult = {
       extractedFields: {
-        surname: 'MOGOROSI',
-        omangNumber: '123456789',
-        // Missing dateOfIssue and dateOfExpiry
+        surname: 'MOEPSWA',
+        idNumber: '059016012',
+        // Missing dateOfExpiry
       },
       confidence: { overall: 98.5 },
       rawTextractResponse: { Blocks: [] },
       extractionMethod: 'pattern' as const,
       processingTimeMs: 4500,
       requiresManualReview: false,
-      missingFields: ['dateOfIssue', 'dateOfExpiry'],
+      missingFields: ['dateOfExpiry'],
     };
 
     mockOmangOcrService.extractOmangFront.mockResolvedValue(mockOcrResult);

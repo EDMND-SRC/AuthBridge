@@ -70,7 +70,7 @@ development_status:
   2-1-omang-ocr-extraction: done
   2-2-omang-format-validation: done
   2-3-biometric-face-matching: done
-  2-4-duplicate-omang-detection: backlog
+  2-4-duplicate-omang-detection: review
   epic-2-retrospective: optional
 
   # ═══════════════════════════════════════════════════════════════════════════

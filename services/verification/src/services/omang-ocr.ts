@@ -11,17 +11,19 @@ const CONFIDENCE_THRESHOLD_HIGH = parseInt(process.env.OCR_CONFIDENCE_HIGH || '9
 const CONFIDENCE_THRESHOLD_LOW = parseInt(process.env.OCR_CONFIDENCE_LOW || '80', 10);
 const CRITICAL_FIELD_THRESHOLD = parseInt(process.env.OCR_CRITICAL_FIELD_THRESHOLD || '70', 10);
 
+// Required fields based on actual Omang card layout
 const REQUIRED_FRONT_FIELDS = [
   'surname',
-  'firstNames',
-  'omangNumber',
+  'forenames',
+  'idNumber',
   'dateOfBirth',
-  'sex',
-  'dateOfIssue',
-  'dateOfExpiry',
 ];
 
-const REQUIRED_BACK_FIELDS = ['plot', 'locality', 'district'];
+const REQUIRED_BACK_FIELDS = [
+  'nationality',
+  'sex',
+  'dateOfExpiry',
+];
 
 /**
  * Omang-specific OCR service
@@ -57,7 +59,7 @@ export class OmangOcrService {
     const requiresManualReview =
       overallConfidence < CONFIDENCE_THRESHOLD_LOW ||
       missingFields.length > 0 ||
-      (confidence.omangNumber !== undefined && confidence.omangNumber < CRITICAL_FIELD_THRESHOLD);
+      (confidence.idNumber !== undefined && confidence.idNumber < CRITICAL_FIELD_THRESHOLD);
 
     const processingTimeMs = Date.now() - startTime;
 

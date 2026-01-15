@@ -23,22 +23,18 @@ describe('OcrStorageService', () => {
     it('should update document entity with OCR results', async () => {
       const ocrResult: OcrResult = {
         extractedFields: {
-          surname: 'MOGOROSI',
-          firstNames: 'KGOSI THABO',
-          omangNumber: '123456789',
-          dateOfBirth: '15/03/1985',
-          sex: 'M',
-          dateOfIssue: '15/03/2015',
-          dateOfExpiry: '15/03/2025',
+          surname: 'MOEPSWA',
+          forenames: 'MOTLOTLEGI EDMOND P',
+          idNumber: '059016012',
+          dateOfBirth: '25/08/1994',
+          placeOfBirth: 'FRANCISTOWN',
         },
         confidence: {
           surname: 99.2,
-          firstNames: 98.5,
-          omangNumber: 99.8,
+          forenames: 98.5,
+          idNumber: 99.8,
           dateOfBirth: 97.3,
-          sex: 99.9,
-          dateOfIssue: 96.8,
-          dateOfExpiry: 97.1,
+          placeOfBirth: 96.5,
           overall: 98.4,
         },
         rawTextractResponse: { Blocks: [] },
@@ -79,10 +75,9 @@ describe('OcrStorageService', () => {
     it('should store validation result and set status to validated', async () => {
       const ocrResult: OcrResult = {
         extractedFields: {
-          surname: 'MOGOROSI',
-          omangNumber: '123456789',
-          dateOfIssue: '15/03/2020',
-          dateOfExpiry: '15/03/2030',
+          surname: 'MOEPSWA',
+          idNumber: '059016012',
+          dateOfExpiry: '22/05/2032',
         },
         confidence: { overall: 98.5 },
         rawTextractResponse: {},
@@ -93,8 +88,8 @@ describe('OcrStorageService', () => {
       };
 
       const validationResult = {
-        omangNumber: { valid: true, format: 'valid' as const, value: '123456789' },
-        expiry: { valid: true, expired: false, daysUntilExpiry: 1825 },
+        omangNumber: { valid: true, format: 'valid' as const, value: '059016012' },
+        expiry: { valid: true, expired: false, daysUntilExpiry: 2300 },
         overall: { valid: true, errors: [], warnings: [] },
         validatedAt: '2026-01-15T10:00:00Z',
       };
@@ -129,10 +124,9 @@ describe('OcrStorageService', () => {
     it('should set status to validation_failed when validation fails', async () => {
       const ocrResult: OcrResult = {
         extractedFields: {
-          surname: 'MOGOROSI',
-          omangNumber: '12345678', // Invalid
-          dateOfIssue: '15/03/2020',
-          dateOfExpiry: '15/03/2030',
+          surname: 'MOEPSWA',
+          idNumber: '12345678', // Invalid
+          dateOfExpiry: '22/05/2032',
         },
         confidence: { overall: 98.5 },
         rawTextractResponse: {},
@@ -143,9 +137,9 @@ describe('OcrStorageService', () => {
       };
 
       const validationResult = {
-        omangNumber: { valid: false, format: 'invalid' as const, error: 'Omang number must be exactly 9 digits' },
-        expiry: { valid: true, expired: false, daysUntilExpiry: 1825 },
-        overall: { valid: false, errors: ['Omang number must be exactly 9 digits'], warnings: [] },
+        omangNumber: { valid: false, format: 'invalid' as const, error: 'ID number must be exactly 9 digits' },
+        expiry: { valid: true, expired: false, daysUntilExpiry: 2300 },
+        overall: { valid: false, errors: ['ID number must be exactly 9 digits'], warnings: [] },
         validatedAt: '2026-01-15T10:00:00Z',
       };
 
@@ -190,11 +184,15 @@ describe('OcrStorageService', () => {
     it('should update verification case with extracted customer data', async () => {
       const ocrResult: OcrResult = {
         extractedFields: {
-          surname: 'MOGOROSI',
-          firstNames: 'KGOSI THABO',
-          omangNumber: '123456789',
-          dateOfBirth: '15/03/1985',
+          surname: 'MOEPSWA',
+          forenames: 'MOTLOTLEGI EDMOND P',
+          idNumber: '059016012',
+          dateOfBirth: '25/08/1994',
+          placeOfBirth: 'FRANCISTOWN',
+          nationality: 'MOTSWANA',
           sex: 'M',
+          colourOfEyes: 'BROWN',
+          placeOfApplication: 'GABORONE',
           plot: '12345',
           locality: 'GABORONE',
           district: 'SOUTH EAST DISTRICT',
@@ -225,10 +223,14 @@ describe('OcrStorageService', () => {
           UpdateExpression: expect.stringContaining('customerData'),
           ExpressionAttributeValues: expect.objectContaining({
             ':customerData': expect.objectContaining({
-              fullName: 'KGOSI THABO MOGOROSI',
-              omangNumber: '123456789',
-              dateOfBirth: '1985-03-15',
+              fullName: 'MOTLOTLEGI EDMOND P MOEPSWA',
+              idNumber: '059016012',
+              dateOfBirth: '1994-08-25',
+              placeOfBirth: 'FRANCISTOWN',
+              nationality: 'MOTSWANA',
               sex: 'M',
+              colourOfEyes: 'BROWN',
+              placeOfApplication: 'GABORONE',
             }),
           }),
         })
@@ -238,9 +240,9 @@ describe('OcrStorageService', () => {
     it('should handle missing address fields gracefully', async () => {
       const ocrResult: OcrResult = {
         extractedFields: {
-          surname: 'MOGOROSI',
-          firstNames: 'KGOSI THABO',
-          omangNumber: '123456789',
+          surname: 'MOEPSWA',
+          forenames: 'MOTLOTLEGI EDMOND P',
+          idNumber: '059016012',
         },
         confidence: {
           overall: 98.4,
@@ -266,7 +268,7 @@ describe('OcrStorageService', () => {
 
     it('should throw error when verification update fails', async () => {
       const ocrResult: OcrResult = {
-        extractedFields: { surname: 'TEST', firstNames: 'USER' },
+        extractedFields: { surname: 'TEST', forenames: 'USER' },
         confidence: { overall: 95 },
         rawTextractResponse: {},
         extractionMethod: 'pattern',
@@ -288,7 +290,7 @@ describe('OcrStorageService', () => {
       const ocrResult: OcrResult = {
         extractedFields: {
           surname: 'TEST',
-          firstNames: 'USER',
+          forenames: 'USER',
           dateOfBirth: '01/12/1990',
           dateOfExpiry: '31/01/2030',
         },
@@ -313,7 +315,7 @@ describe('OcrStorageService', () => {
       const ocrResult: OcrResult = {
         extractedFields: {
           surname: 'TEST',
-          firstNames: 'USER',
+          forenames: 'USER',
           dateOfBirth: '5/3/1985',
         },
         confidence: { overall: 95 },
@@ -337,14 +339,14 @@ describe('OcrStorageService', () => {
     it('should handle OCR result with only surname', async () => {
       const ocrResult: OcrResult = {
         extractedFields: {
-          surname: 'MOGOROSI',
+          surname: 'MOEPSWA',
         },
         confidence: { overall: 75 },
         rawTextractResponse: {},
         extractionMethod: 'pattern',
         processingTimeMs: 1000,
         requiresManualReview: true,
-        missingFields: ['firstNames', 'omangNumber', 'dateOfBirth'],
+        missingFields: ['forenames', 'idNumber', 'dateOfBirth'],
       };
 
       mockDynamoDBService.updateItem.mockResolvedValue({});
@@ -354,8 +356,8 @@ describe('OcrStorageService', () => {
       const call = mockDynamoDBService.updateItem.mock.calls[0][0];
       const customerData = call.ExpressionAttributeValues[':customerData'];
 
-      expect(customerData.fullName).toBeUndefined(); // Needs both surname and firstNames
-      expect(customerData.omangNumber).toBeUndefined();
+      expect(customerData.fullName).toBeUndefined(); // Needs both surname and forenames
+      expect(customerData.idNumber).toBeUndefined();
       expect(customerData.dateOfBirth).toBeUndefined();
       expect(customerData.extractionConfidence).toBe(75);
     });
@@ -368,7 +370,7 @@ describe('OcrStorageService', () => {
         extractionMethod: 'pattern',
         processingTimeMs: 500,
         requiresManualReview: true,
-        missingFields: ['surname', 'firstNames', 'omangNumber', 'dateOfBirth'],
+        missingFields: ['surname', 'forenames', 'idNumber', 'dateOfBirth'],
       };
 
       mockDynamoDBService.updateItem.mockResolvedValue({});
@@ -383,4 +385,3 @@ describe('OcrStorageService', () => {
     });
   });
 });
-
