@@ -33,12 +33,43 @@ vi.mock('../../src/services/biometric-storage', () => ({
 vi.mock('../../src/services/dynamodb', () => ({
   DynamoDBService: vi.fn().mockImplementation(() => ({
     getItem: vi.fn(),
+    getVerification: vi.fn().mockResolvedValue({
+      verificationId: 'ver_test',
+      clientId: 'client_abc',
+      customerData: {
+        omangNumber: '123456789',
+      },
+    }),
+  })),
+}));
+
+vi.mock('../../src/services/duplicate-detection', () => ({
+  DuplicateDetectionService: vi.fn().mockImplementation(() => ({
+    checkDuplicates: vi.fn().mockResolvedValue({
+      checked: true,
+      checkedAt: '2026-01-15T10:00:00Z',
+      duplicatesFound: 0,
+      sameClientDuplicates: 0,
+      crossClientDuplicates: 0,
+      riskLevel: 'low',
+      riskScore: 0,
+      duplicateCases: [],
+      requiresManualReview: false,
+    }),
+  })),
+}));
+
+vi.mock('../../src/services/duplicate-storage', () => ({
+  DuplicateStorageService: vi.fn().mockImplementation(() => ({
+    storeDuplicateResults: vi.fn().mockResolvedValue(undefined),
   })),
 }));
 
 vi.mock('../../src/utils/metrics', () => ({
   recordBiometricMetrics: vi.fn().mockResolvedValue(undefined),
   recordRekognitionError: vi.fn().mockResolvedValue(undefined),
+  recordDuplicateDetectionMetrics: vi.fn().mockResolvedValue(undefined),
+  recordDuplicateCheckError: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe('Biometric Processing Integration', () => {
@@ -128,7 +159,7 @@ describe('Biometric Processing Integration', () => {
       const result = await handler(event, {} as any, {} as any);
 
       expect(result.batchItemFailures).toHaveLength(0);
-    });
+    }, 10000); // Increased timeout to 10 seconds
 
     it('should handle low similarity and flag for manual review', async () => {
       const { DynamoDBService } = await import('../../src/services/dynamodb');

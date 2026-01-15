@@ -1,6 +1,21 @@
 # Integration Tests
 
+**⚠️ IMPORTANT: DynamoDB Local Required on Port 8000**
+
 This directory contains integration tests that verify the complete functionality of the verification service using real AWS services (via DynamoDB Local).
+
+## Quick Start
+
+```bash
+# 1. Start DynamoDB Local (required!)
+docker run -p 8000:8000 amazon/dynamodb-local
+
+# 2. Run integration tests
+npm test -- tests/integration/
+
+# Or skip integration tests if DynamoDB Local not available
+npm test -- --testPathIgnorePatterns=integration
+```
 
 ## Prerequisites
 

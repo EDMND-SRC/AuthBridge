@@ -75,12 +75,43 @@ vi.mock('../services/dynamodb', () => ({
         s3Key: 'test-key',
       },
     }),
+    getVerification: vi.fn().mockResolvedValue({
+      verificationId: 'ver_123',
+      clientId: 'client_abc',
+      customerData: {
+        omangNumber: '123456789',
+      },
+    }),
+  })),
+}));
+
+vi.mock('../services/duplicate-detection', () => ({
+  DuplicateDetectionService: vi.fn().mockImplementation(() => ({
+    checkDuplicates: vi.fn().mockResolvedValue({
+      checked: true,
+      checkedAt: '2026-01-15T10:00:00Z',
+      duplicatesFound: 0,
+      sameClientDuplicates: 0,
+      crossClientDuplicates: 0,
+      riskLevel: 'low',
+      riskScore: 0,
+      duplicateCases: [],
+      requiresManualReview: false,
+    }),
+  })),
+}));
+
+vi.mock('../services/duplicate-storage', () => ({
+  DuplicateStorageService: vi.fn().mockImplementation(() => ({
+    storeDuplicateResults: vi.fn().mockResolvedValue(undefined),
   })),
 }));
 
 vi.mock('../utils/metrics', () => ({
   recordBiometricMetrics: vi.fn().mockResolvedValue(undefined),
   recordRekognitionError: vi.fn().mockResolvedValue(undefined),
+  recordDuplicateDetectionMetrics: vi.fn().mockResolvedValue(undefined),
+  recordDuplicateCheckError: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { handler } from './process-biometric';

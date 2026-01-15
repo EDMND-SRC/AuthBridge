@@ -1,6 +1,6 @@
 # Story 2.4: Duplicate Omang Detection
 
-Status: review
+Status: in-progress
 
 ## Story
 
@@ -999,7 +999,7 @@ Implemented complete duplicate Omang detection system using privacy-preserving S
 - ✅ Unit tests for risk calculator (15 tests passing)
 - ✅ Unit tests for duplicate detection service (7 tests passing)
 - ✅ Unit tests for duplicate storage service (2 tests passing)
-- ✅ Integration tests with real DynamoDB (12 test scenarios)
+- ⚠️ Integration tests with real DynamoDB (12 test scenarios - requires DynamoDB Local on port 8000)
   - First-time Omang (no duplicates)
   - Same-client duplicate (low risk)
   - Cross-client duplicate (high risk)
@@ -1008,7 +1008,9 @@ Implemented complete duplicate Omang detection system using privacy-preserving S
   - Exclude current verification
   - Error handling
   - Performance validation (<500ms)
-- **Total: 43 tests passing (100% pass rate)**
+- **Unit Tests: 31/31 passing (100%)**
+- **Integration Tests: Require DynamoDB Local setup (see tests/integration/README.md)**
+- **Overall Project Tests: 431/443 passing (97.3%) - 12 integration tests require DynamoDB Local**
 
 **Documentation & Compliance:**
 - ✅ Comprehensive duplicate detection algorithm documentation
@@ -1056,8 +1058,11 @@ Implemented complete duplicate Omang detection system using privacy-preserving S
 - `services/verification/src/services/dynamodb.ts` - Added queryByOmangHash, updateItem, getItem methods; made constructor parameters optional
 - `services/verification/src/services/ocr-storage.ts` - Added GSI2PK update with Omang hash
 - `services/verification/src/handlers/process-biometric.ts` - Integrated duplicate detection after biometric processing
+- `services/verification/src/handlers/process-biometric.test.ts` - Updated mocks for duplicate detection integration
 - `services/verification/src/utils/metrics.ts` - Added duplicate detection metrics functions
 - `services/verification/serverless.yml` - Added CloudWatch dashboard and 3 alarms for duplicate detection monitoring
+- `services/verification/tests/integration/README.md` - Added DynamoDB Local setup instructions and troubleshooting
+- `services/verification/tests/integration/process-biometric.test.ts` - Updated mocks and increased timeout for duplicate detection
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` - Updated story status to in-progress
-- `_bmad-output/implementation-artifacts/2-4-duplicate-omang-detection.md` - Updated task completion status
+- `_bmad-output/implementation-artifacts/2-4-duplicate-omang-detection.md` - Updated task completion status and test documentation
 
