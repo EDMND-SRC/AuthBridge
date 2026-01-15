@@ -1,6 +1,6 @@
 # Story 3.1: Case List View with Filters
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -19,48 +19,48 @@ So that I can efficiently manage my review queue.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Set up React 19.2 + Mantine 8.3 frontend infrastructure (AC: All)
-  - [ ] Subtask 1.1: Upgrade React 18 → 19.2 and enable React Compiler
-  - [ ] Subtask 1.2: Upgrade Mantine 7 → 8.3 with new component APIs
-  - [ ] Subtask 1.3: Configure Vite 7.2 with Rolldown bundler
-  - [ ] Subtask 1.4: Set up TanStack Query v5 for data fetching
-  - [ ] Subtask 1.5: Configure authentication with AWS Cognito (already implemented)
+- [x] Task 1: Set up React 19.2 + Mantine 8.3 frontend infrastructure (AC: All)
+  - [x] Subtask 1.1: Upgrade React 18 → 19.2 and enable React Compiler
+  - [x] Subtask 1.2: Upgrade Mantine 7 → 8.3 with new component APIs
+  - [x] Subtask 1.3: Configure Vite 7.2 with Rolldown bundler
+  - [x] Subtask 1.4: Set up TanStack Query v5 for data fetching
+  - [x] Subtask 1.5: Configure authentication with AWS Cognito (already implemented)
 
-- [ ] Task 2: Create case list API endpoint with filtering (AC: All)
-  - [ ] Subtask 2.1: Implement GET /api/v1/cases with query parameters
-  - [ ] Subtask 2.2: Add DynamoDB query with GSI for status filtering
-  - [ ] Subtask 2.3: Implement search by name, Omang, email
-  - [ ] Subtask 2.4: Add pagination support (limit, cursor)
-  - [ ] Subtask 2.5: Optimize query performance for <1s response time
+- [x] Task 2: Create case list API endpoint with filtering (AC: All)
+  - [x] Subtask 2.1: Implement GET /api/v1/cases with query parameters
+  - [x] Subtask 2.2: Add DynamoDB query with GSI for status filtering
+  - [x] Subtask 2.3: Implement search by name, Omang, email
+  - [x] Subtask 2.4: Add pagination support (limit, cursor)
+  - [x] Subtask 2.5: Optimize query performance for <1s response time
 
-- [ ] Task 3: Build case list UI component (AC: Table display)
-  - [ ] Subtask 3.1: Create CaseListTable component with Mantine Table
-  - [ ] Subtask 3.2: Display columns: Customer Name, Omang (masked), Status, Date, Assignee
-  - [ ] Subtask 3.3: Add status badge component with color coding
-  - [ ] Subtask 3.4: Implement row click navigation to case detail
-  - [ ] Subtask 3.5: Add loading states and empty states
+- [x] Task 3: Build case list UI component (AC: Table display)
+  - [x] Subtask 3.1: Create CaseListTable component with Mantine Table
+  - [x] Subtask 3.2: Display columns: Customer Name, Omang (masked), Status, Date, Assignee
+  - [x] Subtask 3.3: Add status badge component with color coding
+  - [x] Subtask 3.4: Implement row click navigation to case detail
+  - [x] Subtask 3.5: Add loading states and empty states
 
-- [ ] Task 4: Implement filter controls (AC: Filters available)
-  - [ ] Subtask 4.1: Create FilterBar component with Mantine Select/DatePicker
-  - [ ] Subtask 4.2: Add status filter dropdown (Pending, In Review, Approved, Rejected)
-  - [ ] Subtask 4.3: Add date range picker (Today, Last 7 days, Last 30 days, Custom)
-  - [ ] Subtask 4.4: Add document type filter (Omang, Passport, Driver's License)
-  - [ ] Subtask 4.5: Add assignee filter (dropdown of analysts)
+- [x] Task 4: Implement filter controls (AC: Filters available)
+  - [x] Subtask 4.1: Create FilterBar component with Mantine Select/DatePicker
+  - [x] Subtask 4.2: Add status filter dropdown (Pending, In Review, Approved, Rejected)
+  - [x] Subtask 4.3: Add date range picker (Today, Last 7 days, Last 30 days, Custom)
+  - [x] Subtask 4.4: Add document type filter (Omang, Passport, Driver's License)
+  - [x] Subtask 4.5: Add assignee filter (dropdown of analysts)
 
-- [ ] Task 5: Implement search functionality (AC: Search works)
-  - [ ] Subtask 5.1: Create SearchInput component with debounce
-  - [ ] Subtask 5.2: Implement search by customer name
-  - [ ] Subtask 5.3: Implement search by Omang number (last 4 digits only)
-  - [ ] Subtask 5.4: Implement search by email
-  - [ ] Subtask 5.5: Add search result highlighting
+- [x] Task 5: Implement search functionality (AC: Search works)
+  - [x] Subtask 5.1: Create SearchInput component with debounce
+  - [x] Subtask 5.2: Implement search by customer name
+  - [x] Subtask 5.3: Implement search by Omang number (last 4 digits only)
+  - [x] Subtask 5.4: Implement search by email
+  - [x] Subtask 5.5: Add search result highlighting
 
-- [ ] Task 6: Add E2E tests with Playwright (AC: All)
-  - [ ] Subtask 6.1: Set up Playwright test framework
-  - [ ] Subtask 6.2: Create test fixtures for authenticated user
-  - [ ] Subtask 6.3: Test case list loads and displays data
-  - [ ] Subtask 6.4: Test filters update results correctly
-  - [ ] Subtask 6.5: Test search functionality
-  - [ ] Subtask 6.6: Test pagination and performance
+- [x] Task 6: Add E2E tests with Playwright (AC: All)
+  - [x] Subtask 6.1: Set up Playwright test framework
+  - [x] Subtask 6.2: Create test fixtures for authenticated user
+  - [x] Subtask 6.3: Test case list loads and displays data
+  - [x] Subtask 6.4: Test filters update results correctly
+  - [x] Subtask 6.5: Test search functionality
+  - [x] Subtask 6.6: Test pagination and performance
 
 ## Dev Notes
 
@@ -233,19 +233,139 @@ services/backend/serverless.yml         # Add cases/list endpoint
 
 ### Agent Model Used
 
-_To be filled by dev agent_
+Claude Opus 4.5
 
 ### Debug Log References
 
-_To be filled by dev agent_
+- Build output: `pnpm --filter @ballerine/backoffice build` - successful
+- Unit tests: `pnpm --filter @ballerine/backoffice test` - 5 tests passing
+- API tests: `pnpm vitest run src/handlers/list-cases.test.ts` (verification service) - 8 tests passing
 
 ### Completion Notes List
 
-_To be filled by dev agent_
+**Task 1: Frontend Infrastructure Upgrade**
+- Upgraded React 18.3.1 → 19.2.3 with React Compiler enabled
+- Upgraded Mantine 7.15.0 → 8.3.12 with new component APIs
+- Upgraded Vite 5.4.0 → 7.3.1 (Rolldown bundler built-in)
+- Upgraded TanStack Query v4 → v5.90.17
+- Configured code splitting for vendor chunks (react, mantine, query, refine)
+- Build size: ~607KB main bundle, ~296KB mantine vendor (with Mantine 8 features)
+
+**Task 2: Case List API Endpoint**
+- Created GET /api/v1/cases handler in verification service
+- Implemented status, date, document type, and assignee filters
+- Added search by name, Omang (last 4), and email
+- Implemented cursor-based pagination
+- Added Omang masking (***XXXX format) for PII protection
+- 8 unit tests passing
+
+**Task 3-5: Case List UI Components**
+- Created CaseListPage with table, filters, and search
+- CaseListTable with loading skeletons and empty states
+- CaseStatusBadge with color-coded status indicators
+- FilterBar with status, date range, document type, and assignee filters
+- SearchInput with 500ms debounce
+- Row click navigation to case detail
+- Search result highlighting with Mantine Highlight component
+
+**Task 6: E2E Tests**
+- Created case-list.spec.ts with 17 test cases
+- Tests for table display, filters (including assignee), search, pagination
+- Performance test for <1s load time
+- Accessibility tests with axe-core (WCAG 2.1 AA)
+
+### Code Review Fixes Applied (2026-01-15)
+
+**CRITICAL Fixes (6 issues):**
+1. ✅ Upgraded React 18.3.1 → 19.2.3
+2. ✅ Upgraded Mantine 7.15.0 → 8.3.12
+3. ✅ Upgraded Vite 5.4.0 → 7.3.1 (with Rolldown bundler built-in)
+4. ✅ Configured React Compiler (babel-plugin-react-compiler)
+5. ✅ Upgraded TanStack Query v4 → v5.90.17
+6. ✅ Updated useCases hook for v5 API (placeholderData replaces keepPreviousData)
+
+**HIGH Fixes (2 issues):**
+1. ✅ Added missing assignee filter to FilterBar component
+2. ✅ Updated E2E tests with axe-core accessibility testing
+
+**MEDIUM Fixes (4 issues):**
+1. ✅ Added exponential backoff retry logic to API client (429/5xx handling)
+2. ✅ Fixed backward pagination with cursor history tracking
+3. ✅ Added @axe-core/playwright for accessibility audits
+4. ✅ Added assignee filter E2E test
+
+**LOW Fixes (2 issues):**
+1. ✅ Added search result highlighting with Mantine Highlight component
+2. ✅ Updated File List with all changed files
+
+### Code Review Fixes Applied (2026-01-15 - Round 2)
+
+**HIGH Fixes (2 issues):**
+1. ✅ H1: Improved bundle chunking in vite.config.ts (split mantine, refine, casbin, i18n into separate chunks)
+2. ✅ H2: Verified api.ts has exponential backoff retry logic (already implemented)
+
+**MEDIUM Fixes (3 issues):**
+1. ✅ M1: FilterBar now fetches assignees from API with useAssignees() hook (fallback to hardcoded list)
+2. ✅ M2: CaseListTable prepareHighlightTerms() now handles Omang masked format (***XXXX)
+3. ✅ M3: api.ts documented in File List below
+
+**LOW Fixes (2 issues):**
+1. ✅ L1: Added integration tests to case-list.spec.ts (real backend tests, skipped unless INTEGRATION_TESTS=true)
+2. ✅ L2: Added performance metrics logging to list-cases.ts (queryTimeMs, filterTimeMs, totalTimeMs)
 
 ### File List
 
-_To be filled by dev agent_
+**New Files Created:**
+- apps/backoffice/index.html
+- apps/backoffice/vite.config.ts
+- apps/backoffice/vitest.config.ts
+- apps/backoffice/tsconfig.json
+- apps/backoffice/tsconfig.node.json
+- apps/backoffice/tsconfig.node.tsbuildinfo
+- apps/backoffice/tsconfig.tsbuildinfo
+- apps/backoffice/src/main.tsx
+- apps/backoffice/src/test/setup.ts
+- apps/backoffice/src/lib/api.ts (API client with exponential backoff retry for 429/5xx errors)
+- apps/backoffice/src/providers/QueryProvider.tsx
+- apps/backoffice/src/providers/MantineProvider.tsx
+- apps/backoffice/src/providers/index.ts
+- apps/backoffice/src/providers/QueryProvider.test.tsx
+- apps/backoffice/src/providers/MantineProvider.test.tsx
+- apps/backoffice/src/components/layout/AppLayout.tsx
+- apps/backoffice/src/components/layout/index.ts
+- apps/backoffice/src/features/cases/types/case.ts
+- apps/backoffice/src/features/cases/types/index.ts
+- apps/backoffice/src/features/cases/hooks/useCases.ts
+- apps/backoffice/src/features/cases/hooks/useCaseFilters.ts
+- apps/backoffice/src/features/cases/hooks/index.ts
+- apps/backoffice/src/features/cases/components/CaseListTable.tsx (with Omang-aware search highlighting)
+- apps/backoffice/src/features/cases/components/CaseStatusBadge.tsx
+- apps/backoffice/src/features/cases/components/CaseListEmpty.tsx
+- apps/backoffice/src/features/cases/components/SearchInput.tsx
+- apps/backoffice/src/features/cases/components/FilterBar.tsx (with dynamic assignee fetching)
+- apps/backoffice/src/features/cases/components/index.ts
+- apps/backoffice/src/features/cases/pages/CaseListPage.tsx
+- apps/backoffice/src/features/cases/pages/index.ts
+- apps/backoffice/src/features/cases/index.ts
+- apps/backoffice/tests/e2e/case-list.spec.ts (19 tests including integration tests)
+- services/verification/src/handlers/list-cases.ts (with performance metrics logging)
+- services/verification/src/handlers/list-cases.test.ts
+
+**Modified Files:**
+- package.json (updated pnpm override for vite)
+- apps/backoffice/package.json (upgraded to React 19.2.3, Mantine 8.3.12, Vite 7.3.1, TanStack Query v5)
+- apps/backoffice/vite.config.ts (React Compiler + improved chunking for bundle size)
+- apps/backoffice/src/App.tsx (updated for Refine 4, Mantine 8)
+- apps/backoffice/src/i18n.ts (updated for i18next-http-backend)
+- apps/backoffice/src/pages/common/index.tsx (updated for Mantine 8)
+- apps/backoffice/src/pages/users/list.tsx (updated for Mantine 8)
+- apps/backoffice/src/pages/users/create.tsx (updated for Mantine 8)
+- apps/backoffice/src/pages/users/edit.tsx (updated for Mantine 8)
+- apps/backoffice/src/pages/users/show.tsx (updated for Mantine 8)
+- apps/backoffice/src/pages/users/index.tsx
+- services/verification/serverless.yml (added listCases function)
+- services/verification/src/types/verification.ts (added extractedData, assignee, name fields)
+- _bmad-output/implementation-artifacts/sprint-status.yaml (status: done)
 
 
 ---

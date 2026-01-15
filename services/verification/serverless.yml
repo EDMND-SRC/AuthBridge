@@ -67,6 +67,15 @@ provider:
           Resource: 'arn:aws:logs:${self:provider.region}:*:*'
 
 functions:
+  listCases:
+    handler: dist/handlers/list-cases.handler
+    description: List verification cases with filtering and pagination
+    events:
+      - http:
+          path: /api/v1/cases
+          method: get
+          cors: true
+
   createVerification:
     handler: dist/handlers/create-verification.handler
     description: Create new verification case

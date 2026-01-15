@@ -1,47 +1,65 @@
-import { useOne, useShow, useTranslate } from '@pankod/refine-core';
-import { MarkdownField, Show, Text, Title } from '@pankod/refine-mantine';
+import { useShow } from '@refinedev/core';
+import { Box, Title, Text, Stack, Badge, Group, Card, LoadingOverlay } from '@mantine/core';
 
-import { ICategory, IPost } from 'interfaces';
+interface IUser {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string;
+  status: 'active' | 'inactive' | 'pending';
+  created_at: string;
+}
 
-export const UsersShow: React.FC = () => {
-  const t = useTranslate();
+const statusColors: Record<string, string> = {
+  active: 'green',
+  inactive: 'gray',
+  pending: 'yellow',
+};
 
-  const { queryResult } = useShow<IPost>();
+export const UsersShow = () => {
+  const { queryResult } = useShow<IUser>();
   const { data, isLoading } = queryResult;
-  const record = data?.data;
-
-  const { data: categoryData } = useOne<ICategory>({
-    resource: 'categories',
-    id: record?.category.id || '',
-    queryOptions: {
-      enabled: !!record?.category.id,
-    },
-  });
+  const user = data?.data;
 
   return (
-    <Show isLoading={isLoading}>
-      <Title order={5}>{t('posts.fields.id')}</Title>
-      <Text mt="xs">{record?.id}</Text>
+    <Box p="md" maw={600} pos="relative">
+      <LoadingOverlay visible={isLoading} />
 
-      <Title mt="xs" order={5}>
-        {t('posts.fields.title')}
-      </Title>
-      <Text mt="xs">{record?.title}</Text>
+      <Title order={2} mb="lg">User Details</Title>
 
-      <Title mt="xs" order={5}>
-        {t('posts.fields.status.title')}
-      </Title>
-      <Text mt="xs">{record?.status}</Text>
+      {user && (
+        <Card withBorder>
+          <Stack gap="md">
+            <Group justify="space-between">
+              <Text fw={500}>Name</Text>
+              <Text>{user.first_name} {user.last_name}</Text>
+            </Group>
 
-      <Title mt="xs" order={5}>
-        {t('posts.fields.category.title')}
-      </Title>
-      <Text mt="xs">{categoryData?.data?.title}</Text>
+            <Group justify="space-between">
+              <Text fw={500}>Email</Text>
+              <Text>{user.email}</Text>
+            </Group>
 
-      <Title mt="xs" order={5}>
-        {t('posts.fields.content')}
-      </Title>
-      <MarkdownField value={record?.content} />
-    </Show>
+            <Group justify="space-between">
+              <Text fw={500}>Phone</Text>
+              <Text>{user.phone || '-'}</Text>
+            </Group>
+
+            <Group justify="space-between">
+              <Text fw={500}>Status</Text>
+              <Badge color={statusColors[user.status] || 'gray'} variant="light">
+                {user.status}
+              </Badge>
+            </Group>
+
+            <Group justify="space-between">
+              <Text fw={500}>Created</Text>
+              <Text>{new Date(user.created_at).toLocaleDateString('en-GB')}</Text>
+            </Group>
+          </Stack>
+        </Card>
+      )}
+    </Box>
   );
 };

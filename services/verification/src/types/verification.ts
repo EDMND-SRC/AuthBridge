@@ -15,6 +15,7 @@ export type VerificationStatus =
 export type DocumentType = 'omang' | 'passport' | 'drivers_license' | 'id_card';
 
 export interface CustomerMetadata {
+  name?: string;
   email?: string;
   phone?: string;
   externalId?: string;
@@ -47,6 +48,16 @@ export interface VerificationEntity {
     requiresManualReview: boolean;
     processedAt: string;
   };
+  extractedData?: {
+    idNumber?: string;
+    surname?: string;
+    forenames?: string;
+    dateOfBirth?: string;
+    sex?: string;
+    dateOfExpiry?: string;
+    [key: string]: unknown;
+  };
+  assignee?: string;
 }
 
 export interface DocumentEntity {

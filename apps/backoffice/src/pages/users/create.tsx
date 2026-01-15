@@ -1,70 +1,89 @@
-import { useTranslate } from '@pankod/refine-core';
-import { Create, Select, TextInput, useForm, useSelect, Text } from '@pankod/refine-mantine';
-import { RichTextEditor } from '@mantine/rte';
+import { useForm } from '@mantine/form';
+import { useCreate, useNavigation } from '@refinedev/core';
+import { Box, TextInput, Button, Group, Select, Stack, Title } from '@mantine/core';
 
-export const UsersCreate: React.FC = () => {
-  const t = useTranslate();
+export const UsersCreate = () => {
+  const { list } = useNavigation();
+  const { mutate: createUser, isLoading } = useCreate();
 
-  const { saveButtonProps, getInputProps, errors } = useForm({
+  const form = useForm({
     initialValues: {
-      title: '',
-      status: '',
-      category: {
-        id: '',
-      },
-      content: '',
+      first_name: '',
+      last_name: '',
+      email: '',
+      phone: '',
+      status: 'pending',
     },
     validate: {
-      title: value => (value.length < 2 ? 'Too short title' : null),
-      status: value => (value.length <= 0 ? 'Status is required' : null),
-      category: {
-        id: value => (value.length <= 0 ? 'Category is required' : null),
-      },
-      content: value => (value.length < 10 ? 'Too short content' : null),
+      first_name: (value) => (value.length < 2 ? 'First name must be at least 2 characters' : null),
+      last_name: (value) => (value.length < 2 ? 'Last name must be at least 2 characters' : null),
+      email: (value) => (/^\S+@\S+$/.test(value) ? null : 'Invalid email'),
     },
   });
 
-  const { selectProps } = useSelect({
-    resource: 'categories',
+  const handleSubmit = form.onSubmit((values) => {
+    createUser(
+      {
+        resource: 'users',
+        values,
+      },
+      {
+        onSuccess: () => {
+          list('users');
+        },
+      }
+    );
   });
 
   return (
-    <Create saveButtonProps={saveButtonProps}>
-      <form>
-        <TextInput
-          mt={8}
-          label={t('posts.fields.title')}
-          placeholder={t('posts.fields.title')}
-          {...getInputProps('title')}
-        />
-        <Select
-          mt={8}
-          label={t('posts.fields.status.title')}
-          placeholder="Pick one"
-          {...getInputProps('status')}
-          data={[
-            { label: 'Published', value: 'published' },
-            { label: 'Draft', value: 'draft' },
-            { label: 'Rejected', value: 'rejected' },
-          ]}
-        />
-        <Select
-          mt={8}
-          label={t('posts.fields.category.title')}
-          placeholder="Pick one"
-          {...getInputProps('category.id')}
-          {...selectProps}
-        />
-        <Text mt={8} weight={500} size="sm" color="#212529">
-          {t('posts.fields.content')}
-        </Text>
-        <RichTextEditor {...getInputProps('content')} />
-        {errors.content && (
-          <Text mt={2} weight={500} size="xs" color="red">
-            {errors.content}
-          </Text>
-        )}
+    <Box p="md" maw={600}>
+      <Title order={2} mb="lg">Create User</Title>
+
+      <form onSubmit={handleSubmit}>
+        <Stack gap="md">
+          <Group grow>
+            <TextInput
+              label="First Name"
+              placeholder="Enter first name"
+              required
+              {...form.getInputProps('first_name')}
+            />
+            <TextInput
+              label="Last Name"
+              placeholder="Enter last name"
+              required
+              {...form.getInputProps('last_name')}
+            />
+          </Group>
+
+          <TextInput
+            label="Email"
+            placeholder="Enter email"
+            required
+            {...form.getInputProps('email')}
+          />
+
+          <TextInput
+            label="Phone"
+            placeholder="Enter phone number"
+            {...form.getInputProps('phone')}
+          />
+
+          <Select
+            label="Status"
+            data={[
+              { value: 'active', label: 'Active' },
+              { value: 'inactive', label: 'Inactive' },
+              { value: 'pending', label: 'Pending' },
+            ]}
+            {...form.getInputProps('status')}
+          />
+
+          <Group justify="flex-end" mt="md">
+            <Button type="submit" loading={isLoading}>Create User</Button>
+          </Group>
+        </Stack>
       </form>
-    </Create>
+    </Box>
   );
 };
