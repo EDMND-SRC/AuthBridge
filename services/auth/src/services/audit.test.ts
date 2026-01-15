@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { AuditService } from './audit.js';
 
-// Mock DynamoDB service
+// Mock DynamoDB service - must be before AuditService import
 const mockPutAuditLog = vi.fn();
 const mockQueryAuditLogsByDate = vi.fn();
 const mockQueryAuditLogsByUser = vi.fn();
@@ -29,6 +28,9 @@ vi.mock('../utils/logger.js', () => ({
     return masked;
   }),
 }));
+
+// Import after mocks are set up
+import { AuditService } from './audit.js';
 
 describe('AuditService', () => {
   let auditService: AuditService;

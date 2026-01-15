@@ -14,17 +14,22 @@ export class DynamoDBService {
   private tableName: string;
 
   constructor(tableName?: string, region?: string, endpoint?: string) {
+    // Only use test credentials for local DynamoDB (when endpoint is explicitly set)
+    const isLocalDynamoDB = !!(endpoint || process.env.DYNAMODB_ENDPOINT);
+
     const dynamoClient = new DynamoDBClient({
       region: region || process.env.AWS_REGION || 'af-south-1',
-      ...(endpoint || process.env.DYNAMODB_ENDPOINT
+      ...(isLocalDynamoDB
         ? {
             endpoint: endpoint || process.env.DYNAMODB_ENDPOINT,
+            // Local DynamoDB requires dummy credentials
             credentials: {
-              accessKeyId: 'test',
-              secretAccessKey: 'test',
+              accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'local',
+              secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'local',
             },
           }
         : {}),
+      // In production, AWS SDK uses default credential chain (IAM role, env vars, etc.)
     });
     this.client = DynamoDBDocumentClient.from(dynamoClient, {
       marshallOptions: {

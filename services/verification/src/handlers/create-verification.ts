@@ -7,9 +7,28 @@ import { createErrorResponse } from '../utils/errors';
 
 const TABLE_NAME = process.env.TABLE_NAME || 'AuthBridgeTable';
 const REGION = process.env.AWS_REGION || 'af-south-1';
+const SDK_BASE_URL = process.env.SDK_BASE_URL || 'https://sdk.authbridge.io';
 
 const verificationService = new VerificationService(TABLE_NAME, REGION);
 const idempotencyService = new IdempotencyService(TABLE_NAME, REGION);
+
+/**
+ * Generate a session token for SDK access
+ * TODO: TD-001 - Replace with real JWT token signed by auth service
+ * Current implementation uses a placeholder format for MVP
+ */
+function generateSessionToken(verificationId: string): string {
+  // Placeholder: In production, this should call auth service to generate JWT
+  // with proper claims: { sub: verificationId, exp: expiresAt, iss: 'authbridge' }
+  return `session_${verificationId}`;
+}
+
+/**
+ * Build SDK URL with session token
+ */
+function buildSdkUrl(sessionToken: string): string {
+  return `${SDK_BASE_URL}?token=${sessionToken}`;
+}
 
 export async function handler(
   event: APIGatewayProxyEvent,
@@ -104,9 +123,8 @@ export async function handler(
 
         const existingVerification = await verificationService.getVerification(existingVerificationId);
         if (existingVerification) {
-          // TODO: Replace with real JWT session token in future story
-          const sessionToken = `session_${existingVerification.verificationId}`;
-          const sdkUrl = `https://sdk.authbridge.io?token=${sessionToken}`;
+          const sessionToken = generateSessionToken(existingVerification.verificationId);
+          const sdkUrl = buildSdkUrl(sessionToken);
 
           return {
             statusCode: 200, // Return 200 for idempotent request
@@ -162,8 +180,8 @@ export async function handler(
             if (existingId) {
               const existingVerification = await verificationService.getVerification(existingId);
               if (existingVerification) {
-                const sessionToken = `session_${existingVerification.verificationId}`;
-                const sdkUrl = `https://sdk.authbridge.io?token=${sessionToken}`;
+                const sessionToken = generateSessionToken(existingVerification.verificationId);
+                const sdkUrl = buildSdkUrl(sessionToken);
                 return {
                   statusCode: 200,
                   headers: {
@@ -190,10 +208,8 @@ export async function handler(
       throw error;
     }
 
-    // TODO: Replace with real JWT session token in future story (Story 1.5.x)
-    // Current placeholder format: session_<verificationId>
-    const sessionToken = `session_${verification.verificationId}`;
-    const sdkUrl = `https://sdk.authbridge.io?token=${sessionToken}`;
+    const sessionToken = generateSessionToken(verification.verificationId);
+    const sdkUrl = buildSdkUrl(sessionToken);
 
     // Audit log
     logger.audit('verification_created', {

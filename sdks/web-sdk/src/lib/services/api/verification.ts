@@ -3,6 +3,8 @@
  * Handles submission of verification data to backend
  */
 
+import { z } from 'zod';
+
 export interface SubmitVerificationRequest {
   documentFront: string;  // base64 or blob URL
   documentBack?: string | null;
@@ -18,6 +20,66 @@ export interface SubmitVerificationResponse {
 }
 
 /**
+ * Window context schema for validation (TD-003)
+ * Validates all values read from window to prevent XSS
+ */
+const WindowContextSchema = z.object({
+  apiUrl: z.string().url().optional().default(''),
+  clientId: z.string().optional(),
+  useMockApi: z.boolean().optional(),
+});
+
+/**
+ * Safely extract and validate window context values
+ * Returns validated config or defaults
+ */
+function getValidatedWindowContext(): {
+  backendUrl: string;
+  clientId: string | undefined;
+  useMockApi: boolean;
+} {
+  const defaultApiUrl = import.meta.env?.VITE_API_URL || process.env.API_URL || '';
+
+  try {
+    // Extract raw values from window
+    const rawApiUrl = typeof window !== 'undefined'
+      ? (window as Record<string, unknown>).__blrn_api_url
+      : undefined;
+    const rawContext = typeof window !== 'undefined'
+      ? (window as Record<string, unknown>).__blrn_context as Record<string, unknown> | undefined
+      : undefined;
+    const rawUseMock = typeof window !== 'undefined'
+      ? (window as Record<string, unknown>).__blrn_use_mock_api
+      : undefined;
+
+    // Validate with Zod
+    const validated = WindowContextSchema.parse({
+      apiUrl: typeof rawApiUrl === 'string' ? rawApiUrl : undefined,
+      clientId: typeof rawContext?.backendConfig === 'object' && rawContext.backendConfig !== null
+        ? ((rawContext.backendConfig as Record<string, unknown>).auth as Record<string, unknown> | undefined)?.clientId as string | undefined
+        : undefined,
+      useMockApi: typeof rawUseMock === 'boolean' ? rawUseMock : undefined,
+    });
+
+    const backendUrl = validated.apiUrl || defaultApiUrl;
+    const useMockApi = validated.useMockApi !== false && !backendUrl;
+
+    return {
+      backendUrl,
+      clientId: validated.clientId,
+      useMockApi,
+    };
+  } catch {
+    // On validation failure, return safe defaults
+    return {
+      backendUrl: defaultApiUrl,
+      clientId: undefined,
+      useMockApi: !defaultApiUrl,
+    };
+  }
+}
+
+/**
  * Submit verification to backend
  * TODO: Replace mock implementation with real API calls in Epic 4
  *
@@ -30,22 +92,13 @@ export interface SubmitVerificationResponse {
 export async function submitVerification(
   request: SubmitVerificationRequest
 ): Promise<SubmitVerificationResponse> {
-  // Get backend config from window context
-  const backendUrl = (window as any).__blrn_api_url || 'http://localhost:3001';
-  const clientId = (window as any).__blrn_context?.backendConfig?.auth?.clientId;
-  const useMockApi = (window as any).__blrn_use_mock_api !== false &&
-                     (!backendUrl || backendUrl === 'http://localhost:3001');
+  // Get validated backend config (TD-003, TD-010, TD-012)
+  const { backendUrl, clientId, useMockApi } = getValidatedWindowContext();
 
-  // For MVP: Mock successful submission
+  // For MVP: Mock successful submission (TD-012: clearly separated mock path)
   // In Epic 4, this will be replaced with real API calls
   if (useMockApi) {
-    console.log('[MVP Mock] Simulating verification submission...', {
-      documentType: request.documentType,
-      hasDocumentFront: !!request.documentFront,
-      hasDocumentBack: !!request.documentBack,
-      hasSelfie: !!request.selfie,
-      sessionId: request.sessionId,
-    });
+    // TD-009: Removed console.log, mock is silent in production
 
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -121,8 +174,9 @@ export async function submitVerification(
 
     return verificationResponse.json();
   } catch (error) {
-    console.error('Verification submission failed:', error);
-    throw error;
+    // TD-009: Re-throw with context, let caller handle logging
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Verification submission failed: ${message}`);
   }
 }
 

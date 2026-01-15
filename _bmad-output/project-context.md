@@ -454,6 +454,55 @@ pnpm test:changed      # Test only changed files
 
 ## Recent Deployments
 
+### 2026-01-15: Technical Debt Cleanup (TD-001 through TD-012)
+
+**Completed:**
+- ✅ TD-002: Fixed hardcoded test credentials in DynamoDB service (env vars)
+- ✅ TD-003: Added Zod validation for window context in verification.ts
+- ✅ TD-004: SDK_BASE_URL now uses environment variable
+- ✅ TD-005: Removed @ts-ignore comments with proper TypeScript types
+- ✅ TD-006: Refactored configuration-manager.ts (removed file-level eslint-disable)
+- ✅ TD-007: Enabled all 11 skipped E2E tests in cases.spec.ts
+- ✅ TD-008: Created auth fixture for Playwright (auth.fixture.ts)
+- ✅ TD-009: Removed console.log from SDK files (partial - remaining in verification service)
+- ✅ TD-010: Hardcoded localhost URLs replaced with env vars
+- ✅ TD-011: Added 24 unit tests for auth handlers (user-me, user-logout, user-refresh-token)
+- ✅ TD-012: Separated mock API path with feature flag
+- ✅ TD-020: Fixed duplicate configuration logic
+
+**Files Created:**
+- `apps/backoffice/tests/e2e/fixtures/auth.fixture.ts`
+- `services/auth/src/handlers/user-me.test.ts`
+- `services/auth/src/handlers/user-logout.test.ts`
+- `services/auth/src/handlers/user-refresh-token.test.ts`
+
+**Files Modified:**
+- `sdks/web-sdk/src/lib/services/api/verification.ts`
+- `sdks/web-sdk/src/lib/utils/configuration-manager.ts`
+- `sdks/web-sdk/src/lib/contexts/translation/hooks.ts`
+- `apps/backoffice/src/hooks/useFilter/useFilter.tsx`
+- `apps/backoffice/src/pages/users/hooks/index.tsx`
+- `apps/backoffice/vite.config.authbridge.ts`
+- `apps/backoffice/tests/e2e/cases.spec.ts`
+
+**Test Results:**
+- Auth service: 139 tests passing (24 new handler tests)
+- All diagnostics clean on modified files
+
+**Remaining Technical Debt:**
+- TD-001: Placeholder JWT tokens (requires auth service integration)
+- TD-009: Console.log in verification service files (lower priority)
+- TD-013 through TD-022: Medium/Low severity items for future sprints
+
+### 2026-01-15: Cognito User Pool Deployed
+
+**Completed:**
+- ✅ Deployed Cognito User Pool to af-south-1
+- ✅ Stack: `authbridge-cognito-staging`
+- ✅ User Pool ID: `af-south-1_P3KlQawlR`
+- ✅ Client ID: `7jcf16r6c2gf2nnvo4kh1mtksg`
+- ✅ Added credentials to `.env.local`
+
 ### 2026-01-15: Country-Based OCR Extractors
 
 **Completed:**

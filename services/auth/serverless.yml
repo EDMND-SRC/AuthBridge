@@ -23,6 +23,12 @@ provider:
           Action:
             - cognito-idp:AdminGetUser
             - cognito-idp:AdminInitiateAuth
+            - cognito-idp:InitiateAuth
+            - cognito-idp:RespondToAuthChallenge
+            - cognito-idp:GetUser
+            - cognito-idp:GlobalSignOut
+            - cognito-idp:SignUp
+            - cognito-idp:ConfirmSignUp
           Resource: 'arn:aws:cognito-idp:${self:provider.region}:*:userpool/*'
         - Effect: Allow
           Action:
@@ -77,6 +83,52 @@ functions:
           authorizer:
             name: authorizer
             type: token
+
+  # User Authentication Endpoints (Backoffice)
+  userLogin:
+    handler: dist/handlers/user-login.handler
+    description: Initiate passwordless login (sends OTP)
+    events:
+      - http:
+          path: /auth/login
+          method: post
+          cors: true
+
+  userVerifyOtp:
+    handler: dist/handlers/user-verify-otp.handler
+    description: Verify OTP and complete authentication
+    events:
+      - http:
+          path: /auth/verify-otp
+          method: post
+          cors: true
+
+  userRefreshToken:
+    handler: dist/handlers/user-refresh-token.handler
+    description: Refresh access tokens
+    events:
+      - http:
+          path: /auth/refresh
+          method: post
+          cors: true
+
+  userLogout:
+    handler: dist/handlers/user-logout.handler
+    description: Sign out user globally
+    events:
+      - http:
+          path: /auth/logout
+          method: post
+          cors: true
+
+  userMe:
+    handler: dist/handlers/user-me.handler
+    description: Get current user information
+    events:
+      - http:
+          path: /auth/me
+          method: get
+          cors: true
 
 plugins:
   - serverless-offline

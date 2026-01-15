@@ -4,13 +4,28 @@ import routerProvider from '@pankod/refine-react-router-v6';
 import { useCallback, useEffect } from 'react';
 
 /**
+ * Type for route params - TD-005: Added proper typing
+ */
+interface RouteParams {
+  id?: string;
+}
+
+/**
+ * Type for selected user data
+ */
+interface SelectedUserData {
+  data: {
+    id: string;
+    fullName: string;
+  };
+  total: number;
+}
+
+/**
  * @description Centralizes the mock user data received by Mock Service Worker and consumed by the DetailsGrid.
  */
 export const useMockData = () => {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-assignment
-  const { id = '' } = routerProvider.useParams() as {
-    id: string;
-  };
+  const { id = '' } = (routerProvider.useParams as () => RouteParams)();
   const { data: { data } = {} } = useUserQuery(id);
 
   // Personal info
@@ -89,20 +104,13 @@ export const useMockData = () => {
 };
 
 export const useSelectedUserQuery = () => {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-assignment
-  const { id = '' } = routerProvider.useParams() as {
-    id: string;
-  };
+  const { id = '' } = (routerProvider.useParams as () => RouteParams)();
   const { data, ...query } = useList<IUser>({
     resource: 'users',
-    id,
     queryOptions: {
       enabled: !!id,
-      // Refine forces the select output type to match the input type, defeating the purpose of select.
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      select: ({ data, total }) => {
-        const selectedUser = data?.find(user => user.id === id);
+      select: ({ data: users, total }) => {
+        const selectedUser = users?.find(user => user.id === id);
         const { first_name = '', last_name = '' } = selectedUser ?? {};
 
         return {
@@ -111,19 +119,13 @@ export const useSelectedUserQuery = () => {
             fullName: `${first_name} ${last_name}`,
           },
           total,
-        };
+        } as unknown as { data: IUser[]; total: number };
       },
     },
   });
 
   return {
-    data: data as unknown as {
-      data: {
-        id: string;
-        fullName: string;
-      };
-      total: number;
-    },
+    data: data as unknown as SelectedUserData,
     ...query,
   };
 };
@@ -146,17 +148,14 @@ export const useUserQuery = (id: string) =>
  * @description Sets the selected user to the first user in the array on mount if no user is currently selected. Returns the select user handler.
  */
 export const useHandleSelectedUser = (data?: Array<IUser>) => {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-assignment
-  const { id = '' } = routerProvider.useParams() as {
-    id: string;
-  };
+  const { id = '' } = (routerProvider.useParams as () => RouteParams)();
   const firstUserId = data?.[0]?.id;
   const { show } = useNavigation();
   const selectUser = useCallback(
-    (id: string) => () => {
-      if (!id) return;
+    (userId: string) => () => {
+      if (!userId) return;
 
-      show('users', id);
+      show('users', userId);
     },
     [show],
   );
@@ -165,7 +164,7 @@ export const useHandleSelectedUser = (data?: Array<IUser>) => {
     if (!firstUserId || !data || (id && data.some(user => user.id === id))) return;
 
     selectUser(firstUserId)();
-  }, [show, id, firstUserId]);
+  }, [show, id, firstUserId, data, selectUser]);
 
   return {
     selectUser,

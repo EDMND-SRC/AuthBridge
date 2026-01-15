@@ -124,6 +124,21 @@ pnpm test
 pnpm e2e
 ```
 
+### Integration Tests
+
+Integration tests require DynamoDB Local running on port 8000. See [Integration Test Setup Guide](services/verification/tests/integration/README.md) for detailed instructions.
+
+```bash
+# Quick start: Start DynamoDB Local
+docker run -p 8000:8000 amazon/dynamodb-local
+
+# Run integration tests
+pnpm --filter @ballerine/verification-service test:integration
+
+# Skip integration tests if DynamoDB Local not available
+pnpm test -- --testPathIgnorePatterns=integration
+```
+
 ### Build
 
 ```bash
