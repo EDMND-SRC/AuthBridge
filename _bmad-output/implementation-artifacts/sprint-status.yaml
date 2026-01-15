@@ -66,12 +66,12 @@ development_status:
   # EPIC 2: Omang Document Processing (MVP)
   # Dependencies: Requires Epic 1.5 completion
   # ═══════════════════════════════════════════════════════════════════════════
-  epic-2: in-progress
+  epic-2: done
   2-1-omang-ocr-extraction: done
   2-2-omang-format-validation: done
   2-3-biometric-face-matching: done
-  2-4-duplicate-omang-detection: in-progress
-  epic-2-retrospective: optional
+  2-4-duplicate-omang-detection: done
+  epic-2-retrospective: done
 
   # ═══════════════════════════════════════════════════════════════════════════
   # PREPARATION SPRINT (Between Epic 1.5 and Epic 2)

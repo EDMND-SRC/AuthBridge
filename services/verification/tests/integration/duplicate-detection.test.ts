@@ -32,8 +32,12 @@ describe('Duplicate Detection Integration Tests', () => {
       tableName: 'AuthBridgeTable',
     });
 
-    // Initialize services with test configuration
-    dynamoDBService = new DynamoDBService('AuthBridgeTable', 'af-south-1');
+    // Initialize services with test configuration (including endpoint for DynamoDB Local)
+    dynamoDBService = new DynamoDBService(
+      'AuthBridgeTable',
+      'af-south-1',
+      process.env.DYNAMODB_ENDPOINT || 'http://localhost:8000'
+    );
     duplicateDetectionService = new DuplicateDetectionService(dynamoDBService);
     duplicateStorageService = new DuplicateStorageService(dynamoDBService);
   });
@@ -358,7 +362,7 @@ describe('Duplicate Detection Integration Tests', () => {
       expect(result.duplicatesFound).toBe(3);
       expect(result.sameClientDuplicates).toBe(0);
       expect(result.crossClientDuplicates).toBe(3);
-      expect(result.riskLevel).toBe('medium'); // 40 (cross-client) + 10 (multiple) = 50
+      expect(result.riskLevel).toBe('high'); // 40 (cross-client) + 15 (recent) + 10 (multiple) = 65
       expect(result.riskScore).toBeGreaterThanOrEqual(50);
       expect(result.requiresManualReview).toBe(true);
       expect(result.duplicateCases).toHaveLength(3);

@@ -13,9 +13,18 @@ export class DynamoDBService {
   private client: DynamoDBDocumentClient;
   private tableName: string;
 
-  constructor(tableName?: string, region?: string) {
+  constructor(tableName?: string, region?: string, endpoint?: string) {
     const dynamoClient = new DynamoDBClient({
       region: region || process.env.AWS_REGION || 'af-south-1',
+      ...(endpoint || process.env.DYNAMODB_ENDPOINT
+        ? {
+            endpoint: endpoint || process.env.DYNAMODB_ENDPOINT,
+            credentials: {
+              accessKeyId: 'test',
+              secretAccessKey: 'test',
+            },
+          }
+        : {}),
     });
     this.client = DynamoDBDocumentClient.from(dynamoClient, {
       marshallOptions: {
@@ -193,7 +202,7 @@ export class DynamoDBService {
   async queryByOmangHash(omangHashKey: string): Promise<VerificationEntity[]> {
     const command = new QueryCommand({
       TableName: this.tableName,
-      IndexName: 'GSI2',
+      IndexName: 'OmangHashIndex',
       KeyConditionExpression: 'GSI2PK = :pk',
       ExpressionAttributeValues: {
         ':pk': omangHashKey,
