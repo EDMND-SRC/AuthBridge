@@ -16,6 +16,7 @@ import { AppLayout } from './components/layout/AppLayout';
 import { UsersList, UsersCreate, UsersEdit } from './pages/users';
 import { CommingSoon } from './pages/common';
 import { CaseListPage } from './features/cases';
+import { CaseDetailPage } from './features/cases/pages/CaseDetailPage';
 
 // API base URL
 const API_URL = import.meta.env.VITE_API_URL || window.location.origin;
@@ -129,7 +130,7 @@ function App() {
                 >
                   {/* Cases routes */}
                   <Route path="/cases" element={<CaseListPage />} />
-                  <Route path="/cases/:id" element={<CommingSoon />} />
+                  <Route path="/cases/:id" element={<CaseDetailPage />} />
 
                   {/* Users routes */}
                   <Route path="/users" element={<UsersList />} />

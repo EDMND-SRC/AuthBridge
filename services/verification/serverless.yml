@@ -76,6 +76,15 @@ functions:
           method: get
           cors: true
 
+  getCase:
+    handler: dist/handlers/get-case.handler
+    description: Get case detail by ID
+    events:
+      - http:
+          path: /api/v1/cases/{id}
+          method: get
+          cors: true
+
   createVerification:
     handler: dist/handlers/create-verification.handler
     description: Create new verification case

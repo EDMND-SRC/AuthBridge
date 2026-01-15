@@ -3,6 +3,7 @@ import type { CaseStatus } from '../types';
 
 interface CaseStatusBadgeProps {
   status: CaseStatus;
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 }
 
 const statusConfig: Record<CaseStatus, { color: string; label: string }> = {
@@ -12,11 +13,11 @@ const statusConfig: Record<CaseStatus, { color: string; label: string }> = {
   rejected: { color: 'red', label: 'Rejected' },
 };
 
-export function CaseStatusBadge({ status }: CaseStatusBadgeProps) {
+export function CaseStatusBadge({ status, size = 'sm' }: CaseStatusBadgeProps) {
   const config = statusConfig[status] || { color: 'gray', label: status };
 
   return (
-    <Badge color={config.color} variant="light" size="sm">
+    <Badge color={config.color} variant="light" size={size}>
       {config.label}
     </Badge>
   );

@@ -35,3 +35,52 @@ export interface CaseListResponse {
     };
   };
 }
+
+export interface CaseDetail {
+  caseId: string;
+  status: CaseStatus;
+  customer: {
+    name: string;
+    omangNumber: string; // FULL number (not masked) - audit logged
+    dateOfBirth: string;
+    gender: string;
+    address: string;
+  };
+  documents: {
+    front?: { url: string; uploadedAt: string };
+    back?: { url: string; uploadedAt: string };
+    selfie: { url: string; uploadedAt: string };
+  };
+  extractedData: {
+    fullName: string;
+    idNumber: string;
+    dateOfBirth: string;
+    placeOfBirth?: string;
+    issueDate?: string;
+    expiryDate?: string;
+    confidence: Record<string, number>;
+  };
+  verificationChecks: {
+    faceMatch: { score: number; status: 'pass' | 'fail' | 'review' };
+    liveness: { status: 'pass' | 'fail'; confidence: number };
+    documentAuthenticity: { score: number; status: 'pass' | 'fail' };
+    omangFormat: { valid: boolean; errors?: string[] };
+    duplicateCheck: { found: boolean; caseIds?: string[]; riskLevel?: string };
+    expiryCheck: { valid: boolean; daysUntilExpiry?: number };
+  };
+  history: Array<{
+    timestamp: string;
+    type: 'system' | 'user';
+    action: string;
+    userId?: string;
+    userName?: string;
+    details?: string;
+  }>;
+  metadata: {
+    clientId: string;
+    clientName: string;
+    reference?: string;
+    submittedAt: string;
+    assignee?: string;
+  };
+}
