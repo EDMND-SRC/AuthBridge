@@ -168,11 +168,22 @@ functions:
   createVerification:
     handler: dist/handlers/create-verification.handler
     description: Create new verification case
+    environment:
+      JWT_SECRET: ${env:JWT_SECRET, 'staging-jwt-secret-change-in-production'}
+      JWT_ISSUER: ${env:JWT_ISSUER, 'authbridge'}
+      SESSION_TOKEN_EXPIRY_HOURS: ${env:SESSION_TOKEN_EXPIRY_HOURS, '0.5'}
+      SDK_BASE_URL: ${env:SDK_BASE_URL, 'https://sdk.authbridge.io'}
     events:
       - http:
           path: /api/v1/verifications
           method: post
           cors: true
+          authorizer:
+            name: apiKeyAuthorizer
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authbridge-auth-${self:provider.stage}-apiKeyAuthorizer
+            type: request
+            identitySource: method.request.header.Authorization
+            resultTtlInSeconds: 300
 
   getVerification:
     handler: dist/handlers/get-verification.handler

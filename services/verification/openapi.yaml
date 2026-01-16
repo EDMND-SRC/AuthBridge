@@ -62,28 +62,78 @@ paths:
       description: |
         Create a new verification case for KYC processing.
         Returns a session token and SDK URL for document capture.
+
+        **Authentication:** Requires API key authentication.
+
+        **Rate Limits:** 50 requests/second per API key.
+
+        **Idempotency:** Use `idempotencyKey` to safely retry requests.
       operationId: createVerification
       tags:
         - Verifications
       security:
-        - bearerAuth: []
+        - apiKeyAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateVerificationRequest'
+            examples:
+              minimal:
+                summary: Minimal request (email only)
+                value:
+                  customer:
+                    email: customer@example.com
+              full:
+                summary: Full request with all fields
+                value:
+                  customer:
+                    email: customer@example.com
+                    name: John Doe
+                    phone: '+26771234567'
+                  documentType: omang
+                  redirectUrl: https://example.com/verification/complete
+                  webhookUrl: https://example.com/webhooks/verification
+                  metadata:
+                    customField1: value1
+                    customField2: value2
+                  idempotencyKey: idem_abc123xyz
       responses:
         '201':
           description: Verification created successfully
+          headers:
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+              description: Maximum requests per window
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Requests remaining in current window
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix timestamp when the window resets
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/CreateVerificationResponse'
+              example:
+                verificationId: ver_1234567890abcdef
+                status: created
+                sessionToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                sdkUrl: https://sdk.authbridge.io?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                expiresAt: '2026-01-16T11:30:00Z'
+                meta:
+                  requestId: req_abc123
+                  timestamp: '2026-01-16T11:00:00Z'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -616,6 +666,32 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+    RateLimitExceeded:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds to wait before retrying
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+          description: Maximum requests per window
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+          description: Unix timestamp when the window resets
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: RATE_LIMIT_EXCEEDED
+              message: Too many requests. Please try again later.
+            meta:
+              requestId: req_abc123
+              timestamp: '2026-01-16T11:00:00Z'
     InternalError:
       description: Internal server error
       content:
@@ -627,37 +703,84 @@ components:
     CreateVerificationRequest:
       type: object
       required:
-        - documentType
+        - customer
       properties:
+        customer:
+          type: object
+          description: Customer information (at least one field required)
+          properties:
+            email:
+              type: string
+              format: email
+              example: customer@example.com
+            name:
+              type: string
+              minLength: 1
+              maxLength: 255
+              example: John Doe
+            phone:
+              type: string
+              pattern: '^\+[1-9]\d{1,14}$'
+              description: E.164 format phone number
+              example: '+26771234567'
+          minProperties: 1
         documentType:
           type: string
-          enum: [omang, passport, drivers_license]
-        callbackUrl:
+          enum: [omang, passport, drivers_licence, id_card]
+          description: Type of document to verify (optional, can be selected in SDK)
+          example: omang
+        redirectUrl:
           type: string
           format: uri
-        idempotencyKey:
+          pattern: '^https://'
+          description: HTTPS URL to redirect user after verification completion
+          example: https://example.com/verification/complete
+        webhookUrl:
           type: string
-          maxLength: 64
+          format: uri
+          pattern: '^https://'
+          description: HTTPS URL to receive webhook notifications
+          example: https://example.com/webhooks/verification
         metadata:
           type: object
-          additionalProperties: true
+          additionalProperties:
+            type: string
+          description: Custom metadata to attach to verification
+          example:
+            customField1: value1
+            customField2: value2
+        idempotencyKey:
+          type: string
+          maxLength: 255
+          description: Optional idempotency key to prevent duplicate verifications
+          example: idem_abc123xyz
 
     CreateVerificationResponse:
       type: object
       properties:
         verificationId:
           type: string
+          description: Unique verification identifier
+          example: ver_1234567890abcdef
         status:
           type: string
-          enum: [pending, processing, completed, expired]
+          enum: [created, documents_uploading, submitted, processing, pending_review, approved, rejected]
+          description: Current verification status
+          example: created
         sessionToken:
           type: string
+          description: JWT session token for SDK access (30-minute expiry)
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         sdkUrl:
           type: string
           format: uri
+          description: Complete SDK URL with embedded session token
+          example: https://sdk.authbridge.io?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         expiresAt:
           type: string
           format: date-time
+          description: Session token expiration timestamp (ISO 8601)
+          example: '2026-01-16T11:30:00Z'
         meta:
           $ref: '#/components/schemas/ResponseMeta'
 

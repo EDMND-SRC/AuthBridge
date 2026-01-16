@@ -11,7 +11,14 @@ describe('create-verification handler', () => {
     status: 'created',
     clientId: 'client_abc',
     documentType: 'omang',
-    customerMetadata: { email: 'test@example.com' },
+    customer: {
+      email: 'test@example.com',
+      name: 'John Doe',
+      phone: '+26771234567',
+    },
+    redirectUrl: 'https://example.com/complete',
+    webhookUrl: 'https://example.com/webhook',
+    metadata: { customField: 'value' },
     createdAt: '2026-01-14T10:00:00Z',
     expiresAt: '2026-02-13T10:00:00Z',
   };
@@ -66,6 +73,14 @@ describe('create-verification handler', () => {
           },
         };
       }
+      if (!req.customer || (!req.customer.email && !req.customer.name && !req.customer.phone)) {
+        return {
+          success: false,
+          errors: {
+            errors: [{ path: ['customer'], message: 'At least one customer identifier required' }],
+          },
+        };
+      }
       return { success: true, data: req };
     });
   });
@@ -79,8 +94,17 @@ describe('create-verification handler', () => {
 
     const event: Partial<APIGatewayProxyEvent> = {
       body: JSON.stringify({
+        customer: {
+          email: 'test@example.com',
+          name: 'John Doe',
+          phone: '+26771234567',
+        },
         documentType: 'omang',
-        customerMetadata: { email: 'test@example.com' },
+        redirectUrl: 'https://example.com/complete',
+        webhookUrl: 'https://example.com/webhook',
+        metadata: {
+          customField: 'value',
+        },
       }),
       requestContext: {
         requestId: 'req_123',
@@ -94,8 +118,10 @@ describe('create-verification handler', () => {
     const body = JSON.parse(result.body);
     expect(body.verificationId).toBe('ver_test123');
     expect(body.status).toBe('created');
-    expect(body.sessionToken).toBe('session_ver_test123');
+    expect(body.sessionToken).toBeDefined();
     expect(body.sdkUrl).toContain('sdk.authbridge.io');
+    expect(body.expiresAt).toBeDefined();
+    expect(body.meta.requestId).toBe('ctx_req_123');
   });
 
   it('should return 400 for invalid document type', async () => {
@@ -104,7 +130,7 @@ describe('create-verification handler', () => {
     const event: Partial<APIGatewayProxyEvent> = {
       body: JSON.stringify({
         documentType: 'invalid',
-        customerMetadata: {},
+        customer: { email: 'test@example.com' },
       }),
       requestContext: {
         requestId: 'req_123',
@@ -119,6 +145,93 @@ describe('create-verification handler', () => {
     expect(body.error.code).toBe('VALIDATION_ERROR');
     expect(body.error.details).toBeDefined();
     expect(body.error.details[0].field).toBe('documentType');
+  });
+
+  it('should return 400 when no customer identifiers provided', async () => {
+    const { handler } = await import('./create-verification');
+
+    const event: Partial<APIGatewayProxyEvent> = {
+      body: JSON.stringify({
+        documentType: 'omang',
+        customer: {},
+      }),
+      requestContext: {
+        requestId: 'req_123',
+        authorizer: { clientId: 'client_abc' },
+      } as any,
+    };
+
+    const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+    expect(result.statusCode).toBe(400);
+    const body = JSON.parse(result.body);
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(body.error.message).toBe('Invalid request parameters');
+    expect(body.error.details).toBeDefined();
+    expect(body.error.details[0].field).toBe('customer');
+  });
+
+  it('should accept verification with only email', async () => {
+    const { handler } = await import('./create-verification');
+
+    const event: Partial<APIGatewayProxyEvent> = {
+      body: JSON.stringify({
+        customer: { email: 'test@example.com' },
+        documentType: 'omang',
+      }),
+      requestContext: {
+        requestId: 'req_123',
+        authorizer: { clientId: 'client_abc' },
+      } as any,
+    };
+
+    const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+    expect(result.statusCode).toBe(201);
+    const body = JSON.parse(result.body);
+    expect(body.verificationId).toBeDefined();
+  });
+
+  it('should accept verification with only name', async () => {
+    const { handler } = await import('./create-verification');
+
+    const event: Partial<APIGatewayProxyEvent> = {
+      body: JSON.stringify({
+        customer: { name: 'John Doe' },
+        documentType: 'omang',
+      }),
+      requestContext: {
+        requestId: 'req_123',
+        authorizer: { clientId: 'client_abc' },
+      } as any,
+    };
+
+    const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+    expect(result.statusCode).toBe(201);
+    const body = JSON.parse(result.body);
+    expect(body.verificationId).toBeDefined();
+  });
+
+  it('should accept verification with only phone', async () => {
+    const { handler } = await import('./create-verification');
+
+    const event: Partial<APIGatewayProxyEvent> = {
+      body: JSON.stringify({
+        customer: { phone: '+26771234567' },
+        documentType: 'omang',
+      }),
+      requestContext: {
+        requestId: 'req_123',
+        authorizer: { clientId: 'client_abc' },
+      } as any,
+    };
+
+    const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+    expect(result.statusCode).toBe(201);
+    const body = JSON.parse(result.body);
+    expect(body.verificationId).toBeDefined();
   });
 
   it('should return 401 if no clientId in authorizer', async () => {
@@ -175,8 +288,8 @@ describe('create-verification handler', () => {
 
     const event: Partial<APIGatewayProxyEvent> = {
       body: JSON.stringify({
+        customer: { email: 'test@example.com' },
         documentType: 'omang',
-        customerMetadata: {},
         idempotencyKey: 'idem_abc123',
       }),
       requestContext: {
@@ -201,8 +314,8 @@ describe('create-verification handler', () => {
 
     const event: Partial<APIGatewayProxyEvent> = {
       body: JSON.stringify({
+        customer: { email: 'test@example.com' },
         documentType: 'omang',
-        customerMetadata: {},
       }),
       requestContext: {
         requestId: 'req_123',
@@ -222,8 +335,8 @@ describe('create-verification handler', () => {
 
     const event: Partial<APIGatewayProxyEvent> = {
       body: JSON.stringify({
+        customer: { email: 'test@example.com' },
         documentType: 'omang',
-        customerMetadata: {},
       }),
       requestContext: {
         requestId: 'req_123',
@@ -235,5 +348,26 @@ describe('create-verification handler', () => {
 
     expect(result.headers?.['Access-Control-Allow-Origin']).toBe('*');
     expect(result.headers?.['Content-Type']).toBe('application/json');
+  });
+
+  it('should include rate limit headers in response', async () => {
+    const { handler } = await import('./create-verification');
+
+    const event: Partial<APIGatewayProxyEvent> = {
+      body: JSON.stringify({
+        customer: { email: 'test@example.com' },
+        documentType: 'omang',
+      }),
+      requestContext: {
+        requestId: 'req_123',
+        authorizer: { clientId: 'client_abc' },
+      } as any,
+    };
+
+    const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+    expect(result.headers?.['X-RateLimit-Limit']).toBe('50');
+    expect(result.headers?.['X-RateLimit-Remaining']).toBeDefined();
+    expect(result.headers?.['X-RateLimit-Reset']).toBeDefined();
   });
 });

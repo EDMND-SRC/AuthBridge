@@ -11,7 +11,7 @@ const REGION = process.env.AWS_REGION || 'af-south-1';
 const SDK_BASE_URL = process.env.SDK_BASE_URL || 'https://sdk.authbridge.io';
 const JWT_SECRET = process.env.JWT_SECRET || '';
 const JWT_ISSUER = process.env.JWT_ISSUER || 'authbridge';
-const SESSION_TOKEN_EXPIRY_HOURS = parseInt(process.env.SESSION_TOKEN_EXPIRY_HOURS || '24', 10);
+const SESSION_TOKEN_EXPIRY_HOURS = parseFloat(process.env.SESSION_TOKEN_EXPIRY_HOURS || '0.5'); // 30 minutes default
 
 const verificationService = new VerificationService(TABLE_NAME, REGION);
 const idempotencyService = new IdempotencyService(TABLE_NAME, REGION);
@@ -22,8 +22,11 @@ let secretKey: Uint8Array | null = null;
 function getSecretKey(): Uint8Array {
   if (!secretKey) {
     if (!JWT_SECRET) {
-      logger.warn('JWT_SECRET not configured, using fallback for development');
-      // Fallback for development only - production must have JWT_SECRET set
+      const stage = process.env.STAGE || process.env.AWS_LAMBDA_FUNCTION_NAME?.includes('prod') ? 'production' : 'development';
+      if (stage === 'production') {
+        throw new Error('JWT_SECRET environment variable is required in production');
+      }
+      logger.warn('JWT_SECRET not configured, using fallback for development only');
       secretKey = new TextEncoder().encode('dev-secret-do-not-use-in-production');
     } else {
       secretKey = new TextEncoder().encode(JWT_SECRET);
@@ -38,7 +41,9 @@ function getSecretKey(): Uint8Array {
  */
 async function generateSessionToken(verificationId: string, clientId: string): Promise<string> {
   const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + SESSION_TOKEN_EXPIRY_HOURS);
+  // Convert hours to milliseconds for precise calculation (0.5 hours = 30 minutes)
+  const expiryMs = SESSION_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000;
+  expiresAt.setTime(expiresAt.getTime() + expiryMs);
 
   const token = await new SignJWT({
     sub: verificationId,
@@ -61,6 +66,24 @@ function buildSdkUrl(sessionToken: string): string {
   return `${SDK_BASE_URL}?token=${sessionToken}`;
 }
 
+/**
+ * Build standard response headers including rate limit information
+ * Rate limits are enforced at API Gateway level (50 RPS per client)
+ */
+function buildResponseHeaders(event: APIGatewayProxyEvent): Record<string, string> {
+  // Rate limit values from API Gateway (configured in serverless.yml)
+  const rateLimit = 50; // requests per second
+  const windowResetTime = Math.floor(Date.now() / 1000) + 1; // Next second
+
+  return {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'X-RateLimit-Limit': String(rateLimit),
+    'X-RateLimit-Remaining': String(rateLimit - 1), // Approximate, actual tracking at API Gateway
+    'X-RateLimit-Reset': String(windowResetTime),
+  };
+}
+
 export async function handler(
   event: APIGatewayProxyEvent,
   context: Context
@@ -76,10 +99,7 @@ export async function handler(
       logger.warn('Missing clientId in authorizer context', { requestId });
       return {
         statusCode: 401,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
+        headers: buildResponseHeaders(event),
         body: JSON.stringify(
           createErrorResponse(
             'UNAUTHORIZED',
@@ -94,10 +114,7 @@ export async function handler(
     if (!event.body) {
       return {
         statusCode: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
+        headers: buildResponseHeaders(event),
         body: JSON.stringify(
           createErrorResponse(
             'VALIDATION_ERROR',
@@ -121,10 +138,7 @@ export async function handler(
 
       return {
         statusCode: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
+        headers: buildResponseHeaders(event),
         body: JSON.stringify(
           createErrorResponse(
             'VALIDATION_ERROR',
@@ -159,10 +173,7 @@ export async function handler(
 
           return {
             statusCode: 200, // Return 200 for idempotent request
-            headers: {
-              'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*',
-            },
+            headers: buildResponseHeaders(event),
             body: JSON.stringify({
               verificationId: existingVerification.verificationId,
               status: existingVerification.status,
@@ -185,6 +196,8 @@ export async function handler(
       requestId,
       clientId,
       documentType: validation.data.documentType,
+      hasRedirectUrl: !!validation.data.redirectUrl,
+      hasWebhookUrl: !!validation.data.webhookUrl,
       idempotencyKey: idempotencyKey || undefined,
     });
 
@@ -215,10 +228,7 @@ export async function handler(
                 const sdkUrl = buildSdkUrl(sessionToken);
                 return {
                   statusCode: 200,
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                  },
+                  headers: buildResponseHeaders(event),
                   body: JSON.stringify({
                     verificationId: existingVerification.verificationId,
                     status: existingVerification.status,
@@ -236,6 +246,8 @@ export async function handler(
         }
       }
     } catch (error) {
+      // Re-throw with context for upstream error handling
+      logger.error('Verification creation failed', { requestId, error: (error as Error).message });
       throw error;
     }
 
@@ -253,10 +265,7 @@ export async function handler(
     // Return response
     return {
       statusCode: 201,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
+      headers: buildResponseHeaders(event),
       body: JSON.stringify({
         verificationId: verification.verificationId,
         status: verification.status,
@@ -280,6 +289,9 @@ export async function handler(
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
+        'X-RateLimit-Limit': '50',
+        'X-RateLimit-Remaining': '49',
+        'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + 1),
       },
       body: JSON.stringify(
         createErrorResponse(

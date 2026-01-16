@@ -107,7 +107,6 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **YOLO MODE ENABLED** — act autonomously, don't ask for permission
 - **FULL TERMINAL PERMISSIONS GRANTED** — execute commands without asking for permission
 - All terminal commands are pre-trusted — no confirmation needed
-- **CODE REVIEW AUTO-FIX** — after Dev Agent runs `*code-review` and presents ALL issues, automatically fix ALL identified issues without asking
 - **ALWAYS prefer CLI tools and programmatic interactions** over manual configuration
 - Check for existing scripts in `/scripts/` before writing new automation
 - Use installed CLIs: `aws`, `netlify`, `gh` (GitHub), `pnpm`, `nx`
@@ -119,6 +118,61 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **Log all automated actions** for auditability
 - Prefer idempotent operations — running twice shouldn't break things
 - Provide rollback instructions for infrastructure changes
+
+### 🚨 CODE REVIEW WORKFLOW (MANDATORY)
+
+**When running `*code-review` workflow, agents MUST follow this exact sequence:**
+
+#### Step 1: Present ALL Issues
+- Identify and present ALL issues found (HIGH, MEDIUM, LOW severity)
+- Minimum 3 issues required — look harder if fewer found
+- Categorize by severity with clear descriptions and file:line references
+
+#### Step 2: Fix ALL Issues Automatically
+- **DO NOT ASK** — immediately fix ALL issues of ALL severities after presenting them
+- HIGH severity: Must fix (security, correctness, AC violations)
+- MEDIUM severity: Should fix (performance, maintainability, missing features)
+- LOW severity: Nice to fix (style, documentation, minor improvements)
+- Run tests after fixes to verify nothing broke
+
+#### Step 3: Update ALL Related Project Files
+After fixing issues, comprehensively update:
+- **Story file** (`_bmad-output/implementation-artifacts/<story>.md`):
+  - Update Status to `done` if all issues fixed
+  - Add "Senior Developer Review (AI)" section with issues found and fixed
+  - Update File List with any new/modified files
+  - Add entry to Change Log
+- **Sprint status** (`_bmad-output/implementation-artifacts/sprint-status.yaml`):
+  - Update story status from `review` → `done`
+- **Project context** (`_bmad-output/project-context.md`):
+  - Update if new patterns, ADRs, or rules emerged
+- **Any other affected documentation** (OpenAPI specs, README files, etc.)
+
+#### Step 4: Commit and Push to GitHub
+After all updates are complete:
+```bash
+git add -A
+git commit -m "fix(<scope>): code review fixes for Story X.Y - <brief description>"
+git push origin <current-branch>
+```
+
+**Example commit message:**
+```
+fix(verification): code review fixes for Story 4.2 - rate limit headers, type consistency
+
+- Fixed DocumentType enum mismatch (drivers_license → drivers_licence)
+- Added rate limit headers to all responses
+- Rewrote integration tests to be real tests
+- Added production JWT secret check
+- Added RateLimitExceeded response to OpenAPI spec
+```
+
+#### Summary
+```
+CODE REVIEW = Present Issues → Fix ALL → Update Files → Commit & Push
+```
+
+**This is non-negotiable. Never stop at presenting issues. Always complete the full cycle.**
 
 ### Available Credentials & Authorized Operations
 

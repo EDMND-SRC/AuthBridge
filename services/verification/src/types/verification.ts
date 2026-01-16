@@ -12,7 +12,7 @@ export type VerificationStatus =
   | 'resubmission_required'
   | 'expired';
 
-export type DocumentType = 'omang' | 'passport' | 'drivers_license' | 'id_card';
+export type DocumentType = 'omang' | 'passport' | 'drivers_licence' | 'id_card';
 
 export interface CustomerMetadata {
   name?: string;
@@ -28,8 +28,12 @@ export interface VerificationEntity {
   verificationId: string;
   clientId: string;
   status: VerificationStatus;
-  documentType: DocumentType;
-  customerMetadata: CustomerMetadata;
+  documentType?: DocumentType;
+  customer?: Customer;
+  customerMetadata?: CustomerMetadata; // Legacy field, kept for backward compatibility
+  redirectUrl?: string;
+  webhookUrl?: string;
+  metadata?: Record<string, string>;
   createdAt: string; // ISO 8601
   updatedAt: string; // ISO 8601
   submittedAt?: string; // ISO 8601
@@ -79,9 +83,18 @@ export interface DocumentEntity {
   };
 }
 
+export interface Customer {
+  email?: string;
+  name?: string;
+  phone?: string;
+}
+
 export interface CreateVerificationRequest {
-  documentType: DocumentType;
-  customerMetadata: CustomerMetadata;
+  customer: Customer;
+  documentType?: DocumentType;
+  redirectUrl?: string;
+  webhookUrl?: string;
+  metadata?: Record<string, string>;
   idempotencyKey?: string;
 }
 

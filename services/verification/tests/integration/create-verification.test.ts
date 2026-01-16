@@ -1,166 +1,517 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
 
 /**
  * Integration tests for POST /api/v1/verifications
  *
- * These tests document expected behavior and can be run against
- * a real DynamoDB instance (local or staging) when configured.
- *
- * To run against real infrastructure:
- * 1. Set TEST_INTEGRATION=true
- * 2. Ensure DynamoDB Local is running or AWS credentials are configured
- * 3. Run: pnpm test:integration
+ * These tests call the actual handler with mocked dependencies to verify
+ * end-to-end request/response behavior.
  */
 
-const INTEGRATION_ENABLED = process.env.TEST_INTEGRATION === 'true';
-
 describe('POST /api/v1/verifications - Integration', () => {
-  describe('Request Validation', () => {
-    it('should accept valid omang document type', () => {
-      const validRequest = {
-        documentType: 'omang',
-        customerMetadata: { email: 'test@example.com' },
+  const mockContext = {
+    awsRequestId: 'ctx_req_integration_123',
+  } as Context;
+
+  const mockVerification = {
+    verificationId: 'ver_abc123def456789012345678901234ab',
+    status: 'created',
+    clientId: 'client_integration',
+    documentType: 'omang',
+    customer: {
+      email: 'integration@example.com',
+      name: 'Integration Test',
+      phone: '+26771234567',
+    },
+    redirectUrl: 'https://example.com/complete',
+    webhookUrl: 'https://example.com/webhook',
+    metadata: { testField: 'testValue' },
+    createdAt: '2026-01-16T10:00:00Z',
+    expiresAt: '2026-02-15T10:00:00Z',
+  };
+
+  // Mock functions
+  const mockCreateVerification = vi.fn();
+  const mockGetVerification = vi.fn();
+  const mockCheckIdempotencyKey = vi.fn();
+  const mockStoreIdempotencyKey = vi.fn();
+
+  beforeEach(async () => {
+    vi.resetModules();
+    vi.clearAllMocks();
+
+    // Setup mocks before importing handler
+    vi.doMock('../../src/services/verification', () => ({
+      VerificationService: vi.fn(() => ({
+        createVerification: mockCreateVerification,
+        getVerification: mockGetVerification,
+      })),
+    }));
+
+    vi.doMock('../../src/services/idempotency', () => ({
+      IdempotencyService: vi.fn(() => ({
+        checkIdempotencyKey: mockCheckIdempotencyKey,
+        storeIdempotencyKey: mockStoreIdempotencyKey,
+      })),
+      IdempotencyConflictError: class IdempotencyConflictError extends Error {
+        constructor(public idempotencyKey: string) {
+          super(`Idempotency key already exists: ${idempotencyKey}`);
+          this.name = 'IdempotencyConflictError';
+        }
+      },
+    }));
+
+    // Default mock implementations
+    mockCreateVerification.mockResolvedValue(mockVerification);
+    mockGetVerification.mockResolvedValue(mockVerification);
+    mockCheckIdempotencyKey.mockResolvedValue(null);
+    mockStoreIdempotencyKey.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.resetModules();
+  });
+
+  describe('Successful Verification Creation', () => {
+    it('should create verification with email only and return 201', async () => {
+      const { handler } = await import('../../src/handlers/create-verification');
+
+      const event: Partial<APIGatewayProxyEvent> = {
+        body: JSON.stringify({
+          customer: { email: 'test@example.com' },
+          documentType: 'omang',
+        }),
+        requestContext: {
+          requestId: 'req_123',
+          authorizer: { clientId: 'client_integration' },
+        } as any,
       };
-      expect(validRequest.documentType).toBe('omang');
+
+      const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+      expect(result.statusCode).toBe(201);
+      const body = JSON.parse(result.body);
+      expect(body.verificationId).toMatch(/^ver_[a-f0-9]{32}$/);
+      expect(body.status).toBe('created');
+      expect(body.sessionToken).toBeDefined();
+      expect(body.sdkUrl).toContain('sdk.authbridge.io');
+      expect(body.expiresAt).toBeDefined();
+      expect(body.meta.requestId).toBe('ctx_req_integration_123');
     });
 
-    it('should accept valid passport document type', () => {
-      const validRequest = {
-        documentType: 'passport',
-        customerMetadata: {},
+    it('should create verification with name only', async () => {
+      const { handler } = await import('../../src/handlers/create-verification');
+
+      const event: Partial<APIGatewayProxyEvent> = {
+        body: JSON.stringify({
+          customer: { name: 'John Doe' },
+        }),
+        requestContext: {
+          requestId: 'req_123',
+          authorizer: { clientId: 'client_integration' },
+        } as any,
       };
-      expect(validRequest.documentType).toBe('passport');
+
+      const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+      expect(result.statusCode).toBe(201);
+      expect(mockCreateVerification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          customer: { name: 'John Doe' },
+        }),
+        'client_integration'
+      );
     });
 
-    it('should accept valid drivers_license document type', () => {
-      const validRequest = {
-        documentType: 'drivers_license',
-        customerMetadata: {},
+    it('should create verification with phone only', async () => {
+      const { handler } = await import('../../src/handlers/create-verification');
+
+      const event: Partial<APIGatewayProxyEvent> = {
+        body: JSON.stringify({
+          customer: { phone: '+26771234567' },
+        }),
+        requestContext: {
+          requestId: 'req_123',
+          authorizer: { clientId: 'client_integration' },
+        } as any,
       };
-      expect(validRequest.documentType).toBe('drivers_license');
+
+      const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+      expect(result.statusCode).toBe(201);
     });
 
-    it('should accept valid id_card document type', () => {
-      const validRequest = {
-        documentType: 'id_card',
-        customerMetadata: {},
+    it('should create verification with all customer fields and optional params', async () => {
+      const { handler } = await import('../../src/handlers/create-verification');
+
+      const event: Partial<APIGatewayProxyEvent> = {
+        body: JSON.stringify({
+          customer: {
+            email: 'full@example.com',
+            name: 'Full Test',
+            phone: '+26771234567',
+          },
+          documentType: 'passport',
+          redirectUrl: 'https://example.com/done',
+          webhookUrl: 'https://example.com/hook',
+          metadata: { key: 'value' },
+        }),
+        requestContext: {
+          requestId: 'req_123',
+          authorizer: { clientId: 'client_integration' },
+        } as any,
       };
-      expect(validRequest.documentType).toBe('id_card');
+
+      const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+      expect(result.statusCode).toBe(201);
+      expect(mockCreateVerification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          customer: expect.objectContaining({ email: 'full@example.com' }),
+          documentType: 'passport',
+          redirectUrl: 'https://example.com/done',
+          webhookUrl: 'https://example.com/hook',
+          metadata: { key: 'value' },
+        }),
+        'client_integration'
+      );
     });
   });
 
-  describe('Response Schema', () => {
-    it('should return expected response structure', () => {
-      const expectedResponse = {
-        verificationId: expect.stringMatching(/^ver_[a-f0-9]{32}$/),
-        status: 'created',
-        sessionToken: expect.stringMatching(/^session_ver_/),
-        sdkUrl: expect.stringContaining('sdk.authbridge.io'),
-        expiresAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
-        meta: {
-          requestId: expect.any(String),
-          timestamp: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
-        },
+  describe('Rate Limit Headers', () => {
+    it('should include rate limit headers in successful response', async () => {
+      const { handler } = await import('../../src/handlers/create-verification');
+
+      const event: Partial<APIGatewayProxyEvent> = {
+        body: JSON.stringify({
+          customer: { email: 'test@example.com' },
+        }),
+        requestContext: {
+          requestId: 'req_123',
+          authorizer: { clientId: 'client_integration' },
+        } as any,
       };
 
-      // Validate schema structure
-      expect(expectedResponse.verificationId).toBeDefined();
-      expect(expectedResponse.status).toBe('created');
+      const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+      expect(result.headers?.['X-RateLimit-Limit']).toBe('50');
+      expect(result.headers?.['X-RateLimit-Remaining']).toBeDefined();
+      expect(result.headers?.['X-RateLimit-Reset']).toBeDefined();
+    });
+
+    it('should include rate limit headers in error response', async () => {
+      const { handler } = await import('../../src/handlers/create-verification');
+
+      const event: Partial<APIGatewayProxyEvent> = {
+        body: JSON.stringify({
+          customer: {}, // Invalid - no identifiers
+        }),
+        requestContext: {
+          requestId: 'req_123',
+          authorizer: { clientId: 'client_integration' },
+        } as any,
+      };
+
+      const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+      expect(result.statusCode).toBe(400);
+      expect(result.headers?.['X-RateLimit-Limit']).toBe('50');
+    });
+  });
+
+  describe('Document Type Validation', () => {
+    it.each(['omang', 'passport', 'drivers_licence', 'id_card'])(
+      'should accept valid document type: %s',
+      async (documentType) => {
+        const { handler } = await import('../../src/handlers/create-verification');
+
+        const event: Partial<APIGatewayProxyEvent> = {
+          body: JSON.stringify({
+            customer: { email: 'test@example.com' },
+            documentType,
+          }),
+          requestContext: {
+            requestId: 'req_123',
+            authorizer: { clientId: 'client_integration' },
+          } as any,
+        };
+
+        const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+        expect(result.statusCode).toBe(201);
+      }
+    );
+
+    it('should accept request without documentType (optional)', async () => {
+      const { handler } = await import('../../src/handlers/create-verification');
+
+      const event: Partial<APIGatewayProxyEvent> = {
+        body: JSON.stringify({
+          customer: { email: 'test@example.com' },
+        }),
+        requestContext: {
+          requestId: 'req_123',
+          authorizer: { clientId: 'client_integration' },
+        } as any,
+      };
+
+      const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+      expect(result.statusCode).toBe(201);
+    });
+  });
+
+  describe('Validation Errors', () => {
+    it('should return 400 for missing customer identifiers', async () => {
+      const { handler } = await import('../../src/handlers/create-verification');
+
+      const event: Partial<APIGatewayProxyEvent> = {
+        body: JSON.stringify({
+          customer: {},
+          documentType: 'omang',
+        }),
+        requestContext: {
+          requestId: 'req_123',
+          authorizer: { clientId: 'client_integration' },
+        } as any,
+      };
+
+      const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+      expect(result.statusCode).toBe(400);
+      const body = JSON.parse(result.body);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+      expect(body.error.message).toBe('Invalid request parameters');
+    });
+
+    it('should return 400 for invalid email format', async () => {
+      const { handler } = await import('../../src/handlers/create-verification');
+
+      const event: Partial<APIGatewayProxyEvent> = {
+        body: JSON.stringify({
+          customer: { email: 'not-an-email' },
+        }),
+        requestContext: {
+          requestId: 'req_123',
+          authorizer: { clientId: 'client_integration' },
+        } as any,
+      };
+
+      const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+      expect(result.statusCode).toBe(400);
+      const body = JSON.parse(result.body);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('should return 400 for HTTP redirect URL (HTTPS required)', async () => {
+      const { handler } = await import('../../src/handlers/create-verification');
+
+      const event: Partial<APIGatewayProxyEvent> = {
+        body: JSON.stringify({
+          customer: { email: 'test@example.com' },
+          redirectUrl: 'http://insecure.com/callback',
+        }),
+        requestContext: {
+          requestId: 'req_123',
+          authorizer: { clientId: 'client_integration' },
+        } as any,
+      };
+
+      const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+      expect(result.statusCode).toBe(400);
+      const body = JSON.parse(result.body);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('should return 400 for invalid document type', async () => {
+      const { handler } = await import('../../src/handlers/create-verification');
+
+      const event: Partial<APIGatewayProxyEvent> = {
+        body: JSON.stringify({
+          customer: { email: 'test@example.com' },
+          documentType: 'invalid_type',
+        }),
+        requestContext: {
+          requestId: 'req_123',
+          authorizer: { clientId: 'client_integration' },
+        } as any,
+      };
+
+      const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+      expect(result.statusCode).toBe(400);
+      const body = JSON.parse(result.body);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('should return 400 for missing request body', async () => {
+      const { handler } = await import('../../src/handlers/create-verification');
+
+      const event: Partial<APIGatewayProxyEvent> = {
+        body: null,
+        requestContext: {
+          requestId: 'req_123',
+          authorizer: { clientId: 'client_integration' },
+        } as any,
+      };
+
+      const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+      expect(result.statusCode).toBe(400);
+      const body = JSON.parse(result.body);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+      expect(body.error.message).toBe('Request body is required');
+    });
+  });
+
+  describe('Authentication Errors', () => {
+    it('should return 401 for missing clientId in authorizer', async () => {
+      const { handler } = await import('../../src/handlers/create-verification');
+
+      const event: Partial<APIGatewayProxyEvent> = {
+        body: JSON.stringify({
+          customer: { email: 'test@example.com' },
+        }),
+        requestContext: {
+          requestId: 'req_123',
+          authorizer: {},
+        } as any,
+      };
+
+      const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+      expect(result.statusCode).toBe(401);
+      const body = JSON.parse(result.body);
+      expect(body.error.code).toBe('UNAUTHORIZED');
+      expect(body.error.message).toBe('Missing client authentication');
     });
   });
 
   describe('Idempotency Behavior', () => {
-    it('should return same verification for duplicate idempotency key', () => {
-      // When two requests have the same idempotency key:
-      // - First request creates verification, returns 201
-      // - Second request returns existing verification, returns 200
-      // - Both responses have same verificationId
-      const idempotencyKey = 'idem_test123';
-      expect(idempotencyKey).toMatch(/^idem_/);
+    it('should return existing verification for duplicate idempotency key', async () => {
+      const existingVerification = {
+        ...mockVerification,
+        verificationId: 'ver_existing12345678901234567890ab',
+      };
+
+      mockCheckIdempotencyKey.mockResolvedValue('ver_existing12345678901234567890ab');
+      mockGetVerification.mockResolvedValue(existingVerification);
+
+      const { handler } = await import('../../src/handlers/create-verification');
+
+      const event: Partial<APIGatewayProxyEvent> = {
+        body: JSON.stringify({
+          customer: { email: 'test@example.com' },
+          idempotencyKey: 'idem_unique_key_123',
+        }),
+        requestContext: {
+          requestId: 'req_123',
+          authorizer: { clientId: 'client_integration' },
+        } as any,
+      };
+
+      const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+      expect(result.statusCode).toBe(200); // 200 for idempotent hit, not 201
+      const body = JSON.parse(result.body);
+      expect(body.verificationId).toBe('ver_existing12345678901234567890ab');
+      expect(body.meta.idempotent).toBe(true);
+      expect(mockCreateVerification).not.toHaveBeenCalled();
     });
 
-    it('should create separate verifications without idempotency key', () => {
-      // When requests don't include idempotency key:
-      // - Each request creates a new verification
-      // - Each response has unique verificationId
-      expect(true).toBe(true);
+    it('should create new verification without idempotency key', async () => {
+      const { handler } = await import('../../src/handlers/create-verification');
+
+      const event: Partial<APIGatewayProxyEvent> = {
+        body: JSON.stringify({
+          customer: { email: 'test@example.com' },
+        }),
+        requestContext: {
+          requestId: 'req_123',
+          authorizer: { clientId: 'client_integration' },
+        } as any,
+      };
+
+      const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+      expect(result.statusCode).toBe(201);
+      expect(mockCreateVerification).toHaveBeenCalled();
     });
   });
 
-  describe('Error Responses', () => {
-    it('should return 400 for invalid document type', () => {
-      const errorResponse = {
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Invalid request parameters',
-          details: [{ field: 'documentType', message: 'Invalid enum value' }],
-        },
-        meta: { requestId: 'req_123', timestamp: '2026-01-14T10:00:00Z' },
-      };
-      expect(errorResponse.error.code).toBe('VALIDATION_ERROR');
-    });
+  describe('Error Handling', () => {
+    it('should return 500 on service error', async () => {
+      mockCreateVerification.mockRejectedValue(new Error('DynamoDB connection failed'));
 
-    it('should return 401 for missing authentication', () => {
-      const errorResponse = {
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Missing client authentication',
-        },
-      };
-      expect(errorResponse.error.code).toBe('UNAUTHORIZED');
-    });
+      const { handler } = await import('../../src/handlers/create-verification');
 
-    it('should return 429 for rate limit exceeded', () => {
-      // Rate limit: 100 verifications/minute per client
-      const errorResponse = {
-        error: {
-          code: 'RATE_LIMIT_EXCEEDED',
-          message: 'Too many requests. Please try again later.',
-        },
+      const event: Partial<APIGatewayProxyEvent> = {
+        body: JSON.stringify({
+          customer: { email: 'test@example.com' },
+        }),
+        requestContext: {
+          requestId: 'req_123',
+          authorizer: { clientId: 'client_integration' },
+        } as any,
       };
-      expect(errorResponse.error.code).toBe('RATE_LIMIT_EXCEEDED');
+
+      const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+      expect(result.statusCode).toBe(500);
+      const body = JSON.parse(result.body);
+      expect(body.error.code).toBe('INTERNAL_ERROR');
+      expect(body.error.message).toBe('Failed to create verification');
+    });
+  });
+
+  describe('Response Schema Validation', () => {
+    it('should return response matching OpenAPI schema', async () => {
+      const { handler } = await import('../../src/handlers/create-verification');
+
+      const event: Partial<APIGatewayProxyEvent> = {
+        body: JSON.stringify({
+          customer: { email: 'schema@example.com' },
+          documentType: 'omang',
+        }),
+        requestContext: {
+          requestId: 'req_123',
+          authorizer: { clientId: 'client_integration' },
+        } as any,
+      };
+
+      const result = await handler(event as APIGatewayProxyEvent, mockContext);
+
+      expect(result.statusCode).toBe(201);
+      const body = JSON.parse(result.body);
+
+      // Validate response structure matches OpenAPI CreateVerificationResponse
+      expect(body).toHaveProperty('verificationId');
+      expect(body).toHaveProperty('status');
+      expect(body).toHaveProperty('sessionToken');
+      expect(body).toHaveProperty('sdkUrl');
+      expect(body).toHaveProperty('expiresAt');
+      expect(body).toHaveProperty('meta');
+      expect(body.meta).toHaveProperty('requestId');
+      expect(body.meta).toHaveProperty('timestamp');
+
+      // Validate types
+      expect(typeof body.verificationId).toBe('string');
+      expect(body.verificationId).toMatch(/^ver_/);
+      expect(['created', 'documents_uploading', 'submitted', 'processing', 'pending_review', 'approved', 'rejected']).toContain(body.status);
+      expect(body.sessionToken).toMatch(/^eyJ/); // JWT starts with eyJ
+      expect(body.sdkUrl).toMatch(/^https:\/\/sdk\.authbridge\.io\?token=/);
+      expect(body.expiresAt).toMatch(/^\d{4}-\d{2}-\d{2}T/); // ISO 8601
     });
   });
 });
 
-describe('GSI Queries - Integration', () => {
-  describe('GSI1: Query by Client + Status', () => {
-    it('should query verifications by client ID', () => {
-      // GSI1PK: CLIENT#<clientId>
-      // Returns all verifications for a client
-      const gsi1pk = 'CLIENT#client_abc';
-      expect(gsi1pk).toMatch(/^CLIENT#/);
-    });
-
-    it('should filter by status using begins_with', () => {
-      // GSI1SK: <status>#<createdAt>
-      // Filter: begins_with(GSI1SK, 'created')
-      const gsi1sk = 'created#2026-01-14T10:00:00Z';
-      expect(gsi1sk).toMatch(/^created#/);
-    });
-  });
-
-  describe('GSI2: Query by Date', () => {
-    it('should query verifications by creation date', () => {
-      // GSI2PK: DATE#<YYYY-MM-DD>
-      // Returns all verifications created on a specific date
-      const gsi2pk = 'DATE#2026-01-14';
-      expect(gsi2pk).toMatch(/^DATE#\d{4}-\d{2}-\d{2}$/);
-    });
-
-    it('should sort by timestamp within date', () => {
-      // GSI2SK: <createdAt>#<verificationId>
-      // Enables sorting by creation time
-      const gsi2sk = '2026-01-14T10:00:00Z#ver_abc123';
-      expect(gsi2sk).toMatch(/^\d{4}-\d{2}-\d{2}T.*#ver_/);
-    });
-  });
-});
-
-describe('DynamoDB Entity Keys', () => {
-  it('should use CASE# prefix for verification PK', () => {
-    const pk = 'CASE#ver_abc123';
-    expect(pk).toMatch(/^CASE#ver_/);
+describe('DynamoDB Entity Keys - Integration', () => {
+  it('should use correct PK format for verification', () => {
+    const verificationId = 'ver_abc123def456789012345678901234ab';
+    const pk = `CASE#${verificationId}`;
+    expect(pk).toBe('CASE#ver_abc123def456789012345678901234ab');
   });
 
   it('should use META as SK for verification metadata', () => {
@@ -168,8 +519,22 @@ describe('DynamoDB Entity Keys', () => {
     expect(sk).toBe('META');
   });
 
-  it('should use DOC# prefix for document SK', () => {
-    const sk = 'DOC#doc_xyz789';
-    expect(sk).toMatch(/^DOC#/);
+  it('should use correct GSI1PK format for client queries', () => {
+    const clientId = 'client_abc123';
+    const gsi1pk = `CLIENT#${clientId}`;
+    expect(gsi1pk).toBe('CLIENT#client_abc123');
+  });
+
+  it('should use correct GSI1SK format for status+date queries', () => {
+    const status = 'created';
+    const createdAt = '2026-01-16T10:00:00Z';
+    const gsi1sk = `${status}#${createdAt}`;
+    expect(gsi1sk).toMatch(/^created#\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it('should use correct GSI2PK format for date queries', () => {
+    const date = '2026-01-16';
+    const gsi2pk = `DATE#${date}`;
+    expect(gsi2pk).toBe('DATE#2026-01-16');
   });
 });

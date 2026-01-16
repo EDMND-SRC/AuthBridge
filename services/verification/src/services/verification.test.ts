@@ -65,8 +65,8 @@ describe('VerificationService', () => {
       mockPutVerification.mockResolvedValue(undefined);
 
       const request: CreateVerificationRequest = {
+        customer: { email: 'test@example.com' },
         documentType: 'omang',
-        customerMetadata: { email: 'test@example.com' },
       };
 
       const result = await service.createVerification(request, 'client_abc');
@@ -75,7 +75,7 @@ describe('VerificationService', () => {
       expect(result.clientId).toBe('client_abc');
       expect(result.status).toBe('created');
       expect(result.documentType).toBe('omang');
-      expect(result.customerMetadata).toEqual({ email: 'test@example.com' });
+      expect(result.customer).toEqual({ email: 'test@example.com' });
       expect(result.PK).toBe(`CASE#${result.verificationId}`);
       expect(result.SK).toBe('META');
       expect(result.GSI1PK).toBe('CLIENT#client_abc');
@@ -87,8 +87,8 @@ describe('VerificationService', () => {
       mockPutVerification.mockResolvedValue(undefined);
 
       const request: CreateVerificationRequest = {
+        customer: { email: 'test@example.com' },
         documentType: 'passport',
-        customerMetadata: {},
       };
 
       const result = await service.createVerification(request, 'client_xyz');
@@ -100,8 +100,8 @@ describe('VerificationService', () => {
       mockPutVerification.mockResolvedValue(undefined);
 
       const request: CreateVerificationRequest = {
+        customer: { email: 'test@example.com' },
         documentType: 'omang',
-        customerMetadata: {},
       };
 
       const before = Date.now();
@@ -119,8 +119,8 @@ describe('VerificationService', () => {
       mockPutVerification.mockResolvedValue(undefined);
 
       const request: CreateVerificationRequest = {
+        customer: { email: 'test@example.com' },
         documentType: 'omang',
-        customerMetadata: {},
       };
 
       await service.createVerification(request, 'client_abc');

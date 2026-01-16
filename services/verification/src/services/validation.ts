@@ -1,18 +1,26 @@
 import { z } from 'zod';
 import type { CreateVerificationRequest } from '../types/verification';
 
-const documentTypeSchema = z.enum(['omang', 'passport', 'drivers_license', 'id_card']);
+const documentTypeSchema = z.enum(['omang', 'passport', 'drivers_licence', 'id_card']);
 
-const customerMetadataSchema = z.object({
+const customerSchema = z.object({
   email: z.string().email().optional(),
+  name: z.string().min(1).max(255).optional(),
   phone: z.string().regex(/^\+[1-9]\d{1,14}$/).optional(), // E.164 format
-  externalId: z.string().max(255).optional(),
-  redirectUrl: z.string().url().startsWith('https://').optional(),
-});
+}).refine(
+  (data) => data.email || data.name || data.phone,
+  {
+    message: 'At least one customer identifier required (email, name, or phone)',
+    path: ['customer'],
+  }
+);
 
 const createVerificationRequestSchema = z.object({
-  documentType: documentTypeSchema,
-  customerMetadata: customerMetadataSchema,
+  customer: customerSchema,
+  documentType: documentTypeSchema.optional(),
+  redirectUrl: z.string().url().startsWith('https://').optional(),
+  webhookUrl: z.string().url().startsWith('https://').optional(),
+  metadata: z.record(z.string()).optional(),
   idempotencyKey: z.string().max(255).optional(),
 });
 
