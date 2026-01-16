@@ -4,7 +4,7 @@ I keep seeing "@ballerine/verification-service" in some of the commands you run.
 
 # Review:
 
-DynamoDB MCP vs DynamoDB Local via Java (Homebrew)
+I want you to compare DynamoDB MCP vs DynamoDB Local via Java (Homebrew). Use web search for research.
 
 Research comprehensively and assess the following MCPs for this project:
 
@@ -16,8 +16,8 @@ Research comprehensively and assess the following MCPs for this project:
 
 # Workflow commands:
 
-1. @dev.md run *code-review workflow for Story 4.2 @4-2-...
+/ @sm.md run *create-story
 
-2. Update all related and relevant project files with all this new context.
+/ @dev.md run *dev-story workflow for Story 4.2 #4-2-create...
 
-3. Commit and push all changes to Github.
+/ @dev.md run *code-review workflow for Story 4.2 #4-2-create...
