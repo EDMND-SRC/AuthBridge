@@ -413,7 +413,6 @@ pnpm test:e2e:debug    # Debug with inspector
 **CRITICAL: Use Java (via Homebrew), NOT Docker**
 - Docker uses too many system resources and freezes the system
 - DynamoDB Local must be run using Java directly via Homebrew
-- Install: `brew install dynamodb-local`
 - Run with: `dynamodb-local -port 8000 -sharedDb`
 - Required for integration tests in `services/verification/tests/integration/`
 

@@ -121,6 +121,40 @@ functions:
           batchSize: 10
           maximumBatchingWindowInSeconds: 5
 
+  configureWebhook:
+    handler: dist/handlers/configure-webhook.handler
+    description: Configure webhook URL and settings for client
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: /api/v1/webhooks/configure
+          method: post
+          cors: true
+          authorizer:
+            name: apiKeyAuthorizer
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authbridge-auth-${self:provider.stage}-apiKeyAuthorizer
+            type: request
+            identitySource: method.request.header.Authorization
+            resultTtlInSeconds: 300
+
+  testWebhook:
+    handler: dist/handlers/test-webhook.handler
+    description: Send test webhook notification to verify configuration
+    memorySize: 256
+    timeout: 30
+    events:
+      - http:
+          path: /api/v1/webhooks/test
+          method: post
+          cors: true
+          authorizer:
+            name: apiKeyAuthorizer
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authbridge-auth-${self:provider.stage}-apiKeyAuthorizer
+            type: request
+            identitySource: method.request.header.Authorization
+            resultTtlInSeconds: 300
+
   addNote:
     handler: dist/handlers/add-note.handler
     description: Add note to case
