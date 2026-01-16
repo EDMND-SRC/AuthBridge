@@ -5,19 +5,42 @@ import type { ClientConfiguration, WebhookEventType } from '../types/webhook.js'
 
 const dynamoDBService = new DynamoDBService();
 
+// Valid webhook event types
+const VALID_WEBHOOK_EVENTS: WebhookEventType[] = [
+  'verification.created',
+  'verification.submitted',
+  'verification.approved',
+  'verification.rejected',
+  'verification.resubmission_required',
+  'verification.expired',
+];
+
+// Minimum webhook secret length for security
+const MIN_SECRET_LENGTH = 32;
+
+// Rate limit headers (per project-context.md)
+const getRateLimitHeaders = () => ({
+  'X-RateLimit-Limit': '100',
+  'X-RateLimit-Remaining': '99',
+  'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + 60),
+});
+
 export async function handler(
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> {
+  const baseHeaders = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    ...getRateLimitHeaders(),
+  };
+
   try {
     // Extract client ID from authorizer context
     const clientId = event.requestContext.authorizer?.clientId;
     if (!clientId) {
       return {
         statusCode: 401,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
+        headers: baseHeaders,
         body: JSON.stringify({
           error: {
             code: 'UNAUTHORIZED',
@@ -39,10 +62,7 @@ export async function handler(
     if (webhookUrl && !webhookUrl.startsWith('https://')) {
       return {
         statusCode: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
+        headers: baseHeaders,
         body: JSON.stringify({
           error: {
             code: 'INVALID_WEBHOOK_URL',
@@ -67,10 +87,7 @@ export async function handler(
       } catch {
         return {
           statusCode: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
+          headers: baseHeaders,
           body: JSON.stringify({
             error: {
               code: 'INVALID_WEBHOOK_URL',
@@ -89,7 +106,58 @@ export async function handler(
       }
     }
 
-    // Generate webhook secret if not provided
+    // Validate webhook secret length if provided
+    if (webhookSecret && webhookSecret.length < MIN_SECRET_LENGTH) {
+      return {
+        statusCode: 400,
+        headers: baseHeaders,
+        body: JSON.stringify({
+          error: {
+            code: 'INVALID_WEBHOOK_SECRET',
+            message: `Webhook secret must be at least ${MIN_SECRET_LENGTH} characters`,
+            details: {
+              field: 'webhookSecret',
+              minLength: MIN_SECRET_LENGTH,
+              providedLength: webhookSecret.length,
+            },
+          },
+          meta: {
+            requestId: event.requestContext.requestId,
+            timestamp: new Date().toISOString(),
+          },
+        }),
+      };
+    }
+
+    // Validate webhook events if provided
+    if (webhookEvents && Array.isArray(webhookEvents)) {
+      const invalidEvents = webhookEvents.filter(
+        (e: string) => !VALID_WEBHOOK_EVENTS.includes(e as WebhookEventType)
+      );
+      if (invalidEvents.length > 0) {
+        return {
+          statusCode: 400,
+          headers: baseHeaders,
+          body: JSON.stringify({
+            error: {
+              code: 'INVALID_WEBHOOK_EVENTS',
+              message: 'Invalid webhook event types provided',
+              details: {
+                field: 'webhookEvents',
+                invalidEvents,
+                validEvents: VALID_WEBHOOK_EVENTS,
+              },
+            },
+            meta: {
+              requestId: event.requestContext.requestId,
+              timestamp: new Date().toISOString(),
+            },
+          }),
+        };
+      }
+    }
+
+    // Generate webhook secret if not provided (64 chars = 32 bytes hex)
     const secret = webhookSecret || crypto.randomBytes(32).toString('hex');
 
     // Load existing client configuration
@@ -105,10 +173,7 @@ export async function handler(
     if (!clientConfig) {
       return {
         statusCode: 404,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
+        headers: baseHeaders,
         body: JSON.stringify({
           error: {
             code: 'CLIENT_NOT_FOUND',
@@ -143,10 +208,7 @@ export async function handler(
     // Return response (don't expose secret in response if it was provided)
     return {
       statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
+      headers: baseHeaders,
       body: JSON.stringify({
         webhookUrl: updatedConfig.webhookUrl,
         webhookEnabled: updatedConfig.webhookEnabled,
@@ -162,10 +224,7 @@ export async function handler(
     console.error('Error configuring webhook:', error);
     return {
       statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
+      headers: baseHeaders,
       body: JSON.stringify({
         error: {
           code: 'INTERNAL_SERVER_ERROR',

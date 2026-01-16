@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { WebhookService } from './webhook.js';
 import { DynamoDBService } from './dynamodb.js';
 import type { VerificationEntity } from '../types/verification.js';
@@ -7,6 +7,14 @@ import type { ClientConfiguration } from '../types/webhook.js';
 // Mock fetch globally
 const mockFetch = vi.fn();
 global.fetch = mockFetch as unknown as typeof fetch;
+
+// Mock CloudWatch client
+vi.mock('@aws-sdk/client-cloudwatch', () => ({
+  CloudWatchClient: vi.fn().mockImplementation(() => ({
+    send: vi.fn().mockResolvedValue({}),
+  })),
+  PutMetricDataCommand: vi.fn(),
+}));
 
 describe('WebhookService', () => {
   let webhookService: WebhookService;

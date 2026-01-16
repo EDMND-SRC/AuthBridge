@@ -1651,16 +1651,6 @@ components:
           description: Response timestamp
           example: "2026-01-14T10:00:00Z"
 
-tags:
-  - name: Verifications
-    description: Verification case creation and management
-  - name: Documents
-    description: Document upload and management endpoints
-  - name: Cases
-    description: Case review and decision endpoints
-  - name: Notes
-    description: Case notes and comments
-
     ConfigureWebhookRequest:
       type: object
       properties:
@@ -1830,6 +1820,8 @@ tags:
 tags:
   - name: Verifications
     description: Create and manage verification cases
+  - name: Documents
+    description: Document upload and management endpoints
   - name: Cases
     description: Review and approve/reject verification cases
   - name: Notes

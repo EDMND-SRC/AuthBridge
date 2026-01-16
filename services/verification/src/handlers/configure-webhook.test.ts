@@ -66,7 +66,7 @@ describe('configure-webhook handler', () => {
     const event = {
       body: JSON.stringify({
         webhookUrl: 'https://webhook.example.com/authbridge',
-        webhookSecret: 'client_provided_secret_key',
+        webhookSecret: 'client_provided_secret_key_min_32_chars_long',
         webhookEnabled: true,
       }),
       requestContext: {
@@ -128,7 +128,8 @@ describe('configure-webhook handler', () => {
     expect(result.statusCode).toBe(400);
     const body = JSON.parse(result.body);
     expect(body.error.code).toBe('INVALID_WEBHOOK_URL');
-    expect(body.error.message).toContain('Invalid');
+    // URL without https:// prefix triggers HTTPS validation first
+    expect(body.error.message).toContain('HTTPS');
   });
 
   it('should return 401 when clientId is missing', async () => {

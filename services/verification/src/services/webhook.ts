@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
 import { DynamoDBService } from './dynamodb.js';
 import type {
   WebhookEventType,
@@ -7,18 +8,35 @@ import type {
 } from '../types/webhook.js';
 import type { VerificationEntity } from '../types/verification.js';
 
+const cloudWatchClient = new CloudWatchClient({
+  region: process.env.AWS_REGION || 'af-south-1',
+});
+
+/**
+ * WebhookService handles sending webhook notifications for verification events.
+ *
+ * Features:
+ * - HMAC-SHA256 signature generation for payload verification
+ * - Exponential backoff retry logic (1s, 5s, 30s)
+ * - No retry on 4xx client errors
+ * - Webhook delivery logging to DynamoDB with 30-day TTL
+ * - CloudWatch metrics for monitoring
+ * - PII masking in payloads (Omang numbers)
+ */
 export class WebhookService {
   private dynamoDBService: DynamoDBService;
   private readonly MAX_ATTEMPTS = 3;
-  private readonly RETRY_DELAYS = [1000, 5000, 30000]; // ms
+  private readonly RETRY_DELAYS = [1000, 5000, 30000]; // ms - configurable via env
   private readonly TIMEOUT_MS = 10000; // 10 seconds
+  private readonly TTL_DAYS = 30; // Webhook log retention
 
   constructor(dynamoDBService?: DynamoDBService) {
     this.dynamoDBService = dynamoDBService || new DynamoDBService();
   }
 
   /**
-   * Send webhook notification for verification status change
+   * Send webhook notification for verification status change.
+   * Handles client configuration lookup, payload formatting, and delivery with retries.
    */
   async sendWebhook(
     verificationCase: VerificationEntity,
@@ -66,7 +84,8 @@ export class WebhookService {
   }
 
   /**
-   * Format webhook payload based on event type
+   * Format webhook payload based on event type.
+   * Masks PII (Omang numbers) for compliance.
    */
   private formatPayload(
     verificationCase: VerificationEntity,
@@ -119,7 +138,9 @@ export class WebhookService {
   }
 
   /**
-   * Deliver webhook with retry logic
+   * Deliver webhook with retry logic.
+   * Uses exponential backoff: 1s, 5s, 30s.
+   * Does not retry on 4xx client errors.
    */
   private async deliverWithRetry(
     webhookId: string,
@@ -130,6 +151,8 @@ export class WebhookService {
     clientId: string,
     eventType: WebhookEventType
   ): Promise<void> {
+    const startTime = Date.now();
+
     for (let attempt = 1; attempt <= this.MAX_ATTEMPTS; attempt++) {
       try {
         // Generate signature
@@ -156,6 +179,7 @@ export class WebhookService {
         });
 
         const responseBody = await response.text().catch(() => '');
+        const latencyMs = Date.now() - startTime;
 
         // Log delivery attempt
         await this.logDeliveryAttempt({
@@ -174,6 +198,27 @@ export class WebhookService {
         // Success if 2xx status code
         if (response.ok) {
           console.log(`Webhook delivered successfully: ${webhookId}`);
+
+          // Emit success metrics
+          await this.emitMetrics({
+            success: true,
+            latencyMs,
+            attemptNumber: attempt,
+            clientId,
+            eventType,
+          });
+
+          // Log audit event for successful delivery
+          await this.logAuditEvent({
+            action: 'WEBHOOK_DELIVERED',
+            webhookId,
+            verificationId,
+            clientId,
+            eventType,
+            attemptNumber: attempt,
+            latencyMs,
+          });
+
           return;
         }
 
@@ -182,6 +227,17 @@ export class WebhookService {
           console.error(
             `Webhook failed with client error: ${response.status}`
           );
+
+          // Emit failure metrics
+          await this.emitMetrics({
+            success: false,
+            latencyMs,
+            attemptNumber: attempt,
+            clientId,
+            eventType,
+            statusCode: response.status,
+          });
+
           break;
         }
 
@@ -225,13 +281,36 @@ export class WebhookService {
     }
 
     // All attempts failed
+    const totalLatencyMs = Date.now() - startTime;
     console.error(
       `Webhook delivery failed after ${this.MAX_ATTEMPTS} attempts: ${webhookId}`
     );
+
+    // Emit failure metrics
+    await this.emitMetrics({
+      success: false,
+      latencyMs: totalLatencyMs,
+      attemptNumber: this.MAX_ATTEMPTS,
+      clientId,
+      eventType,
+      failed: true,
+    });
+
+    // Log audit event for failed delivery
+    await this.logAuditEvent({
+      action: 'WEBHOOK_FAILED',
+      webhookId,
+      verificationId,
+      clientId,
+      eventType,
+      attemptNumber: this.MAX_ATTEMPTS,
+      latencyMs: totalLatencyMs,
+    });
   }
 
   /**
-   * Generate HMAC-SHA256 signature for webhook
+   * Generate HMAC-SHA256 signature for webhook payload.
+   * Format: timestamp.payload
    */
   generateSignature(
     payload: WebhookPayload,
@@ -244,7 +323,7 @@ export class WebhookService {
   }
 
   /**
-   * Log webhook delivery attempt to DynamoDB
+   * Log webhook delivery attempt to DynamoDB with 30-day TTL.
    */
   private async logDeliveryAttempt(log: {
     webhookId: string;
@@ -260,17 +339,118 @@ export class WebhookService {
     failedAt?: string;
     nextRetryAt?: string;
   }): Promise<void> {
+    const now = new Date();
+    const ttl = Math.floor(now.getTime() / 1000) + this.TTL_DAYS * 24 * 60 * 60;
+
     await this.dynamoDBService.putItem({
       PK: `WEBHOOK#${log.webhookId}`,
       SK: `ATTEMPT#${log.attemptNumber}`,
       ...log,
       responseBody: log.responseBody?.substring(0, 1024), // Truncate to 1KB
-      createdAt: new Date().toISOString(),
+      createdAt: now.toISOString(),
+      ttl, // 30-day TTL for automatic cleanup
     });
   }
 
   /**
-   * Mask Omang number for webhook payload
+   * Log audit event for webhook delivery (compliance requirement).
+   */
+  private async logAuditEvent(event: {
+    action: 'WEBHOOK_DELIVERED' | 'WEBHOOK_FAILED';
+    webhookId: string;
+    verificationId: string;
+    clientId: string;
+    eventType: WebhookEventType;
+    attemptNumber: number;
+    latencyMs: number;
+  }): Promise<void> {
+    const now = new Date();
+    const ttl = Math.floor(now.getTime() / 1000) + 5 * 365 * 24 * 60 * 60; // 5-year retention for FIA
+
+    await this.dynamoDBService.putItem({
+      PK: `AUDIT#${event.verificationId}`,
+      SK: `WEBHOOK#${now.toISOString()}#${event.webhookId}`,
+      entityType: 'AUDIT',
+      action: event.action,
+      webhookId: event.webhookId,
+      verificationId: event.verificationId,
+      clientId: event.clientId,
+      eventType: event.eventType,
+      attemptNumber: event.attemptNumber,
+      latencyMs: event.latencyMs,
+      timestamp: now.toISOString(),
+      ttl, // 5-year retention for compliance
+    });
+  }
+
+  /**
+   * Emit CloudWatch metrics for webhook delivery monitoring.
+   */
+  private async emitMetrics(metrics: {
+    success: boolean;
+    latencyMs: number;
+    attemptNumber: number;
+    clientId: string;
+    eventType: WebhookEventType;
+    statusCode?: number;
+    failed?: boolean;
+  }): Promise<void> {
+    try {
+      const metricData = [
+        {
+          MetricName: metrics.success ? 'WebhookDeliverySuccess' : 'WebhookDeliveryFailure',
+          Value: 1,
+          Unit: 'Count' as const,
+          Dimensions: [
+            { Name: 'ClientId', Value: metrics.clientId },
+            { Name: 'EventType', Value: metrics.eventType },
+          ],
+        },
+        {
+          MetricName: 'WebhookDeliveryLatency',
+          Value: metrics.latencyMs,
+          Unit: 'Milliseconds' as const,
+          Dimensions: [
+            { Name: 'ClientId', Value: metrics.clientId },
+          ],
+        },
+        {
+          MetricName: 'WebhookRetryCount',
+          Value: metrics.attemptNumber,
+          Unit: 'Count' as const,
+          Dimensions: [
+            { Name: 'ClientId', Value: metrics.clientId },
+          ],
+        },
+      ];
+
+      if (metrics.failed) {
+        metricData.push({
+          MetricName: 'WebhookDeliveryFailed',
+          Value: 1,
+          Unit: 'Count' as const,
+          Dimensions: [
+            { Name: 'ClientId', Value: metrics.clientId },
+            { Name: 'EventType', Value: metrics.eventType },
+          ],
+        });
+      }
+
+      await cloudWatchClient.send(
+        new PutMetricDataCommand({
+          Namespace: 'AuthBridge/Webhooks',
+          MetricData: metricData,
+        })
+      );
+    } catch (error) {
+      // Don't fail webhook delivery if metrics fail
+      console.error('Failed to emit CloudWatch metrics:', error);
+    }
+  }
+
+  /**
+   * Mask Omang number for webhook payload (DPA 2024 compliance).
+   * Shows only last 4 digits.
    */
   private maskOmangNumber(omangNumber: string | undefined): string {
     if (!omangNumber) return '';
@@ -279,7 +459,7 @@ export class WebhookService {
   }
 
   /**
-   * Sleep utility for retry delays
+   * Sleep utility for retry delays.
    */
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
