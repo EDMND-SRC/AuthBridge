@@ -5,9 +5,10 @@ import type { RekognitionService } from './rekognition';
 import type { BiometricData } from '../types/biometric';
 import { logger } from '../utils/logger';
 
-const LIVENESS_WEIGHT = 0.3;
-const SIMILARITY_WEIGHT = 0.7;
-const OVERALL_THRESHOLD = 80;
+// Configurable weights and thresholds via environment variables
+const LIVENESS_WEIGHT = parseFloat(process.env.BIOMETRIC_LIVENESS_WEIGHT || '0.3');
+const SIMILARITY_WEIGHT = parseFloat(process.env.BIOMETRIC_SIMILARITY_WEIGHT || '0.7');
+const OVERALL_THRESHOLD = parseInt(process.env.BIOMETRIC_OVERALL_THRESHOLD || '80', 10);
 
 export class BiometricService {
   constructor(private readonly rekognitionService: RekognitionService) {}

@@ -54,6 +54,7 @@ provider:
           Resource:
             - !GetAtt OcrQueue.Arn
             - !GetAtt BiometricQueue.Arn
+            - !GetAtt WebhookQueue.Arn
         - Effect: Allow
           Action:
             - sns:Publish
@@ -83,6 +84,85 @@ functions:
       - http:
           path: /api/v1/cases/{id}
           method: get
+          cors: true
+
+  approveCase:
+    handler: dist/handlers/approve-case.handler
+    description: Approve a verification case
+    environment:
+      WEBHOOK_QUEUE_URL: !Ref WebhookQueue
+    events:
+      - http:
+          path: /api/v1/cases/{id}/approve
+          method: post
+          cors: true
+
+  rejectCase:
+    handler: dist/handlers/reject-case.handler
+    description: Reject a verification case with reason
+    environment:
+      WEBHOOK_QUEUE_URL: !Ref WebhookQueue
+    events:
+      - http:
+          path: /api/v1/cases/{id}/reject
+          method: post
+          cors: true
+
+  sendWebhook:
+    handler: dist/handlers/send-webhook.handler
+    description: Send webhook notifications for case decisions
+    memorySize: 256
+    timeout: 30
+    environment:
+      WEBHOOK_QUEUE_URL: !Ref WebhookQueue
+    events:
+      - sqs:
+          arn: !GetAtt WebhookQueue.Arn
+          batchSize: 10
+          maximumBatchingWindowInSeconds: 5
+
+  addNote:
+    handler: dist/handlers/add-note.handler
+    description: Add note to case
+    events:
+      - http:
+          path: /api/v1/cases/{id}/notes
+          method: post
+          cors: true
+
+  getNotes:
+    handler: dist/handlers/get-notes.handler
+    description: Get all notes for a case
+    events:
+      - http:
+          path: /api/v1/cases/{id}/notes
+          method: get
+          cors: true
+
+  bulkApprove:
+    handler: dist/handlers/bulk-approve.handler
+    description: Bulk approve multiple verification cases
+    memorySize: 512
+    timeout: 30
+    environment:
+      WEBHOOK_QUEUE_URL: !Ref WebhookQueue
+    events:
+      - http:
+          path: /api/v1/cases/bulk-approve
+          method: post
+          cors: true
+
+  bulkReject:
+    handler: dist/handlers/bulk-reject.handler
+    description: Bulk reject multiple verification cases with reason
+    memorySize: 512
+    timeout: 30
+    environment:
+      WEBHOOK_QUEUE_URL: !Ref WebhookQueue
+    events:
+      - http:
+          path: /api/v1/cases/bulk-reject
+          method: post
           cors: true
 
   createVerification:
@@ -205,6 +285,24 @@ resources:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: authbridge-biometric-dlq-${self:provider.stage}
+        MessageRetentionPeriod: 1209600  # 14 days
+        ReceiveMessageWaitTimeSeconds: 0
+
+    WebhookQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: authbridge-webhook-queue-${self:provider.stage}
+        VisibilityTimeout: 90  # 1.5 minutes (Lambda timeout 30s + buffer)
+        MessageRetentionPeriod: 86400  # 24 hours
+        ReceiveMessageWaitTimeSeconds: 0
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt WebhookDLQ.Arn
+          maxReceiveCount: 3
+
+    WebhookDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: authbridge-webhook-dlq-${self:provider.stage}
         MessageRetentionPeriod: 1209600  # 14 days
         ReceiveMessageWaitTimeSeconds: 0
 

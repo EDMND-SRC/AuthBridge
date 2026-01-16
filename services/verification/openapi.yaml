@@ -1,21 +1,23 @@
 openapi: 3.0.3
 info:
-  title: AuthBridge Verification API - Document Upload
+  title: AuthBridge Verification API
   description: |
-    API endpoints for uploading and managing verification documents.
+    Complete API for AuthBridge KYC/AML verification platform.
 
     ## Authentication
     All endpoints require a valid JWT token in the Authorization header.
 
     ## Rate Limits
-    - Per verification: 20 documents maximum
-    - Per client: 1,000 uploads/hour
+    - Create verification: 100/sec per client
+    - Document upload: 50/sec per client
+    - Case operations: 200/sec per client
+    - Bulk operations: 5/sec per client
 
     ## File Requirements
     - Maximum file size: 10MB
     - Supported formats: JPEG, PNG, PDF
     - Minimum image dimensions: 640x480 pixels
-  version: 1.0.0
+  version: 2.0.0
   contact:
     name: AuthBridge API Support
     email: api@authbridge.io
@@ -27,6 +29,330 @@ servers:
     description: Staging
 
 paths:
+  /api/v1/verifications:
+    post:
+      summary: Create Verification
+      description: |
+        Create a new verification case for KYC processing.
+        Returns a session token and SDK URL for document capture.
+      operationId: createVerification
+      tags:
+        - Verifications
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVerificationRequest'
+      responses:
+        '201':
+          description: Verification created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateVerificationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/cases:
+    get:
+      summary: List Cases
+      description: |
+        List verification cases with filtering and pagination.
+        Supports filtering by status, date range, and search.
+      operationId: listCases
+      tags:
+        - Cases
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected, expired]
+        - name: fromDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: toDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cases retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListCasesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/cases/{caseId}:
+    get:
+      summary: Get Case
+      description: Get detailed information about a specific case.
+      operationId: getCase
+      tags:
+        - Cases
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Case retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseDetails'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/cases/{caseId}/approve:
+    post:
+      summary: Approve Case
+      description: Approve a verification case after review.
+      operationId: approveCase
+      tags:
+        - Cases
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApproveRequest'
+      responses:
+        '200':
+          description: Case approved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseActionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Case already processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/cases/{caseId}/reject:
+    post:
+      summary: Reject Case
+      description: Reject a verification case with reason.
+      operationId: rejectCase
+      tags:
+        - Cases
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectRequest'
+      responses:
+        '200':
+          description: Case rejected successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseActionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Case already processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/cases/bulk-approve:
+    post:
+      summary: Bulk Approve Cases
+      description: |
+        Approve multiple cases in a single request.
+        Maximum 50 cases per request.
+      operationId: bulkApprove
+      tags:
+        - Cases
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkApproveRequest'
+      responses:
+        '200':
+          description: Bulk approval completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkActionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/cases/bulk-reject:
+    post:
+      summary: Bulk Reject Cases
+      description: |
+        Reject multiple cases in a single request.
+        Maximum 50 cases per request.
+      operationId: bulkReject
+      tags:
+        - Cases
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkRejectRequest'
+      responses:
+        '200':
+          description: Bulk rejection completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkActionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/cases/{caseId}/notes:
+    get:
+      summary: List Case Notes
+      description: Get all notes for a case.
+      operationId: listCaseNotes
+      tags:
+        - Notes
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notes retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListNotesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      summary: Add Case Note
+      description: Add a note to a case.
+      operationId: addCaseNote
+      tags:
+        - Notes
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddNoteRequest'
+      responses:
+        '201':
+          description: Note added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/verifications/{verificationId}/documents:
     post:
       summary: Upload Document
@@ -231,7 +557,325 @@ components:
       bearerFormat: JWT
       description: JWT token from authentication endpoint
 
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
   schemas:
+    CreateVerificationRequest:
+      type: object
+      required:
+        - documentType
+      properties:
+        documentType:
+          type: string
+          enum: [omang, passport, drivers_license]
+        callbackUrl:
+          type: string
+          format: uri
+        idempotencyKey:
+          type: string
+          maxLength: 64
+        metadata:
+          type: object
+          additionalProperties: true
+
+    CreateVerificationResponse:
+      type: object
+      properties:
+        verificationId:
+          type: string
+        status:
+          type: string
+          enum: [pending, processing, completed, expired]
+        sessionToken:
+          type: string
+        sdkUrl:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    ListCasesResponse:
+      type: object
+      properties:
+        cases:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaseSummary'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    CaseSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, rejected, expired]
+        documentType:
+          type: string
+        customerName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        requiresManualReview:
+          type: boolean
+
+    CaseDetails:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        documentType:
+          type: string
+        customer:
+          $ref: '#/components/schemas/CustomerData'
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentSummary'
+        ocrResults:
+          type: object
+        biometricResults:
+          type: object
+        duplicateCheck:
+          type: object
+        timeline:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimelineEvent'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    CustomerData:
+      type: object
+      properties:
+        idNumber:
+          type: string
+        surname:
+          type: string
+        forenames:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        nationality:
+          type: string
+        sex:
+          type: string
+
+    DocumentSummary:
+      type: object
+      properties:
+        documentId:
+          type: string
+        documentType:
+          type: string
+        status:
+          type: string
+        presignedUrl:
+          type: string
+          format: uri
+        uploadedAt:
+          type: string
+          format: date-time
+
+    ApproveRequest:
+      type: object
+      properties:
+        note:
+          type: string
+          maxLength: 1000
+
+    RejectRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          enum:
+            - DOCUMENT_UNREADABLE
+            - DOCUMENT_EXPIRED
+            - FACE_MISMATCH
+            - SUSPECTED_FRAUD
+            - DUPLICATE_APPLICATION
+            - OTHER
+        note:
+          type: string
+          maxLength: 1000
+
+    CaseActionResponse:
+      type: object
+      properties:
+        caseId:
+          type: string
+        status:
+          type: string
+        processedAt:
+          type: string
+          format: date-time
+        processedBy:
+          type: string
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    BulkApproveRequest:
+      type: object
+      required:
+        - caseIds
+      properties:
+        caseIds:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          maxItems: 50
+        note:
+          type: string
+
+    BulkRejectRequest:
+      type: object
+      required:
+        - caseIds
+        - reason
+      properties:
+        caseIds:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          maxItems: 50
+        reason:
+          type: string
+          enum:
+            - DOCUMENT_UNREADABLE
+            - DOCUMENT_EXPIRED
+            - FACE_MISMATCH
+            - SUSPECTED_FRAUD
+            - DUPLICATE_APPLICATION
+            - OTHER
+        note:
+          type: string
+
+    BulkActionResponse:
+      type: object
+      properties:
+        processed:
+          type: integer
+        succeeded:
+          type: integer
+        failed:
+          type: integer
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              caseId:
+                type: string
+              success:
+                type: boolean
+              error:
+                type: string
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    ListNotesResponse:
+      type: object
+      properties:
+        notes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Note'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    Note:
+      type: object
+      properties:
+        noteId:
+          type: string
+        caseId:
+          type: string
+        content:
+          type: string
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    AddNoteRequest:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 2000
+
+    TimelineEvent:
+      type: object
+      properties:
+        event:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        actor:
+          type: string
+        details:
+          type: object
+
+    Pagination:
+      type: object
+      properties:
+        cursor:
+          type: string
+        hasMore:
+          type: boolean
+        total:
+          type: integer
     UploadDocumentRequest:
       type: object
       required:
@@ -382,5 +1026,11 @@ components:
           example: "2026-01-14T10:00:00Z"
 
 tags:
+  - name: Verifications
+    description: Verification case creation and management
   - name: Documents
     description: Document upload and management endpoints
+  - name: Cases
+    description: Case review and decision endpoints
+  - name: Notes
+    description: Case notes and comments

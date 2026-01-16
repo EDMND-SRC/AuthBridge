@@ -1,7 +1,34 @@
 /**
+ * Query parameter configuration schema
+ */
+interface QueryParamsConfig {
+  flowName?: string;
+  clientId?: string;
+  id?: string;
+  token?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  email?: string;
+  language?: string;
+  type?: string;
+}
+
+/**
+ * Type guard to check if a key is a valid QueryParamsConfig key
+ */
+function isValidConfigKey(key: string): key is keyof QueryParamsConfig {
+  const validKeys: Array<keyof QueryParamsConfig> = [
+    'flowName', 'clientId', 'id', 'token', 'firstName',
+    'lastName', 'phone', 'email', 'language', 'type'
+  ];
+  return validKeys.includes(key as keyof QueryParamsConfig);
+}
+
+/**
  * @description Gets config specific query params as an object - see -docs url here-
  */
-export const getConfigFromQueryParams = () => {
+export const getConfigFromQueryParams = (): QueryParamsConfig => {
   // Make sure non-unrelated query params are passed to the config
   const {
     b_uid,
@@ -17,7 +44,7 @@ export const getConfigFromQueryParams = () => {
     // /?b_uid=&b_cid= --> { b_uid: '', b_cid: '' };
   } = Object.fromEntries(new URLSearchParams(window.location.search));
 
-  const queryParamsConfig = {
+  const queryParamsMapping: Record<string, string | undefined> = {
     flowName: b_fid,
     clientId: b_cid,
     id: b_uid,
@@ -31,12 +58,13 @@ export const getConfigFromQueryParams = () => {
   };
 
   // Make sure no empty strings are passed to the config
-  return Object.entries(queryParamsConfig).reduce((acc, [key, value]) => {
-    if (!value) return acc;
+  const result: QueryParamsConfig = {};
 
-    // TODO: Remove casting and fix the type
-    acc[key as keyof typeof queryParamsConfig] = value;
+  for (const [key, value] of Object.entries(queryParamsMapping)) {
+    if (value && isValidConfigKey(key)) {
+      result[key] = value;
+    }
+  }
 
-    return acc;
-  }, {} as typeof queryParamsConfig);
+  return result;
 };

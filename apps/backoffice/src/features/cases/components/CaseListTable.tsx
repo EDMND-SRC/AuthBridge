@@ -1,4 +1,4 @@
-import { Table, Text, ActionIcon, Tooltip, Skeleton, Box, Highlight } from '@mantine/core';
+import { Table, Text, ActionIcon, Tooltip, Skeleton, Box, Highlight, Checkbox } from '@mantine/core';
 import { IconEye } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { CaseStatusBadge } from './CaseStatusBadge';
@@ -10,6 +10,10 @@ interface CaseListTableProps {
   isLoading?: boolean;
   hasFilters?: boolean;
   searchTerm?: string;
+  selectedCaseIds?: string[];
+  onToggleCase?: (caseId: string) => void;
+  onSelectAll?: () => void;
+  onClearSelection?: () => void;
 }
 
 function formatDate(dateString: string): string {
@@ -29,11 +33,14 @@ function formatDocumentType(type: string): string {
   return typeMap[type] || type;
 }
 
-function LoadingSkeleton() {
+function LoadingSkeleton({ hasCheckbox }: { hasCheckbox?: boolean }) {
   return (
     <>
       {Array.from({ length: 5 }).map((_, i) => (
         <Table.Tr key={i}>
+          {hasCheckbox && (
+            <Table.Td><Skeleton height={20} width={20} /></Table.Td>
+          )}
           <Table.Td><Skeleton height={20} width="80%" /></Table.Td>
           <Table.Td><Skeleton height={20} width="60%" /></Table.Td>
           <Table.Td><Skeleton height={24} width={80} radius="xl" /></Table.Td>
@@ -70,7 +77,16 @@ function prepareHighlightTerms(searchTerm: string): string[] {
   return [...new Set(expandedTerms)];
 }
 
-export function CaseListTable({ cases, isLoading, hasFilters, searchTerm = '' }: CaseListTableProps) {
+export function CaseListTable({
+  cases,
+  isLoading,
+  hasFilters,
+  searchTerm = '',
+  selectedCaseIds = [],
+  onToggleCase,
+  onSelectAll,
+  onClearSelection
+}: CaseListTableProps) {
   const navigate = useNavigate();
 
   const handleRowClick = (caseId: string) => {
@@ -84,11 +100,35 @@ export function CaseListTable({ cases, isLoading, hasFilters, searchTerm = '' }:
   // Prepare highlight terms with special Omang handling
   const highlightTerms = prepareHighlightTerms(searchTerm);
 
+  // Determine if checkboxes should be shown
+  const showCheckboxes = !!onToggleCase;
+
+  // Calculate select-all checkbox state
+  const allSelected = selectedCaseIds.length === cases.length && cases.length > 0;
+  const someSelected = selectedCaseIds.length > 0 && selectedCaseIds.length < cases.length;
+
   return (
     <Box style={{ overflowX: 'auto' }}>
       <Table striped highlightOnHover withTableBorder>
         <Table.Thead>
           <Table.Tr>
+            {showCheckboxes && (
+              <Table.Th style={{ width: 40 }}>
+                <Checkbox
+                  checked={allSelected}
+                  indeterminate={someSelected}
+                  onChange={() => {
+                    if (allSelected) {
+                      onClearSelection?.();
+                    } else {
+                      onSelectAll?.();
+                    }
+                  }}
+                  data-testid="select-all-checkbox"
+                  aria-label="Select all cases"
+                />
+              </Table.Th>
+            )}
             <Table.Th>Customer Name</Table.Th>
             <Table.Th>Omang</Table.Th>
             <Table.Th>Status</Table.Th>
@@ -100,7 +140,7 @@ export function CaseListTable({ cases, isLoading, hasFilters, searchTerm = '' }:
         </Table.Thead>
         <Table.Tbody>
           {isLoading ? (
-            <LoadingSkeleton />
+            <LoadingSkeleton hasCheckbox={showCheckboxes} />
           ) : (
             cases.map((caseItem) => (
               <Table.Tr
@@ -108,6 +148,16 @@ export function CaseListTable({ cases, isLoading, hasFilters, searchTerm = '' }:
                 onClick={() => handleRowClick(caseItem.caseId)}
                 style={{ cursor: 'pointer' }}
               >
+                {showCheckboxes && (
+                  <Table.Td onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedCaseIds.includes(caseItem.caseId)}
+                      onChange={() => onToggleCase(caseItem.caseId)}
+                      data-testid={`case-checkbox-${caseItem.caseId}`}
+                      aria-label={`Select case ${caseItem.caseId}`}
+                    />
+                  </Table.Td>
+                )}
                 <Table.Td>
                   {highlightTerms.length > 0 ? (
                     <Highlight highlight={highlightTerms} fw={500} size="sm">

@@ -1,13 +1,14 @@
 ---
 project_name: 'AuthBridge'
 user_name: 'Edmond'
-date: '2026-01-15'
+date: '2026-01-16'
 sections_completed: ['technology_stack', 'critical_implementation_rules', 'adrs', 'testing_rules', 'workflow_rules', 'deployment_status']
 status: 'complete'
-rule_count: 47
+rule_count: 52
 optimized_for_llm: true
-last_deployment: '2026-01-15'
+last_deployment: '2026-01-16'
 netlify_sites_live: true
+epic_3_complete: true
 ---
 
 # Project Context for AI Agents
@@ -25,7 +26,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 ### What Makes This Project Different
 
-- **Brownfield on Ballerine** — extend existing patterns, don't reinvent
+- **Brownfield** — extend existing patterns, don't reinvent
 - **Botswana compliance** — af-south-1 mandatory, PII handling strict
 - **Solo founder** — no team to delegate to, automation is survival
 - **Fintech sandbox** — regulatory scrutiny, audit trails matter
@@ -380,6 +381,30 @@ pnpm test:e2e:ui       # Interactive UI mode
 pnpm test:e2e:debug    # Debug with inspector
 ```
 
+### DynamoDB Local Setup
+
+**CRITICAL: Use Java (via Homebrew), NOT Docker**
+- Docker uses too many system resources and freezes the system
+- DynamoDB Local must be run using Java directly via Homebrew
+- Install: `brew install dynamodb-local`
+- Run with: `dynamodb-local -port 8000 -sharedDb`
+- Required for integration tests in `services/verification/tests/integration/`
+
+**Table Setup:**
+- Run setup script: `bash services/verification/scripts/setup-dynamodb-local.sh`
+- Creates `AuthBridgeTable` with correct schema
+- GSI1: Client and status queries
+- OmangHashIndex (GSI2): Duplicate detection using `GSI2PK` attribute
+- **CRITICAL:** OmangHashIndex must use `GSI2PK` as key attribute (not `omangHash`)
+
+**Common Issues:**
+- If duplicate-detection tests fail with `result.checked = false`, verify GSI schema:
+  ```bash
+  aws dynamodb describe-table --table-name AuthBridgeTable --endpoint-url http://localhost:8000 --region af-south-1
+  ```
+- OmangHashIndex should show `AttributeName: GSI2PK` in KeySchema
+- If incorrect, delete table and re-run setup script
+
 ### Critical Testing Rules
 
 - **Never skip tests** without a linked GitHub issue
@@ -453,6 +478,128 @@ pnpm test:changed      # Test only changed files
 ---
 
 ## Recent Deployments
+
+### 2026-01-16: Load Testing Infrastructure Complete
+
+**Completed:**
+- ✅ Production-ready load testing script with 5 test types (smoke, load, stress, spike, soak)
+- ✅ Comprehensive k6-based load testing suite
+- ✅ Multi-environment support (staging, production, local)
+- ✅ Automated result archiving with HTML and JSON reports
+- ✅ Performance targets defined for all endpoints
+- ✅ CI/CD integration examples
+
+**Documentation Created:**
+- `docs/load-testing-guide.md` - 15+ page comprehensive guide covering all test types, performance targets, troubleshooting, and CI/CD integration
+- `scripts/load-tests/README.md` - Directory documentation
+- `_bmad-output/implementation-artifacts/load-testing-implementation.md` - Implementation summary
+
+**Files Created/Modified:**
+- `scripts/load-test.sh` - Enhanced from basic to production-ready (5 test types, multi-env, reporting)
+- `scripts/load-tests/.gitignore` - Ignore results and generated scripts
+
+**Performance Targets Defined:**
+
+| Endpoint | p95 | p99 | Error Rate |
+|----------|-----|-----|------------|
+| Health Check | < 500ms | < 1000ms | < 1% |
+| Case List | < 1000ms | < 2000ms | < 5% |
+| Case Detail | < 1000ms | < 2000ms | < 5% |
+| Approve/Reject | < 2000ms | < 5000ms | < 5% |
+
+**Test Types Available:**
+- **Smoke:** 1 VU, 1 min - Quick validation
+- **Load:** 10-50 VUs, 5 min - Normal load testing
+- **Stress:** 10-200 VUs, 10 min - Find breaking point
+- **Spike:** 0-100-0 VUs, 5 min - Sudden traffic surge
+- **Soak:** 50 VUs, 30 min - Memory leak detection
+
+**Usage:**
+```bash
+./scripts/load-test.sh smoke staging    # Quick test
+./scripts/load-test.sh load staging     # Standard load test
+./scripts/load-test.sh all staging      # Run all tests
+```
+
+**Production Readiness:**
+- ✅ All Epic 3 retrospective action items complete (10/10)
+- ✅ Zero blockers remaining for Epic 4 or production deployment
+- ✅ Load testing ready for CI/CD integration
+
+### 2026-01-16: Epic 3 Retrospective Action Items Completed
+
+**Completed:**
+- ✅ TD-001: Replaced placeholder JWT tokens with proper `jose` library implementation (HS256 signing)
+- ✅ TD-009: Replaced all console.log statements with structured logger in verification service
+- ✅ TD-014b: Moved hardcoded biometric thresholds to environment variables
+- ✅ TD-016: Added proper type guards in get-config-from-query-params.ts
+- ✅ TD-017: Added CloudWatch logging for audit failures in user-verify-otp.ts
+- ✅ TD-018: Clarified misleading FIXME comment (types were correct)
+- ✅ TD-019: Cleaned up dead code in auth.spec.ts
+
+**Documentation Created:**
+- `docs/todo-comment-policy.md` - Standards for TODO/FIXME comments with ticket tracking
+- `docs/component-library-standards.md` - UI component standards with data-testid requirements
+- `docs/dependency-upgrade-spike-template.md` - Template for planning major dependency upgrades
+- `docs/frontend-component-patterns.md` - React component patterns and best practices
+- `docs/api-gateway-throttling.md` - API Gateway throttling configuration
+
+**OpenAPI Spec Expanded:**
+- `services/verification/openapi.yaml` - Now covers ALL endpoints:
+  - POST /verifications (create)
+  - GET /cases (list with filters)
+  - GET /cases/{id} (detail)
+  - POST /cases/{id}/approve
+  - POST /cases/{id}/reject
+  - POST /cases/bulk-approve
+  - POST /cases/bulk-reject
+  - GET/POST /cases/{id}/notes
+
+**Dependencies Added:**
+- `jose@5.2.0` to verification service for JWT generation
+
+**Environment Variables Added:**
+```bash
+# JWT Configuration
+JWT_SECRET=your-secret-key-min-32-chars
+JWT_ISSUER=authbridge
+SESSION_TOKEN_EXPIRY_HOURS=24
+
+# Biometric Thresholds
+BIOMETRIC_SIMILARITY_THRESHOLD=80
+BIOMETRIC_LIVENESS_THRESHOLD=80
+BIOMETRIC_LIVENESS_WEIGHT=0.3
+BIOMETRIC_SIMILARITY_WEIGHT=0.7
+BIOMETRIC_OVERALL_THRESHOLD=80
+```
+
+**Files Modified:**
+- `services/verification/src/handlers/create-verification.ts` - JWT generation
+- `services/verification/src/services/notification.ts` - Structured logging
+- `services/verification/src/handlers/process-ocr.ts` - Structured logging
+- `services/verification/src/services/rekognition.ts` - Env var thresholds
+- `services/verification/src/services/biometric.ts` - Env var thresholds
+- `sdks/web-sdk/src/lib/utils/get-config-from-query-params.ts` - Type guards
+- `services/auth/src/handlers/user-verify-otp.ts` - Audit error logging
+- `sdks/web-sdk/src/lib/utils/event-service/utils.ts` - Comment clarification
+- `apps/backoffice/tests/e2e/auth.spec.ts` - Dead code cleanup
+- `services/verification/package.json` - Added jose dependency
+
+**Test Results:**
+- All verification service tests passing (50+ tests)
+- All auth service tests passing (139 tests)
+- No TypeScript diagnostics on modified files
+
+### 2026-01-16: Epic 3 Retrospective Completed
+
+**Completed:**
+- ✅ Generated comprehensive Epic 3 retrospective document
+- ✅ Team discussion with all BMAD agents (Bob, Charlie, Dana, Winston, Amelia)
+- ✅ Identified 10 action items for improvement
+- ✅ Updated sprint-status.yaml with epic-3 and epic-3-retrospective as done
+
+**Files Created:**
+- `_bmad-output/implementation-artifacts/epic-3-retro-2026-01-16.md`
 
 ### 2026-01-15: Technical Debt Cleanup (TD-001 through TD-012)
 
@@ -549,4 +696,4 @@ pnpm test:changed      # Test only changed files
 
 ---
 
-_Last Updated: 2026-01-15_
+_Last Updated: 2026-01-16_

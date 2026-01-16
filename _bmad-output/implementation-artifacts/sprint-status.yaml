@@ -93,13 +93,13 @@ development_status:
   # ═══════════════════════════════════════════════════════════════════════════
   # EPIC 3: Case Management Dashboard (MVP)
   # ═══════════════════════════════════════════════════════════════════════════
-  epic-3: in-progress
+  epic-3: done
   3-1-case-list-view-with-filters: done
   3-2-case-detail-view: done
-  3-3-approve-reject-workflow: backlog
-  3-4-case-notes-comments: backlog
-  3-5-bulk-case-actions: backlog
-  epic-3-retrospective: optional
+  3-3-approve-reject-workflow: done
+  3-4-case-notes-comments: done
+  3-5-bulk-case-actions: done
+  epic-3-retrospective: done
 
   # ═══════════════════════════════════════════════════════════════════════════
   # EPIC 4: REST API & Webhooks (MVP)

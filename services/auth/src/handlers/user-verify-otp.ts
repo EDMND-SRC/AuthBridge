@@ -122,8 +122,13 @@ export async function handler(
           error: error.message,
         },
       });
-    } catch {
-      // Ignore audit errors
+    } catch (auditError) {
+      // Log audit failures to CloudWatch for monitoring
+      logger.error('Failed to log audit event for failed login', {
+        requestId,
+        auditError: auditError instanceof Error ? auditError.message : 'Unknown audit error',
+        originalError: error.message,
+      });
     }
 
     const statusCode = error.name === 'CodeMismatchException' ? 400 : 401;

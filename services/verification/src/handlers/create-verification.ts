@@ -1,4 +1,5 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
+import { SignJWT } from 'jose';
 import { VerificationService } from '../services/verification';
 import { IdempotencyService, IdempotencyConflictError } from '../services/idempotency';
 import { validateCreateVerificationRequest } from '../services/validation';
@@ -8,19 +9,49 @@ import { createErrorResponse } from '../utils/errors';
 const TABLE_NAME = process.env.TABLE_NAME || 'AuthBridgeTable';
 const REGION = process.env.AWS_REGION || 'af-south-1';
 const SDK_BASE_URL = process.env.SDK_BASE_URL || 'https://sdk.authbridge.io';
+const JWT_SECRET = process.env.JWT_SECRET || '';
+const JWT_ISSUER = process.env.JWT_ISSUER || 'authbridge';
+const SESSION_TOKEN_EXPIRY_HOURS = parseInt(process.env.SESSION_TOKEN_EXPIRY_HOURS || '24', 10);
 
 const verificationService = new VerificationService(TABLE_NAME, REGION);
 const idempotencyService = new IdempotencyService(TABLE_NAME, REGION);
 
+// Cache the secret key for JWT signing
+let secretKey: Uint8Array | null = null;
+
+function getSecretKey(): Uint8Array {
+  if (!secretKey) {
+    if (!JWT_SECRET) {
+      logger.warn('JWT_SECRET not configured, using fallback for development');
+      // Fallback for development only - production must have JWT_SECRET set
+      secretKey = new TextEncoder().encode('dev-secret-do-not-use-in-production');
+    } else {
+      secretKey = new TextEncoder().encode(JWT_SECRET);
+    }
+  }
+  return secretKey;
+}
+
 /**
- * Generate a session token for SDK access
- * TODO: TD-001 - Replace with real JWT token signed by auth service
- * Current implementation uses a placeholder format for MVP
+ * Generate a secure JWT session token for SDK access
+ * Token includes verification ID, expiry, and issuer claims
  */
-function generateSessionToken(verificationId: string): string {
-  // Placeholder: In production, this should call auth service to generate JWT
-  // with proper claims: { sub: verificationId, exp: expiresAt, iss: 'authbridge' }
-  return `session_${verificationId}`;
+async function generateSessionToken(verificationId: string, clientId: string): Promise<string> {
+  const expiresAt = new Date();
+  expiresAt.setHours(expiresAt.getHours() + SESSION_TOKEN_EXPIRY_HOURS);
+
+  const token = await new SignJWT({
+    sub: verificationId,
+    clientId,
+    type: 'sdk_session',
+  })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setIssuer(JWT_ISSUER)
+    .setExpirationTime(expiresAt)
+    .sign(getSecretKey());
+
+  return token;
 }
 
 /**
@@ -123,7 +154,7 @@ export async function handler(
 
         const existingVerification = await verificationService.getVerification(existingVerificationId);
         if (existingVerification) {
-          const sessionToken = generateSessionToken(existingVerification.verificationId);
+          const sessionToken = await generateSessionToken(existingVerification.verificationId, clientId);
           const sdkUrl = buildSdkUrl(sessionToken);
 
           return {
@@ -180,7 +211,7 @@ export async function handler(
             if (existingId) {
               const existingVerification = await verificationService.getVerification(existingId);
               if (existingVerification) {
-                const sessionToken = generateSessionToken(existingVerification.verificationId);
+                const sessionToken = await generateSessionToken(existingVerification.verificationId, clientId);
                 const sdkUrl = buildSdkUrl(sessionToken);
                 return {
                   statusCode: 200,
@@ -208,7 +239,7 @@ export async function handler(
       throw error;
     }
 
-    const sessionToken = generateSessionToken(verification.verificationId);
+    const sessionToken = await generateSessionToken(verification.verificationId, clientId);
     const sdkUrl = buildSdkUrl(sessionToken);
 
     // Audit log

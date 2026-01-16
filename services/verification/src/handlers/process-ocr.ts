@@ -6,6 +6,7 @@ import { SqsService } from '../services/sqs';
 import { assessImageQuality, shouldRequestRecapture } from '../services/image-quality';
 import { notifyOcrFailure, notifyPoorQualityImage } from '../services/notification';
 import { recordOcrMetrics, recordTextractError, recordPoorQualityImage, recordOmangValidationMetrics } from '../utils/metrics';
+import { logger } from '../utils/logger';
 import { TextractBlock } from '../types/ocr';
 
 const BIOMETRIC_QUEUE_URL = process.env.BIOMETRIC_QUEUE_URL || '';
@@ -42,7 +43,7 @@ export async function handler(event: SQSEvent): Promise<SQSBatchResponse> {
       const message: OcrMessage = JSON.parse(record.body);
       const attemptCount = message.attemptCount || 1;
 
-      console.log('Processing OCR', {
+      logger.info('Processing OCR', {
         verificationId: message.verificationId,
         documentId: message.documentId,
         documentType: message.documentType,
@@ -130,7 +131,7 @@ export async function handler(event: SQSEvent): Promise<SQSBatchResponse> {
             ...validationResult.overall.errors.map(err => `VALIDATION:${err}`),
           ];
 
-          console.log('Validation failed', {
+          logger.warn('Validation failed', {
             verificationId: message.verificationId,
             documentId: message.documentId,
             errors: validationResult.overall.errors,
@@ -139,7 +140,7 @@ export async function handler(event: SQSEvent): Promise<SQSBatchResponse> {
 
         // Log warnings even if validation passes
         if (validationResult.overall.warnings.length > 0) {
-          console.log('Validation warnings', {
+          logger.info('Validation warnings', {
             verificationId: message.verificationId,
             documentId: message.documentId,
             warnings: validationResult.overall.warnings,
@@ -174,7 +175,7 @@ export async function handler(event: SQSEvent): Promise<SQSBatchResponse> {
         ocrResult.requiresManualReview
       );
 
-      console.log('OCR processing complete', {
+      logger.info('OCR processing complete', {
         verificationId: message.verificationId,
         documentId: message.documentId,
         confidence: ocrResult.confidence.overall,
@@ -200,7 +201,7 @@ export async function handler(event: SQSEvent): Promise<SQSBatchResponse> {
           livenessSessionId: message.livenessSessionId,
         });
 
-        console.log('Biometric processing triggered', {
+        logger.info('Biometric processing triggered', {
           verificationId: message.verificationId,
           selfieDocumentId: message.selfieDocumentId,
           omangFrontDocumentId: message.documentId,
@@ -224,7 +225,7 @@ export async function handler(event: SQSEvent): Promise<SQSBatchResponse> {
 
       const attemptCount = message.attemptCount || 1;
 
-      console.error('OCR processing failed', {
+      logger.error('OCR processing failed', {
         messageId: record.messageId,
         verificationId: message.verificationId,
         documentId: message.documentId,

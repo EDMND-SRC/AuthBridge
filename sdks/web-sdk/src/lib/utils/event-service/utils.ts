@@ -89,7 +89,8 @@ export const sendNavigationUpdateEvent = () => {
     eventType: EEventTypes.NAVIGATION_UPDATE,
     details: {
       currentIdx: as.currentStepIdx,
-      // FIXME: currentPage and previousPage typed as a string by IAppState.
+      // Note: currentPage and previousPage are correctly typed as string in IAppState
+      // They represent page/step names, not numeric indices
       currentPage: as.currentPage,
       previousPage: as.previousPage,
     },

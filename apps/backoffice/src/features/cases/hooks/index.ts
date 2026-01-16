@@ -1,3 +1,10 @@
 export { useCases } from './useCases';
 export { useCaseFilters } from './useCaseFilters';
 export { useCase } from './useCase';
+export { useApproveCase } from './useApproveCase';
+export { useRejectCase } from './useRejectCase';
+export { useAddNote } from './useAddNote';
+export { useCaseNotes } from './useCaseNotes';
+export { useCaseSelection } from './useCaseSelection';
+export { useBulkApprove } from './useBulkApprove';
+export { useBulkReject } from './useBulkReject';

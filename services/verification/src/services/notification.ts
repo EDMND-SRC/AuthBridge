@@ -1,4 +1,5 @@
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
+import { logger } from '../utils/logger';
 
 const REGION = process.env.AWS_REGION || 'af-south-1';
 const ALERT_TOPIC_ARN = process.env.OCR_ALERT_TOPIC_ARN || '';
@@ -32,7 +33,7 @@ export interface OcrFailureContext {
 export async function notifyOcrFailure(context: OcrFailureContext): Promise<void> {
   // Only notify if we have a topic configured and threshold exceeded
   if (!ALERT_TOPIC_ARN || context.attemptCount < FAILURE_THRESHOLD) {
-    console.log('OCR failure notification skipped', {
+    logger.debug('OCR failure notification skipped', {
       reason: !ALERT_TOPIC_ARN ? 'No topic configured' : 'Below threshold',
       attemptCount: context.attemptCount,
       threshold: FAILURE_THRESHOLD,
@@ -66,14 +67,14 @@ export async function notifyOcrFailure(context: OcrFailureContext): Promise<void
 
     await getClient().send(command);
 
-    console.log('OCR failure notification sent', {
+    logger.info('OCR failure notification sent', {
       verificationId: context.verificationId,
       documentId: context.documentId,
       attemptCount: context.attemptCount,
     });
   } catch (error) {
     // Log but don't fail - notifications are best-effort
-    console.error('Failed to send OCR failure notification', {
+    logger.error('Failed to send OCR failure notification', {
       error: error instanceof Error ? error.message : String(error),
       context,
     });
@@ -163,7 +164,7 @@ This document has been flagged for manual review.
 
     await getClient().send(command);
   } catch (error) {
-    console.error('Failed to send poor quality notification', {
+    logger.error('Failed to send poor quality notification', {
       error: error instanceof Error ? error.message : String(error),
     });
   }

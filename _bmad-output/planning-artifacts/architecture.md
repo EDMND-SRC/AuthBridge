@@ -12,9 +12,10 @@ project_name: 'AuthBridge'
 user_name: 'Edmond'
 date: '2026-01-13'
 author: 'Winston (Architect Agent)'
-version: '1.0'
+version: '1.1'
 status: 'complete'
 completedAt: '2026-01-13'
+lastUpdated: '2026-01-16'
 ---
 
 # Architecture Decision Document - AuthBridge
@@ -28,6 +29,7 @@ completedAt: '2026-01-13'
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2026-01-13 | Winston (Architect) | Complete architecture document |
+| 1.1 | 2026-01-16 | Bob (SM Agent) | Added documentation references, JWT implementation notes |
 
 ---
 
@@ -1587,3 +1589,65 @@ This architecture document is your complete guide for implementing AuthBridge. F
 **Next Phase:** Begin dependency upgrades and implementation using the architectural decisions and patterns documented herein.
 
 **Document Maintenance:** Update this architecture when major technical decisions are made during implementation.
+
+---
+
+## 8. Implementation Documentation (Added 2026-01-16)
+
+The following documentation was created during Epic 3 implementation to support the architecture:
+
+### API Documentation
+| Document | Location | Purpose |
+|----------|----------|---------|
+| OpenAPI Spec | `services/verification/openapi.yaml` | Complete API specification for all verification endpoints |
+| API Throttling | `docs/api-gateway-throttling.md` | Rate limiting configuration and client implementation |
+
+### Development Standards
+| Document | Location | Purpose |
+|----------|----------|---------|
+| TODO Comment Policy | `docs/todo-comment-policy.md` | Standards for tracking technical debt via TODO comments |
+| Component Standards | `docs/component-library-standards.md` | UI component standards including data-testid requirements |
+| Frontend Patterns | `docs/frontend-component-patterns.md` | React component patterns and best practices |
+| Dependency Upgrades | `docs/dependency-upgrade-spike-template.md` | Template for planning major dependency upgrades |
+
+### Technical Debt Tracking
+| Document | Location | Purpose |
+|----------|----------|---------|
+| Technical Debt Registry | `_bmad-output/implementation-artifacts/technical-debt-registry.md` | Central registry of all technical debt items |
+
+### JWT Session Token Implementation (ADR-001a)
+
+**Decision:** Use `jose` library for JWT generation in verification service.
+
+**Implementation Details:**
+- Library: `jose@5.2.0`
+- Algorithm: HS256
+- Claims: `sub` (verificationId), `clientId`, `type`, `iat`, `iss`, `exp`
+- Expiry: Configurable via `SESSION_TOKEN_EXPIRY_HOURS` (default 24h)
+
+**Environment Variables:**
+```bash
+JWT_SECRET=your-secret-key-min-32-chars  # Required in production
+JWT_ISSUER=authbridge                     # Token issuer claim
+SESSION_TOKEN_EXPIRY_HOURS=24             # Token expiry in hours
+```
+
+**Location:** `services/verification/src/handlers/create-verification.ts`
+
+### Biometric Threshold Configuration (ADR-006a)
+
+**Decision:** All biometric thresholds are now configurable via environment variables.
+
+**Environment Variables:**
+```bash
+BIOMETRIC_SIMILARITY_THRESHOLD=80    # Face comparison threshold (0-100)
+BIOMETRIC_LIVENESS_THRESHOLD=80      # Liveness detection threshold (0-100)
+BIOMETRIC_LIVENESS_WEIGHT=0.3        # Weight for liveness in overall score
+BIOMETRIC_SIMILARITY_WEIGHT=0.7      # Weight for similarity in overall score
+BIOMETRIC_OVERALL_THRESHOLD=80       # Combined score threshold
+```
+
+**Locations:**
+- `services/verification/src/services/rekognition.ts`
+- `services/verification/src/services/biometric.ts`
+

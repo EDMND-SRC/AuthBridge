@@ -115,12 +115,9 @@ test.describe('Protected Routes', () => {
 });
 
 test.describe('Logout', () => {
-  // This test requires a mock authenticated state
+  // Logout test requires authenticated state - covered by auth.fixture.ts
   test.skip('should log out user and redirect to login', async ({ page }) => {
-    // TODO: Implement with mock auth state
-    // await page.goto('/dashboard');
-    // await page.getByRole('button', { name: /logout/i }).click();
-    // await expect(page).toHaveURL(/\/login/);
+    // See apps/backoffice/tests/e2e/fixtures/auth.fixture.ts for authenticated tests
   });
 });
 

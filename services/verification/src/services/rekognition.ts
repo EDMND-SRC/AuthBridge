@@ -11,8 +11,9 @@ import {
 import type { FaceComparisonResult, LivenessResult } from '../types/biometric';
 import { logger } from '../utils/logger';
 
-const SIMILARITY_THRESHOLD = 80;
-const LIVENESS_THRESHOLD = 80;
+// Configurable thresholds via environment variables
+const SIMILARITY_THRESHOLD = parseInt(process.env.BIOMETRIC_SIMILARITY_THRESHOLD || '80', 10);
+const LIVENESS_THRESHOLD = parseInt(process.env.BIOMETRIC_LIVENESS_THRESHOLD || '80', 10);
 
 export class RekognitionService {
   constructor(private readonly client: RekognitionClient) {}

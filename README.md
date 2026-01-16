@@ -122,6 +122,11 @@ pnpm test
 
 # Run E2E tests
 pnpm e2e
+
+# Run load tests (requires k6)
+./scripts/load-test.sh smoke staging    # Quick validation
+./scripts/load-test.sh load staging     # Standard load test
+./scripts/load-test.sh all staging      # Run all test types
 ```
 
 ### Integration Tests
@@ -138,6 +143,34 @@ pnpm --filter @ballerine/verification-service test:integration
 # Skip integration tests if DynamoDB Local not available
 pnpm test -- --testPathIgnorePatterns=integration
 ```
+
+### Load Testing
+
+Load testing uses k6 to validate API performance under various load conditions. See [Load Testing Guide](docs/load-testing-guide.md) for comprehensive documentation.
+
+```bash
+# Install k6
+brew install k6  # macOS
+# or visit https://k6.io/docs/getting-started/installation/
+
+# Run smoke test (1 min, 1 VU)
+./scripts/load-test.sh smoke staging
+
+# Run load test (5 min, 10-50 VUs)
+./scripts/load-test.sh load staging
+
+# Run stress test (10 min, 10-200 VUs)
+./scripts/load-test.sh stress staging
+
+# Run all test types
+./scripts/load-test.sh all staging
+```
+
+**Performance Targets:**
+- Health Check: p95 < 500ms
+- Case List: p95 < 1000ms
+- Approve/Reject: p95 < 2000ms
+- Error Rate: < 5%
 
 ### Build
 

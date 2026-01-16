@@ -9,6 +9,9 @@ import { OCRDataPanel } from '../components/OCRDataPanel';
 import { SelfieComparison } from '../components/SelfieComparison';
 import { CaseHistory } from '../components/CaseHistory';
 import { CaseStatusBadge } from '../components/CaseStatusBadge';
+import { ApproveRejectButtons } from '../components/ApproveRejectButtons';
+import { AddNoteForm } from '../components/AddNoteForm';
+import { NotesList } from '../components/NotesList';
 
 export const CaseDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -30,7 +33,7 @@ export const CaseDetailPage = () => {
   }
 
   return (
-    <Container size="xl" py="md">
+    <Container size="xl" py="md" data-testid="case-detail-page">
       <Group justify="space-between" mb="lg">
         <Group>
           <Button
@@ -42,7 +45,10 @@ export const CaseDetailPage = () => {
           </Button>
           <Title order={2}>Case: {caseData.caseId}</Title>
         </Group>
-        <CaseStatusBadge status={caseData.status} size="lg" />
+        <Group>
+          <CaseStatusBadge status={caseData.status} size="lg" />
+          <ApproveRejectButtons caseId={caseData.caseId} caseStatus={caseData.status} />
+        </Group>
       </Group>
 
       <Grid gutter="md">
@@ -77,6 +83,19 @@ export const CaseDetailPage = () => {
         <Grid.Col span={12}>
           <Paper p="md" withBorder>
             <CaseHistory history={caseData.history} />
+          </Paper>
+        </Grid.Col>
+
+        {/* Full Width: Notes & Comments */}
+        <Grid.Col span={12}>
+          <Paper p="lg" withBorder>
+            <Title order={3} mb="md">
+              Notes & Comments
+            </Title>
+            <Stack gap="lg">
+              <AddNoteForm caseId={caseData.caseId} />
+              <NotesList caseId={caseData.caseId} />
+            </Stack>
           </Paper>
         </Grid.Col>
       </Grid>
