@@ -5,13 +5,36 @@ info:
     Complete API for AuthBridge KYC/AML verification platform.
 
     ## Authentication
-    All endpoints require a valid JWT token in the Authorization header.
+
+    AuthBridge supports two authentication methods:
+
+    ### API Key Authentication (Recommended for Server-to-Server)
+    Include your API key in the Authorization header:
+    ```
+    Authorization: Bearer ab_live_1234567890abcdef1234567890abcdef
+    ```
+
+    API keys can be created and managed via the Backoffice dashboard or API key management endpoints.
+
+    ### JWT Token Authentication (For Backoffice UI)
+    Include your JWT token in the Authorization header:
+    ```
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    ```
+
+    JWT tokens are obtained via the authentication flow in the Backoffice.
 
     ## Rate Limits
-    - Create verification: 100/sec per client
-    - Document upload: 50/sec per client
-    - Case operations: 200/sec per client
-    - Bulk operations: 5/sec per client
+    - Default: 50 requests/second per API key
+    - Burst: 100 concurrent requests
+    - Custom limits available on request
+
+    Rate limit headers are included in all responses:
+    - `X-RateLimit-Limit`: Maximum requests per window
+    - `X-RateLimit-Remaining`: Requests remaining in current window
+    - `X-RateLimit-Reset`: Unix timestamp when the window resets
+
+    When rate limit is exceeded, you'll receive a `429 Too Many Requests` response with a `Retry-After` header.
 
     ## File Requirements
     - Maximum file size: 10MB
@@ -27,6 +50,10 @@ servers:
     description: Production
   - url: https://api-staging.authbridge.io
     description: Staging
+
+security:
+  - apiKeyAuth: []
+  - bearerAuth: []
 
 paths:
   /api/v1/verifications:
@@ -551,6 +578,19 @@ paths:
 
 components:
   securitySchemes:
+    apiKeyAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key
+      description: |
+        API key authentication for server-to-server integration.
+
+        Format: `ab_live_` or `ab_test_` followed by 32 hex characters.
+
+        Example: `ab_live_1234567890abcdef1234567890abcdef`
+
+        Obtain API keys from the Backoffice dashboard or via API key management endpoints.
+
     bearerAuth:
       type: http
       scheme: bearer

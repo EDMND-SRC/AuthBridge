@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand, UpdateCommand, } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand, UpdateCommand, ScanCommand, } from '@aws-sdk/lib-dynamodb';
 export class DynamoDBService {
     client;
     tableName;
@@ -154,6 +154,29 @@ export class DynamoDBService {
             },
         });
         await this.client.send(command);
+    }
+    /**
+     * Scan all API keys across all clients
+     * NOTE: This is a temporary MVP solution for API key authorizer
+     * TODO: Add GSI on keyHash for efficient lookup in production
+     * API Gateway caches authorizer results for 5 minutes, so scan impact is minimal
+     */
+    async scanAllApiKeys() {
+        const command = new ScanCommand({
+            TableName: this.tableName,
+            FilterExpression: 'begins_with(PK, :pkPrefix) AND begins_with(SK, :skPrefix)',
+            ExpressionAttributeValues: {
+                ':pkPrefix': 'APIKEY#',
+                ':skPrefix': 'KEY#',
+            },
+        });
+        const result = await this.client.send(command);
+        if (!result.Items)
+            return [];
+        return result.Items.map((item) => {
+            const { PK, SK, GSI2PK, GSI2SK, ...apiKey } = item;
+            return apiKey;
+        });
     }
     // ============================================
     // AUDIT LOG OPERATIONS

@@ -5,12 +5,13 @@ import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 const API_KEY_PREFIX = 'ab_'; // AuthBridge prefix
 const API_KEY_LENGTH = 32;
 /**
- * Generate a new API key with prefix
- * Format: ab_<32 random hex characters>
+ * Generate a new API key with prefix and environment
+ * Format: ab_{env}_{32 random hex characters}
+ * @param environment - 'live' for production, 'test' for sandbox (default: 'live')
  */
-export function generateApiKey() {
+export function generateApiKey(environment = 'live') {
     const randomPart = randomBytes(API_KEY_LENGTH / 2).toString('hex');
-    return `${API_KEY_PREFIX}${randomPart}`;
+    return `${API_KEY_PREFIX}${environment}_${randomPart}`;
 }
 /**
  * Hash an API key using SHA-256

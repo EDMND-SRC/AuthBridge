@@ -1,4 +1,4 @@
-import { createErrorResponse, AuthError, RateLimitError, ValidationError } from '../utils/errors.js';
+import { createErrorResponse, AuthError, RateLimitError, ValidationError, UnauthorizedError, NotFoundError } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 const CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',
@@ -41,6 +41,26 @@ export function handleError(error, requestId) {
                 ...CORS_HEADERS,
             },
             body: JSON.stringify(createErrorResponse('VALIDATION_ERROR', error.message, requestId, error.details)),
+        };
+    }
+    if (error instanceof UnauthorizedError) {
+        return {
+            statusCode: 401,
+            headers: {
+                'Content-Type': 'application/json',
+                ...CORS_HEADERS,
+            },
+            body: JSON.stringify(createErrorResponse('UNAUTHORIZED', error.message, requestId)),
+        };
+    }
+    if (error instanceof NotFoundError) {
+        return {
+            statusCode: 404,
+            headers: {
+                'Content-Type': 'application/json',
+                ...CORS_HEADERS,
+            },
+            body: JSON.stringify(createErrorResponse('NOT_FOUND', error.message, requestId)),
         };
     }
     // Unknown error

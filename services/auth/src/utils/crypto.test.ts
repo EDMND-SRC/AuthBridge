@@ -10,9 +10,19 @@ import {
 
 describe('Crypto Utilities', () => {
   describe('generateApiKey', () => {
-    it('should generate API key with correct format', () => {
+    it('should generate API key with correct format (default live)', () => {
       const key = generateApiKey();
-      expect(key).toMatch(/^ab_[a-f0-9]{32}$/);
+      expect(key).toMatch(/^ab_live_[a-f0-9]{32}$/);
+    });
+
+    it('should generate API key with live environment', () => {
+      const key = generateApiKey('live');
+      expect(key).toMatch(/^ab_live_[a-f0-9]{32}$/);
+    });
+
+    it('should generate API key with test environment', () => {
+      const key = generateApiKey('test');
+      expect(key).toMatch(/^ab_test_[a-f0-9]{32}$/);
     });
 
     it('should generate unique keys', () => {

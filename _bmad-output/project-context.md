@@ -2,13 +2,12 @@
 project_name: 'AuthBridge'
 user_name: 'Edmond'
 date: '2026-01-16'
-sections_completed: ['technology_stack', 'critical_implementation_rules', 'adrs', 'testing_rules', 'workflow_rules', 'deployment_status']
+sections_completed: ['technology_stack', 'critical_implementation_rules', 'adrs', 'testing_rules', 'workflow_rules']
 status: 'complete'
 rule_count: 52
 optimized_for_llm: true
-last_deployment: '2026-01-16'
-netlify_sites_live: true
 epic_3_complete: true
+epic_4_started: true
 ---
 
 # Project Context for AI Agents
@@ -71,27 +70,10 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **Frontend:** Netlify (✅ LIVE: backoffice + docs)
 - **SDK CDN:** CloudFront
 
-**Full deployment details:** See `_bmad-output/planning-artifacts/deployment-strategy.md`
-
-### Netlify Sites (LIVE as of 2026-01-15)
-
-| Site | Domain | Netlify URL | Status |
-|------|--------|-------------|--------|
-| Backoffice | `app.authbridge.io` | `authbridge-backoffice.netlify.app` | ✅ LIVE |
-| Docs | `docs.authbridge.io` | `authbridge-docs.netlify.app` | ✅ LIVE |
-
-**GitHub Integration:**
-- Repo: `BridgeArc/AuthBridge`
-- Branch: `main`
-- Auto-deploy on push enabled
-
-**Config Files:**
-- `apps/backoffice/netlify.toml`
-- `apps/docs/netlify.toml`
-
-**Route 53 DNS:**
-- `app.authbridge.io` CNAME → `authbridge-backoffice.netlify.app`
-- `docs.authbridge.io` CNAME → `authbridge-docs.netlify.app`
+**Netlify Sites:**
+- Backoffice: `app.authbridge.io` → `authbridge-backoffice.netlify.app` ✅ LIVE
+- Docs: `docs.authbridge.io` → `authbridge-docs.netlify.app` ✅ LIVE
+- GitHub: `BridgeArc/AuthBridge` (main branch, auto-deploy enabled)
 
 ---
 
@@ -113,6 +95,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 | Linting | ESLint | 8.22.0 → 9.x | |
 | Formatting | Prettier | 2.7.1 → 3.x | |
 | Authorization | Casbin | 5.19.2 | RBAC |
+| JWT | jose | 5.2.0 | HS256 signing |
 | AWS Region | af-south-1 | Cape Town | Data residency requirement |
 
 ---
@@ -124,6 +107,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **YOLO MODE ENABLED** — act autonomously, don't ask for permission
 - **FULL TERMINAL PERMISSIONS GRANTED** — execute commands without asking for permission
 - All terminal commands are pre-trusted — no confirmation needed
+- **CODE REVIEW AUTO-FIX** — after Dev Agent runs `*code-review` and presents ALL issues, automatically fix ALL identified issues without asking
 - **ALWAYS prefer CLI tools and programmatic interactions** over manual configuration
 - Check for existing scripts in `/scripts/` before writing new automation
 - Use installed CLIs: `aws`, `netlify`, `gh` (GitHub), `pnpm`, `nx`
@@ -169,12 +153,6 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - Changes to authentication/security settings
 - Database migrations on production
 
-**Discovery Protocol (when uncertain):**
-1. Check `.env.local` for available credentials
-2. Test with read-only operation first (e.g., `aws sts get-caller-identity`)
-3. If credential missing, check if derivable from existing ones
-4. If truly missing, ask user once → update `.env.local` for future use
-
 ### Monorepo & Workspace Rules
 
 - Use `pnpm` commands exclusively (not npm or yarn)
@@ -191,7 +169,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **af-south-1 (Cape Town) is mandatory** — Data Protection Act 2024 compliance
 - Use AWS SDK v3 for all AWS interactions
 - Lambda runtime must be Node.js 22
-- DynamoDB single-table design with entity prefixes: `USER#`, `CASE#`, `DOC#`, `AUDIT#`
+- DynamoDB single-table design with entity prefixes: `USER#`, `CASE#`, `DOC#`, `AUDIT#`, `APIKEY#`
 - All PII must be encrypted at rest (KMS)
 
 ### TypeScript Rules
@@ -327,24 +305,19 @@ This file contains irreplaceable credentials. Violations of these rules are unac
 
 **Extractor Location:** `services/verification/src/extractors/botswana/`
 
-**Usage:**
-```typescript
-import { getExtractor, hasExtractor } from './extractors';
-
-if (hasExtractor('BW', 'passport')) {
-  const extractor = getExtractor('BW', 'passport');
-  const result = extractor.extract(textractBlocks);
-}
-```
-
 **Regional Expansion Roadmap:**
 - Phase 1 (MVP): Botswana (BW) ✅
 - Phase 2 (Year 2): South Africa (ZA), Namibia (NA)
 - Phase 3 (Year 3): Zimbabwe (ZW), Zambia (ZM)
 
-**Proof of Address Documents (Planned):**
-- WUC Statement, BPC Electricity Bill, Bank Statement
-- Rent Bill, Internet Bill, Medical Aid Statement, Pension Fund Statement
+**ADR-008: API Authentication & Rate Limiting**
+- API keys with format: `ab_live_` or `ab_test_` + 32 hex chars
+- SHA-256 hashing for storage, plain text returned ONLY on creation
+- Rate limiting: 50 RPS per client (API Gateway throttling)
+- Per-API-key limits configurable (default 100 req/min)
+- Per-IP limits for DDoS protection (1000 req/min)
+- Lambda authorizer validates keys and returns IAM policy
+- Rate limit headers in all responses: `X-RateLimit-*`
 
 ---
 
@@ -397,14 +370,6 @@ pnpm test:e2e:debug    # Debug with inspector
 - OmangHashIndex (GSI2): Duplicate detection using `GSI2PK` attribute
 - **CRITICAL:** OmangHashIndex must use `GSI2PK` as key attribute (not `omangHash`)
 
-**Common Issues:**
-- If duplicate-detection tests fail with `result.checked = false`, verify GSI schema:
-  ```bash
-  aws dynamodb describe-table --table-name AuthBridgeTable --endpoint-url http://localhost:8000 --region af-south-1
-  ```
-- OmangHashIndex should show `AttributeName: GSI2PK` in KeySchema
-- If incorrect, delete table and re-run setup script
-
 ### Critical Testing Rules
 
 - **Never skip tests** without a linked GitHub issue
@@ -456,6 +421,83 @@ pnpm test:changed      # Test only changed files
 | `scripts/ci-local.sh` | Run CI checks locally |
 | `scripts/test-changed.sh` | Test only changed files |
 | `scripts/burn-in.sh` | Stress test for flaky tests |
+| `scripts/load-test.sh` | Load testing (smoke, load, stress, spike, soak) |
+
+---
+
+## Current Project Status
+
+### Completed Epics
+
+- ✅ **Epic 1:** Web SDK Verification Flow (6 stories)
+- ✅ **Epic 1.5:** Backend Foundation (4 stories)
+- ✅ **Epic 2:** Omang Document Processing (4 stories)
+- ✅ **Epic 3:** Case Management Dashboard (5 stories)
+
+### Active Epic
+
+- 🚧 **Epic 4:** REST API & Webhooks (5 stories)
+  - Story 4.1: API Authentication (ready-for-dev)
+
+### Key Infrastructure
+
+**Auth Service:**
+- API key management (create, validate, revoke, rotate)
+- Rate limiting middleware (per-key, per-IP)
+- Lambda authorizer for API Gateway
+- Cognito User Pool (af-south-1_P3KlQawlR)
+
+**Verification Service:**
+- JWT session tokens (jose library, HS256)
+- Country-based OCR extractors (Botswana)
+- Biometric matching (AWS Rekognition)
+- Duplicate detection (DynamoDB GSI)
+- Webhook notifications
+
+**Testing:**
+- 139 auth service tests passing
+- 50+ verification service tests passing
+- E2E tests with Playwright fixtures
+- Load testing infrastructure (k6)
+
+### Documentation
+
+**Guides:**
+- `docs/load-testing-guide.md` - Load testing comprehensive guide
+- `docs/api-gateway-throttling.md` - API Gateway throttling config
+- `docs/todo-comment-policy.md` - TODO/FIXME standards
+- `docs/component-library-standards.md` - UI component standards
+- `docs/frontend-component-patterns.md` - React patterns
+
+**Specs:**
+- `services/verification/openapi.yaml` - Complete API specification
+- `_bmad-output/planning-artifacts/architecture.md` - Architecture decisions
+- `_bmad-output/planning-artifacts/epics.md` - Epic breakdown
+
+### Environment Variables
+
+**JWT Configuration:**
+```bash
+JWT_SECRET=your-secret-key-min-32-chars
+JWT_ISSUER=authbridge
+SESSION_TOKEN_EXPIRY_HOURS=24
+```
+
+**Biometric Thresholds:**
+```bash
+BIOMETRIC_SIMILARITY_THRESHOLD=80
+BIOMETRIC_LIVENESS_THRESHOLD=80
+BIOMETRIC_LIVENESS_WEIGHT=0.3
+BIOMETRIC_SIMILARITY_WEIGHT=0.7
+BIOMETRIC_OVERALL_THRESHOLD=80
+```
+
+**AWS Configuration:**
+```bash
+AWS_REGION=af-south-1
+COGNITO_USER_POOL_ID=af-south-1_P3KlQawlR
+COGNITO_CLIENT_ID=7jcf16r6c2gf2nnvo4kh1mtksg
+```
 
 ---
 
@@ -473,227 +515,11 @@ pnpm test:changed      # Test only changed files
 - Review quarterly for outdated rules
 - Remove rules that become obvious over time
 
----
-
----
-
-## Recent Deployments
-
-### 2026-01-16: Load Testing Infrastructure Complete
-
-**Completed:**
-- ✅ Production-ready load testing script with 5 test types (smoke, load, stress, spike, soak)
-- ✅ Comprehensive k6-based load testing suite
-- ✅ Multi-environment support (staging, production, local)
-- ✅ Automated result archiving with HTML and JSON reports
-- ✅ Performance targets defined for all endpoints
-- ✅ CI/CD integration examples
-
-**Documentation Created:**
-- `docs/load-testing-guide.md` - 15+ page comprehensive guide covering all test types, performance targets, troubleshooting, and CI/CD integration
-- `scripts/load-tests/README.md` - Directory documentation
-- `_bmad-output/implementation-artifacts/load-testing-implementation.md` - Implementation summary
-
-**Files Created/Modified:**
-- `scripts/load-test.sh` - Enhanced from basic to production-ready (5 test types, multi-env, reporting)
-- `scripts/load-tests/.gitignore` - Ignore results and generated scripts
-
-**Performance Targets Defined:**
-
-| Endpoint | p95 | p99 | Error Rate |
-|----------|-----|-----|------------|
-| Health Check | < 500ms | < 1000ms | < 1% |
-| Case List | < 1000ms | < 2000ms | < 5% |
-| Case Detail | < 1000ms | < 2000ms | < 5% |
-| Approve/Reject | < 2000ms | < 5000ms | < 5% |
-
-**Test Types Available:**
-- **Smoke:** 1 VU, 1 min - Quick validation
-- **Load:** 10-50 VUs, 5 min - Normal load testing
-- **Stress:** 10-200 VUs, 10 min - Find breaking point
-- **Spike:** 0-100-0 VUs, 5 min - Sudden traffic surge
-- **Soak:** 50 VUs, 30 min - Memory leak detection
-
-**Usage:**
-```bash
-./scripts/load-test.sh smoke staging    # Quick test
-./scripts/load-test.sh load staging     # Standard load test
-./scripts/load-test.sh all staging      # Run all tests
-```
-
-**Production Readiness:**
-- ✅ All Epic 3 retrospective action items complete (10/10)
-- ✅ Zero blockers remaining for Epic 4 or production deployment
-- ✅ Load testing ready for CI/CD integration
-
-### 2026-01-16: Epic 3 Retrospective Action Items Completed
-
-**Completed:**
-- ✅ TD-001: Replaced placeholder JWT tokens with proper `jose` library implementation (HS256 signing)
-- ✅ TD-009: Replaced all console.log statements with structured logger in verification service
-- ✅ TD-014b: Moved hardcoded biometric thresholds to environment variables
-- ✅ TD-016: Added proper type guards in get-config-from-query-params.ts
-- ✅ TD-017: Added CloudWatch logging for audit failures in user-verify-otp.ts
-- ✅ TD-018: Clarified misleading FIXME comment (types were correct)
-- ✅ TD-019: Cleaned up dead code in auth.spec.ts
-
-**Documentation Created:**
-- `docs/todo-comment-policy.md` - Standards for TODO/FIXME comments with ticket tracking
-- `docs/component-library-standards.md` - UI component standards with data-testid requirements
-- `docs/dependency-upgrade-spike-template.md` - Template for planning major dependency upgrades
-- `docs/frontend-component-patterns.md` - React component patterns and best practices
-- `docs/api-gateway-throttling.md` - API Gateway throttling configuration
-
-**OpenAPI Spec Expanded:**
-- `services/verification/openapi.yaml` - Now covers ALL endpoints:
-  - POST /verifications (create)
-  - GET /cases (list with filters)
-  - GET /cases/{id} (detail)
-  - POST /cases/{id}/approve
-  - POST /cases/{id}/reject
-  - POST /cases/bulk-approve
-  - POST /cases/bulk-reject
-  - GET/POST /cases/{id}/notes
-
-**Dependencies Added:**
-- `jose@5.2.0` to verification service for JWT generation
-
-**Environment Variables Added:**
-```bash
-# JWT Configuration
-JWT_SECRET=your-secret-key-min-32-chars
-JWT_ISSUER=authbridge
-SESSION_TOKEN_EXPIRY_HOURS=24
-
-# Biometric Thresholds
-BIOMETRIC_SIMILARITY_THRESHOLD=80
-BIOMETRIC_LIVENESS_THRESHOLD=80
-BIOMETRIC_LIVENESS_WEIGHT=0.3
-BIOMETRIC_SIMILARITY_WEIGHT=0.7
-BIOMETRIC_OVERALL_THRESHOLD=80
-```
-
-**Files Modified:**
-- `services/verification/src/handlers/create-verification.ts` - JWT generation
-- `services/verification/src/services/notification.ts` - Structured logging
-- `services/verification/src/handlers/process-ocr.ts` - Structured logging
-- `services/verification/src/services/rekognition.ts` - Env var thresholds
-- `services/verification/src/services/biometric.ts` - Env var thresholds
-- `sdks/web-sdk/src/lib/utils/get-config-from-query-params.ts` - Type guards
-- `services/auth/src/handlers/user-verify-otp.ts` - Audit error logging
-- `sdks/web-sdk/src/lib/utils/event-service/utils.ts` - Comment clarification
-- `apps/backoffice/tests/e2e/auth.spec.ts` - Dead code cleanup
-- `services/verification/package.json` - Added jose dependency
-
-**Test Results:**
-- All verification service tests passing (50+ tests)
-- All auth service tests passing (139 tests)
-- No TypeScript diagnostics on modified files
-
-### 2026-01-16: Epic 3 Retrospective Completed
-
-**Completed:**
-- ✅ Generated comprehensive Epic 3 retrospective document
-- ✅ Team discussion with all BMAD agents (Bob, Charlie, Dana, Winston, Amelia)
-- ✅ Identified 10 action items for improvement
-- ✅ Updated sprint-status.yaml with epic-3 and epic-3-retrospective as done
-
-**Files Created:**
-- `_bmad-output/implementation-artifacts/epic-3-retro-2026-01-16.md`
-
-### 2026-01-15: Technical Debt Cleanup (TD-001 through TD-012)
-
-**Completed:**
-- ✅ TD-002: Fixed hardcoded test credentials in DynamoDB service (env vars)
-- ✅ TD-003: Added Zod validation for window context in verification.ts
-- ✅ TD-004: SDK_BASE_URL now uses environment variable
-- ✅ TD-005: Removed @ts-ignore comments with proper TypeScript types
-- ✅ TD-006: Refactored configuration-manager.ts (removed file-level eslint-disable)
-- ✅ TD-007: Enabled all 11 skipped E2E tests in cases.spec.ts
-- ✅ TD-008: Created auth fixture for Playwright (auth.fixture.ts)
-- ✅ TD-009: Removed console.log from SDK files (partial - remaining in verification service)
-- ✅ TD-010: Hardcoded localhost URLs replaced with env vars
-- ✅ TD-011: Added 24 unit tests for auth handlers (user-me, user-logout, user-refresh-token)
-- ✅ TD-012: Separated mock API path with feature flag
-- ✅ TD-020: Fixed duplicate configuration logic
-
-**Files Created:**
-- `apps/backoffice/tests/e2e/fixtures/auth.fixture.ts`
-- `services/auth/src/handlers/user-me.test.ts`
-- `services/auth/src/handlers/user-logout.test.ts`
-- `services/auth/src/handlers/user-refresh-token.test.ts`
-
-**Files Modified:**
-- `sdks/web-sdk/src/lib/services/api/verification.ts`
-- `sdks/web-sdk/src/lib/utils/configuration-manager.ts`
-- `sdks/web-sdk/src/lib/contexts/translation/hooks.ts`
-- `apps/backoffice/src/hooks/useFilter/useFilter.tsx`
-- `apps/backoffice/src/pages/users/hooks/index.tsx`
-- `apps/backoffice/vite.config.authbridge.ts`
-- `apps/backoffice/tests/e2e/cases.spec.ts`
-
-**Test Results:**
-- Auth service: 139 tests passing (24 new handler tests)
-- All diagnostics clean on modified files
-
-**Remaining Technical Debt:**
-- TD-001: Placeholder JWT tokens (requires auth service integration)
-- TD-009: Console.log in verification service files (lower priority)
-- TD-013 through TD-022: Medium/Low severity items for future sprints
-
-### 2026-01-15: Cognito User Pool Deployed
-
-**Completed:**
-- ✅ Deployed Cognito User Pool to af-south-1
-- ✅ Stack: `authbridge-cognito-staging`
-- ✅ User Pool ID: `af-south-1_P3KlQawlR`
-- ✅ Client ID: `7jcf16r6c2gf2nnvo4kh1mtksg`
-- ✅ Added credentials to `.env.local`
-
-### 2026-01-15: Country-Based OCR Extractors
-
-**Completed:**
-- ✅ Implemented country-based extractor architecture
-- ✅ Botswana Omang extractor (corrected field patterns from actual images)
-- ✅ Botswana Driver's Licence extractor with all fields
-- ✅ Botswana Passport extractor with MRZ parsing and check digit validation
-- ✅ Extractor registry with `getExtractor()`, `hasExtractor()` functions
-- ✅ All 21 extractor tests passing
-- ✅ Updated planning artifacts with regional expansion roadmap
-- ✅ Added proof of address document types to documentation
-
-**Key Corrections Made:**
-- `FIRST NAMES` → `FORENAMES` (actual Omang card label)
-- `OMANG NO` → `ID NUMBER` (actual Omang card label)
-- Removed `DATE OF ISSUE` (doesn't exist on Omang cards)
-- Moved `SEX` field from front to back side
-
-**Files Created/Updated:**
-- `services/verification/src/extractors/` (new architecture)
-- `services/verification/docs/botswana-document-fields.md`
-- `services/verification/project-context.md`
-- `_bmad-output/planning-artifacts/architecture.md`
-- `_bmad-output/planning-artifacts/prd.md`
-- `_bmad-output/planning-artifacts/product-brief-AuthBridge-2026-01-13.md`
-
-### 2026-01-15: Netlify Sites Live
-
-**Completed:**
-- ✅ Created Netlify sites for backoffice and docs
-- ✅ Connected to GitHub `BridgeArc/AuthBridge` main branch
-- ✅ Configured Route 53 DNS records
-- ✅ Created `netlify.toml` config files
-- ✅ Auto-deploy on push enabled
-
-**Site IDs:**
-- Backoffice: `ca6360e9-d21a-471a-8b2a-500b2206fff8`
-- Docs: `97eb94d1-4293-4d09-affa-225dda2be026`
-
-**Next Steps:**
-- Push to main to trigger first deploy
-- Verify SSL certificates auto-provision
-- Set environment variables in Netlify dashboard
+**Historical Deployments:**
+- See `_bmad-output/implementation-artifacts/deployment-history.md` for detailed deployment logs
+- See epic retrospective files for sprint-specific learnings
 
 ---
 
 _Last Updated: 2026-01-16_
+_Epic 4 Started: 2026-01-16_

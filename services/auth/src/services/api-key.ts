@@ -60,9 +60,26 @@ export class ApiKeyService {
   async validateApiKey(plainTextKey: string, clientId: string): Promise<ApiKeyValidationResult> {
     const keyHash = hashApiKey(plainTextKey);
 
-    // Query all keys for the client and find matching hash
-    const clientKeys = await this.dynamodb.queryClientApiKeys(clientId);
-    const apiKey = clientKeys.find(k => k.keyHash === keyHash);
+    let apiKey: ApiKey | undefined;
+
+    if (clientId === '*') {
+      // Search across all clients (for API key authorizer)
+      // Extract client ID from API key prefix if possible
+      const match = plainTextKey.match(/^ab_(live|test)_/);
+      if (!match) {
+        logger.warn('API key validation failed: invalid format');
+        return { valid: false, error: 'Invalid API key format' };
+      }
+
+      // For now, we need to scan - in production, consider adding a GSI on keyHash
+      // This is acceptable for MVP since API keys are cached by API Gateway authorizer
+      const allKeys = await this.dynamodb.scanAllApiKeys();
+      apiKey = allKeys.find(k => k.keyHash === keyHash);
+    } else {
+      // Query all keys for the specific client
+      const clientKeys = await this.dynamodb.queryClientApiKeys(clientId);
+      apiKey = clientKeys.find(k => k.keyHash === keyHash);
+    }
 
     if (!apiKey) {
       logger.warn('API key validation failed: key not found');
@@ -129,8 +146,7 @@ export class ApiKeyService {
   }
 
   async getClientApiKeys(clientId: string): Promise<ApiKey[]> {
-    const keys = await this.dynamodb.queryClientApiKeys(clientId);
-    return keys.filter(key => key.status === 'active');
+    return this.dynamodb.queryClientApiKeys(clientId);
   }
 
   async getApiKeyById(clientId: string, keyId: string): Promise<ApiKey | null> {

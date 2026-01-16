@@ -36,6 +36,7 @@ provider:
             - dynamodb:PutItem
             - dynamodb:UpdateItem
             - dynamodb:Query
+            - dynamodb:Scan
           Resource:
             - 'arn:aws:dynamodb:${self:provider.region}:*:table/AuthBridgeTable'
             - 'arn:aws:dynamodb:${self:provider.region}:*:table/AuthBridgeTable/index/*'
@@ -50,6 +51,10 @@ functions:
   authorizer:
     handler: dist/handlers/authorizer.handler
     description: JWT token validation Lambda authorizer
+
+  apiKeyAuthorizer:
+    handler: dist/handlers/api-key-authorizer.handler
+    description: API key validation Lambda authorizer
 
   createSession:
     handler: dist/handlers/create-session.handler
@@ -77,7 +82,43 @@ functions:
     description: Create new API key
     events:
       - http:
-          path: /api-keys
+          path: /api/v1/api-keys
+          method: post
+          cors: true
+          authorizer:
+            name: authorizer
+            type: token
+
+  listApiKeys:
+    handler: dist/handlers/list-api-keys.handler
+    description: List all API keys for a client
+    events:
+      - http:
+          path: /api/v1/api-keys
+          method: get
+          cors: true
+          authorizer:
+            name: authorizer
+            type: token
+
+  revokeApiKey:
+    handler: dist/handlers/revoke-api-key.handler
+    description: Revoke an API key
+    events:
+      - http:
+          path: /api/v1/api-keys/{keyId}
+          method: delete
+          cors: true
+          authorizer:
+            name: authorizer
+            type: token
+
+  rotateApiKey:
+    handler: dist/handlers/rotate-api-key.handler
+    description: Rotate an API key
+    events:
+      - http:
+          path: /api/v1/api-keys/{keyId}/rotate
           method: post
           cors: true
           authorizer:
@@ -136,3 +177,19 @@ plugins:
 custom:
   serverless-offline:
     httpPort: 3001
+
+resources:
+  Resources:
+    # API Gateway Usage Plan with Throttling
+    ApiGatewayUsagePlan:
+      Type: AWS::ApiGateway::UsagePlan
+      Properties:
+        UsagePlanName: ${self:service}-${self:provider.stage}-usage-plan
+        Description: Rate limiting for AuthBridge API
+        Throttle:
+          BurstLimit: 100
+          RateLimit: 50
+        ApiStages:
+          - ApiId:
+              Ref: ApiGatewayRestApi
+            Stage: ${self:provider.stage}

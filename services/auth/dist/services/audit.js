@@ -126,6 +126,25 @@ export class AuditService {
             errorCode,
         });
     }
+    async logApiKeyRevoke(clientId, keyId) {
+        await this.logEvent({
+            clientId,
+            action: 'API_KEY_REVOKE',
+            resourceId: keyId,
+            resourceType: 'api_key',
+            status: 'success',
+        });
+    }
+    async logApiKeyRotate(clientId, oldKeyId, newKeyId) {
+        await this.logEvent({
+            clientId,
+            action: 'API_KEY_ROTATE',
+            resourceId: oldKeyId,
+            resourceType: 'api_key',
+            status: 'success',
+            metadata: { newKeyId },
+        });
+    }
     // Security events
     async logRateLimitExceeded(clientId, ipAddress, endpoint) {
         await this.logEvent({

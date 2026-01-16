@@ -207,7 +207,7 @@ describe('ApiKeyService', () => {
   });
 
   describe('getClientApiKeys', () => {
-    it('should return all active keys for a client', async () => {
+    it('should return all keys for a client (including revoked)', async () => {
       const mockKeys = [
         { keyId: 'k1', clientId: 'client_123', status: 'active' },
         { keyId: 'k2', clientId: 'client_123', status: 'active' },
@@ -217,8 +217,9 @@ describe('ApiKeyService', () => {
 
       const keys = await apiKeyService.getClientApiKeys('client_123');
 
-      expect(keys).toHaveLength(2);
-      expect(keys.every(k => k.status === 'active')).toBe(true);
+      expect(keys).toHaveLength(3);
+      expect(keys.filter(k => k.status === 'active')).toHaveLength(2);
+      expect(keys.filter(k => k.status === 'revoked')).toHaveLength(1);
     });
   });
 
