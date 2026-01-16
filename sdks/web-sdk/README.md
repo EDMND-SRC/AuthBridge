@@ -50,11 +50,11 @@ Add this code to your index.html header
 <ins>Package Managers:</ins>
 ```javascript
 # NPM
-npm install --save @ballerine/web-sdk
+npm install --save @authbridge/web-sdk
 # Yarn
-yarn add @ballerine/web-sdk
+yarn add @authbridge/web-sdk
 # PNPM
-pnpm add @ballerine/web-sdk
+pnpm add @authbridge/web-sdk
 ```
 
 #### Flows API
@@ -84,16 +84,16 @@ BallerineSDK.flows.on('finish', doSomethingFn)
 
 Package Manager:
 ```javascript
-import { flows as ballerineFlows } from '@ballerine/web-sdk';
+import { flows as authbridgeFlows } from '@authbridge/web-sdk';
 
-await ballerineFlows.init({...}).then(() => console.log('flows ready'));
+await authbridgeFlows.init({...}).then(() => console.log('flows ready'));
 // 3. Mount selected flow on an element
 ballerineFlows.mount('my-kyc-flow', 'flow-host-element', {});
 // 4. Listen to finish event (see events)
 ballerineFlows.on('finish', doSomethingFn)
 ```
 [example folder]()
-	
+
 #### Standalone/Iframe Flows
 Code example:
 ```html
@@ -121,7 +121,7 @@ Code example:
 	}
 	BallerineSDK.flows.init(initConfig).then(() => {
 		BallerineSDK.flows.mount('my-kyc-flow', 'flow-host-element', {});
-	});	
+	});
 }
 </script>
 ```
@@ -131,7 +131,7 @@ Code example:
 The approch to native apps are all the native funcationalties happens inside Ballerine native sdks (Android, iOS) while and the represenation layer is still an web app (inside a native webview).
 
 This way we can enjoy both worlds:
-* Web UI: Flexable UI that can be changes instantly from the server (no app deployments or store submissions). 
+* Web UI: Flexable UI that can be changes instantly from the server (no app deployments or store submissions).
 * Native API's: Native camera, deep behavioral analysis, ekyc and more..
 
 See Android and iOS repositories for guidance:
@@ -164,7 +164,7 @@ BallerineSDK.flows.mount('my-flow', elementId, [CONFIG]);
 // or
 BallerineSDK.flows.openModal('my-flow', [CONFIG]);
  ```
-	
+
 | Config Parameter | Type | Description|
 | - | - | - |
 | `callbacks` | [FlowsCallbacksConfig](#flowscallbacksconfig) |An object contaning callback methods (see below)|

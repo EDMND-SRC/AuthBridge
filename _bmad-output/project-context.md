@@ -2,9 +2,9 @@
 project_name: 'AuthBridge'
 user_name: 'Edmond'
 date: '2026-01-16'
-sections_completed: ['technology_stack', 'critical_implementation_rules', 'adrs', 'testing_rules', 'workflow_rules']
+sections_completed: ['technology_stack', 'critical_implementation_rules', 'adrs', 'testing_rules', 'workflow_rules', 'mcp_servers']
 status: 'complete'
-rule_count: 52
+rule_count: 54
 optimized_for_llm: true
 epic_3_complete: true
 epic_4_started: true
@@ -210,8 +210,8 @@ CODE REVIEW = Present Issues → Fix ALL → Update Files → Commit & Push
 ### Monorepo & Workspace Rules
 
 - Use `pnpm` commands exclusively (not npm or yarn)
-- Run workspace commands: `pnpm --filter @ballerine/web-sdk <command>`
-- Use Nx for builds: `nx run @ballerine/web-sdk:build`
+- Run workspace commands: `pnpm --filter @authbridge/web-sdk <command>`
+- Use Nx for builds: `nx run @authbridge/web-sdk:build`
 - Package boundaries:
   - `packages/common` — shared types and utilities
   - `packages/config` — ESLint/Prettier configs (don't duplicate)
@@ -430,6 +430,84 @@ pnpm test:e2e:debug    # Debug with inspector
 - **No flaky tests** — fix or delete, don't retry-mask
 - **Test isolation** — each test must be independent
 - **Mock external services** in unit tests, use real services in E2E
+
+---
+
+## MCP Servers (Model Context Protocol)
+
+AuthBridge uses AWS MCP servers to enhance AI-assisted development. Configuration is in `.kiro/settings/mcp.json`.
+
+### Installed MCP Servers
+
+| Server | Type | Purpose |
+|--------|------|---------|
+| `awslabs.aws-knowledge-mcp-server` | Remote (HTTP) | AWS documentation, regional availability, best practices |
+| `awslabs.dynamodb-mcp-server` | Local (uvx) | DynamoDB data modeling and access pattern validation |
+
+### When to Use Each MCP
+
+**AWS Knowledge MCP Server** — Use for:
+- Checking if an AWS service/feature is available in af-south-1
+- Looking up AWS documentation for Lambda, API Gateway, Cognito, DynamoDB
+- Getting Well-Architected guidance and best practices
+- Finding code samples for AWS service integrations
+- Verifying CloudFormation resource availability by region
+
+**DynamoDB MCP Server** — Use for:
+- Designing new tables or GSIs with expert guidance
+- Validating access patterns before deployment
+- Planning regional expansion (new country document schemas)
+- Optimizing existing table designs
+- Generating DynamoDB-optimized data models from requirements
+
+### MCP Usage Examples
+
+**Check regional availability before using a service:**
+```
+"Is AWS Textract available in af-south-1?"
+"What Rekognition features are supported in Cape Town region?"
+```
+
+**Design DynamoDB schema:**
+```
+"Help me design a DynamoDB table for storing verification cases with GSIs for status and client queries"
+"Validate my access pattern: query all cases for a client by status"
+```
+
+**Get AWS documentation:**
+```
+"Show me the Lambda event schema for API Gateway proxy integration"
+"What are the best practices for DynamoDB single-table design?"
+```
+
+### MCP Configuration
+
+Located at `.kiro/settings/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "awslabs.aws-knowledge-mcp-server": {
+      "type": "http",
+      "url": "https://mcp.aws/aws-knowledge"
+    },
+    "awslabs.dynamodb-mcp-server": {
+      "command": "uvx",
+      "args": ["awslabs.dynamodb-mcp-server@latest"],
+      "env": {
+        "AWS_PROFILE": "default",
+        "AWS_REGION": "af-south-1",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
+    }
+  }
+}
+```
+
+### MCP Prerequisites
+
+- **AWS Knowledge:** No prerequisites (fully managed remote server)
+- **DynamoDB MCP:** Requires `uv` installed (`brew install uv`), AWS credentials configured
 
 ---
 

@@ -268,7 +268,7 @@ test('complete KYC flow', async ({ page }) => {
 ## Deployment & Distribution
 
 ### NPM Package
-- **Package name:** `@ballerine/web-sdk` (to be renamed to `@authbridge/web-sdk`)
+- **Package name:** `@authbridge/web-sdk`
 - **Formats:** ES modules, UMD
 - **TypeScript definitions:** Included
 - **Size:** <50kb gzipped
@@ -347,7 +347,7 @@ const flowConfig = {
 ### React Integration
 ```jsx
 import { useEffect, useRef } from 'react';
-import { flows } from '@ballerine/web-sdk';
+import { flows } from '@authbridge/web-sdk';
 
 function KYCFlow() {
   const containerRef = useRef(null);
@@ -369,7 +369,7 @@ function KYCFlow() {
 </template>
 
 <script>
-import { flows } from '@ballerine/web-sdk';
+import { flows } from '@authbridge/web-sdk';
 
 export default {
   mounted() {

@@ -192,10 +192,10 @@ module.exports = {
 pnpm backoffice:dev
 
 # Build for production
-pnpm --filter @ballerine/backoffice build
+pnpm --filter @authbridge/backoffice build
 
 # Run tests
-pnpm --filter @ballerine/backoffice test
+pnpm --filter @authbridge/backoffice test
 ```
 
 ## API Endpoints (MSW)

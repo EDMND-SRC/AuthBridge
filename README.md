@@ -138,7 +138,7 @@ Integration tests require DynamoDB Local running on port 8000. See [Integration 
 docker run -p 8000:8000 amazon/dynamodb-local
 
 # Run integration tests
-pnpm --filter @ballerine/verification-service test:integration
+pnpm --filter @authbridge/verification-service test:integration
 
 # Skip integration tests if DynamoDB Local not available
 pnpm test -- --testPathIgnorePatterns=integration

@@ -237,8 +237,8 @@ Claude Opus 4.5
 
 ### Debug Log References
 
-- Build output: `pnpm --filter @ballerine/backoffice build` - successful
-- Unit tests: `pnpm --filter @ballerine/backoffice test` - 5 tests passing
+- Build output: `pnpm --filter @authbridge/backoffice build` - successful
+- Unit tests: `pnpm --filter @authbridge/backoffice test` - 5 tests passing
 - API tests: `pnpm vitest run src/handlers/list-cases.test.ts` (verification service) - 8 tests passing
 
 ### Completion Notes List
@@ -417,10 +417,10 @@ This is the **FIRST UI story** in the AuthBridge project. You're building the fo
 **React 19.2 Migration:**
 ```bash
 # Upgrade React
-pnpm add react@19.2.0 react-dom@19.2.0 --filter @ballerine/backoffice
+pnpm add react@19.2.0 react-dom@19.2.0 --filter @authbridge/backoffice
 
 # Enable React Compiler (automatic optimization)
-pnpm add babel-plugin-react-compiler --filter @ballerine/backoffice --save-dev
+pnpm add babel-plugin-react-compiler --filter @authbridge/backoffice --save-dev
 ```
 
 **Vite 7.2 Configuration:**
@@ -457,7 +457,7 @@ export default defineConfig({
 **Mantine 8.3 Migration:**
 ```bash
 # Upgrade Mantine
-pnpm add @mantine/core@8.3.0 @mantine/hooks@8.3.0 @mantine/dates@8.3.0 --filter @ballerine/backoffice
+pnpm add @mantine/core@8.3.0 @mantine/hooks@8.3.0 @mantine/dates@8.3.0 --filter @authbridge/backoffice
 ```
 
 **Key Breaking Changes:**
@@ -468,7 +468,7 @@ pnpm add @mantine/core@8.3.0 @mantine/hooks@8.3.0 @mantine/dates@8.3.0 --filter 
 
 **TanStack Query v5 Setup:**
 ```bash
-pnpm add @tanstack/react-query@5.0.0 --filter @ballerine/backoffice
+pnpm add @tanstack/react-query@5.0.0 --filter @authbridge/backoffice
 ```
 
 ```typescript
@@ -956,7 +956,7 @@ test.describe('Case List Page', () => {
 - [ ] Performance metrics meet targets
 
 **Deployment Steps:**
-1. Deploy backend: `pnpm deploy:staging --filter @ballerine/backend`
+1. Deploy backend: `pnpm deploy:staging --filter @authbridge/backend`
 2. Deploy frontend: `cd apps/backoffice && netlify deploy --dir=dist`
 3. Run smoke tests against staging
 4. Monitor CloudWatch for errors

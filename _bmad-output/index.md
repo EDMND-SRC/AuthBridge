@@ -5,7 +5,7 @@
 - **Type:** Monorepo with 4 main parts
 - **Primary Language:** TypeScript
 - **Architecture:** Multi-part microservices with shared libraries
-- **Base Platform:** Ballerine (open-source)
+- **Base Platform:** AuthBridge (proprietary)
 
 ## Quick Reference
 
@@ -150,10 +150,8 @@ The platform currently supports these document types:
 
 ## Support and Community
 
-- **GitHub Issues:** [Report bugs and request features](https://github.com/ballerine-io/ballerine/issues)
-- **Discord:** [Join the community](https://discord.gg/e2rQE4YygA)
-- **Slack:** [Developer discussions](https://join.slack.com/t/ballerine-oss/shared_invite/zt-1iu6otkok-OqBF3TrcpUmFd9oUjNs2iw)
-- **Email:** [oss@ballerine.io](mailto:oss@ballerine.io)
+- **GitHub Issues:** [Report bugs and request features](https://github.com/authbridge/authbridge/issues)
+- **Email:** [support@authbridge.io](mailto:support@authbridge.io)
 
 ## Documentation Status
 

@@ -57,7 +57,7 @@ echo "   ✅ Auth service deployed"
 # Step 4: Build Verification Service
 echo ""
 echo "🔨 Step 4: Building Verification Service..."
-pnpm --filter @ballerine/verification-service build
+pnpm --filter @authbridge/verification-service build
 echo "   ✅ Verification service built"
 
 # Step 5: Deploy Verification Service

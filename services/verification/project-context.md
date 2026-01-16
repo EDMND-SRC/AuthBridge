@@ -84,7 +84,7 @@ Driver's licence OCR extraction is implemented with the following fields:
 
 Run tests with:
 ```bash
-pnpm --filter @ballerine/verification-service test
+pnpm --filter @authbridge/verification-service test
 ```
 
 ## AWS Region

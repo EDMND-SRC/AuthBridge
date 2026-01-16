@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "awslabs.aws-knowledge-mcp-server": {
+      "type": "http",
+      "url": "https://knowledge-mcp.global.api.aws",
+      "disabled": false,
+      "autoApprove": []
+    },
+    "awslabs.dynamodb-mcp-server": {
+      "command": "/Users/edmond/.local/bin/uvx",
+      "args": ["awslabs.dynamodb-mcp-server@latest"],
+      "env": {
+        "AWS_PROFILE": "default",
+        "AWS_REGION": "af-south-1",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}

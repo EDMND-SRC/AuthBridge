@@ -90,7 +90,7 @@
 
 ### Patch Changes
 
-- 615f3d0: renamed web-sdk to @ballerine/web-sdk
+- 615f3d0: renamed web-sdk to @authbridge/web-sdk
 
 ## 1.1.24
 

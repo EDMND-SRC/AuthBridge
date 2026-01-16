@@ -158,7 +158,7 @@ callbacks: {
 ### NPM
 
 ```typescript
-import { flows } from '@ballerine/web-sdk';
+import { flows } from '@authbridge/web-sdk';
 
 await flows.init({
   endUserInfo: { id: 'user-123' },

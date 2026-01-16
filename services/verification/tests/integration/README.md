@@ -91,7 +91,7 @@ aws dynamodb create-table \
 pnpm test:integration
 
 # Or from project root
-pnpm --filter @ballerine/verification-service test:integration
+pnpm --filter @authbridge/verification-service test:integration
 ```
 
 ### Run Specific Integration Test

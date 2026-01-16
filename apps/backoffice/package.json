@@ -1,5 +1,5 @@
 {
-  "name": "@ballerine/backoffice",
+  "name": "@authbridge/backoffice",
   "version": "0.9.0",
   "private": true,
   "type": "module",

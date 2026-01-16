@@ -45,3 +45,6 @@ stats.html
 .DS_Store
 Thumbs.db
 .env.local
+
+# Private journal (not for version control)
+__journal/
