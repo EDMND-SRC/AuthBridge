@@ -592,6 +592,108 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /api/v1/webhooks/configure:
+    post:
+      summary: Configure Webhook
+      description: |
+        Configure webhook URL and settings for receiving verification event notifications.
+
+        **Webhook Security:**
+        - All webhook URLs must use HTTPS
+        - Webhook secret is auto-generated if not provided
+        - Payloads are signed with HMAC-SHA256
+
+        **Webhook Events:**
+        - `verification.created` - New verification case created
+        - `verification.submitted` - Documents submitted for review
+        - `verification.approved` - Verification approved
+        - `verification.rejected` - Verification rejected
+        - `verification.resubmission_required` - Resubmission needed
+        - `verification.expired` - Verification expired
+
+        **Retry Logic:**
+        - Failed deliveries are retried 3 times
+        - Exponential backoff: 1s, 5s, 30s
+        - No retry on 4xx client errors
+      operationId: configureWebhook
+      tags:
+        - Webhooks
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigureWebhookRequest'
+            examples:
+              minimal:
+                summary: Minimal configuration
+                value:
+                  webhookUrl: https://api.example.com/webhooks/authbridge
+              full:
+                summary: Full configuration with custom secret
+                value:
+                  webhookUrl: https://api.example.com/webhooks/authbridge
+                  webhookSecret: your_custom_secret_min_32_chars
+                  webhookEnabled: true
+                  webhookEvents:
+                    - verification.approved
+                    - verification.rejected
+      responses:
+        '200':
+          description: Webhook configured successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigureWebhookResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/webhooks/test:
+    post:
+      summary: Test Webhook
+      description: |
+        Send a test webhook notification to verify your webhook configuration.
+
+        Sends a sample `verification.approved` event to your configured webhook URL.
+        Use this to verify your webhook endpoint is correctly receiving and processing notifications.
+      operationId: testWebhook
+      tags:
+        - Webhooks
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: Test webhook sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestWebhookResponse'
+        '400':
+          description: Webhook not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: WEBHOOK_NOT_CONFIGURED
+                  message: Webhook URL not configured for this client
+                meta:
+                  requestId: req_abc123
+                  timestamp: '2026-01-16T12:00:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/verifications/{verificationId}/documents:
     post:
       summary: Upload Document
@@ -1558,3 +1660,179 @@ tags:
     description: Case review and decision endpoints
   - name: Notes
     description: Case notes and comments
+
+    ConfigureWebhookRequest:
+      type: object
+      properties:
+        webhookUrl:
+          type: string
+          format: uri
+          pattern: '^https://'
+          description: HTTPS URL to receive webhook notifications
+          example: 'https://api.example.com/webhooks/authbridge'
+        webhookSecret:
+          type: string
+          minLength: 32
+          description: Secret key for HMAC signature verification (auto-generated if not provided)
+          example: 'your_custom_secret_min_32_characters_long'
+        webhookEnabled:
+          type: boolean
+          description: Enable or disable webhook notifications
+          default: true
+          example: true
+        webhookEvents:
+          type: array
+          description: Events to subscribe to
+          items:
+            type: string
+            enum:
+              - verification.created
+              - verification.submitted
+              - verification.approved
+              - verification.rejected
+              - verification.resubmission_required
+              - verification.expired
+          default:
+            - verification.approved
+            - verification.rejected
+            - verification.resubmission_required
+            - verification.expired
+          example:
+            - verification.approved
+            - verification.rejected
+
+    ConfigureWebhookResponse:
+      type: object
+      properties:
+        webhookUrl:
+          type: string
+          example: 'https://api.example.com/webhooks/authbridge'
+        webhookEnabled:
+          type: boolean
+          example: true
+        webhookEvents:
+          type: array
+          items:
+            type: string
+          example:
+            - verification.approved
+            - verification.rejected
+        webhookSecret:
+          type: string
+          description: Only returned if auto-generated (not provided in request)
+          example: 'abc123def456...'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    TestWebhookResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: 'Test webhook sent successfully'
+        webhookUrl:
+          type: string
+          example: 'https://api.example.com/webhooks/authbridge'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    WebhookPayload:
+      type: object
+      description: Webhook notification payload sent to your endpoint
+      properties:
+        event:
+          type: string
+          enum:
+            - verification.created
+            - verification.submitted
+            - verification.approved
+            - verification.rejected
+            - verification.resubmission_required
+            - verification.expired
+          example: 'verification.approved'
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-01-16T12:00:00Z'
+        data:
+          type: object
+          properties:
+            verificationId:
+              type: string
+              example: 'ver_abc123'
+            status:
+              type: string
+              example: 'approved'
+            documentType:
+              type: string
+              example: 'omang'
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+            customer:
+              type: object
+              description: Included for approved/rejected statuses
+              properties:
+                name:
+                  type: string
+                  example: 'John Doe'
+                email:
+                  type: string
+                  example: 'john@example.com'
+                omangNumber:
+                  type: string
+                  description: Masked Omang number (last 4 digits only)
+                  example: '***6789'
+            extractedData:
+              type: object
+              description: Included for approved status
+              properties:
+                fullName:
+                  type: string
+                  example: 'John Doe'
+                dateOfBirth:
+                  type: string
+                  format: date
+                  example: '1990-01-15'
+                sex:
+                  type: string
+                  example: 'M'
+                dateOfExpiry:
+                  type: string
+                  format: date
+                  example: '2030-01-15'
+            biometricScore:
+              type: number
+              description: Included for approved status
+              example: 92.5
+            completedAt:
+              type: string
+              format: date-time
+              description: Included for terminal statuses
+            rejectionReason:
+              type: string
+              description: Included for rejected status
+              example: 'Face mismatch detected'
+            rejectionCode:
+              type: string
+              description: Included for rejected status
+              enum:
+                - BLURRY_IMAGE
+                - FACE_MISMATCH
+                - INVALID_DOCUMENT
+                - EXPIRED_DOCUMENT
+                - DUPLICATE_OMANG
+              example: 'FACE_MISMATCH'
+
+tags:
+  - name: Verifications
+    description: Create and manage verification cases
+  - name: Cases
+    description: Review and approve/reject verification cases
+  - name: Notes
+    description: Add notes and comments to cases
+  - name: Webhooks
+    description: Configure webhook notifications for verification events

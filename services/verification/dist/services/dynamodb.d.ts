@@ -62,5 +62,9 @@ export declare class DynamoDBService {
     }): Promise<{
         Item?: unknown;
     }>;
+    /**
+     * Generic put item method
+     */
+    putItem(item: any): Promise<void>;
 }
 //# sourceMappingURL=dynamodb.d.ts.map

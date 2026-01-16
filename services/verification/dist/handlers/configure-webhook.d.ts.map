@@ -1,0 +1,1 @@
+{"version":3,"file":"configure-webhook.d.ts","sourceRoot":"","sources":["../../src/handlers/configure-webhook.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,oBAAoB,EAAE,qBAAqB,EAAE,MAAM,YAAY,CAAC;AAO9E,wBAAsB,OAAO,CAC3B,KAAK,EAAE,oBAAoB,GAC1B,OAAO,CAAC,qBAAqB,CAAC,CA2KhC"}

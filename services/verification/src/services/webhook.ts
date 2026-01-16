@@ -26,8 +26,10 @@ export class WebhookService {
   ): Promise<void> {
     // Load client configuration
     const result = await this.dynamoDBService.getItem({
-      PK: `CLIENT#${verificationCase.clientId}`,
-      SK: 'CONFIG',
+      Key: {
+        PK: `CLIENT#${verificationCase.clientId}`,
+        SK: 'CONFIG',
+      },
     });
 
     const clientConfig = result.Item as ClientConfiguration | undefined;
@@ -281,17 +283,5 @@ export class WebhookService {
    */
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  /**
-   * Put item wrapper for DynamoDB
-   */
-  private async putItem(item: Record<string, unknown>): Promise<void> {
-    const { PutCommand } = await import('@aws-sdk/lib-dynamodb');
-    const command = new PutCommand({
-      TableName: process.env.TABLE_NAME || 'AuthBridgeTable',
-      Item: item,
-    });
-    await this.dynamoDBService['client'].send(command);
   }
 }

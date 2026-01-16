@@ -252,4 +252,16 @@ export class DynamoDBService {
 
     return await this.client.send(command);
   }
+
+  /**
+   * Generic put item method
+   */
+  async putItem(item: any): Promise<void> {
+    const command = new PutCommand({
+      TableName: this.tableName,
+      Item: item,
+    });
+
+    await this.client.send(command);
+  }
 }

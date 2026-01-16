@@ -94,8 +94,10 @@ export async function handler(
 
     // Load existing client configuration
     const result = await dynamoDBService.getItem({
-      PK: `CLIENT#${clientId}`,
-      SK: 'CONFIG',
+      Key: {
+        PK: `CLIENT#${clientId}`,
+        SK: 'CONFIG',
+      },
     });
 
     const clientConfig = result.Item as ClientConfiguration | undefined;
