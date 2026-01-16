@@ -14,8 +14,8 @@ const documentSideSchema = z.enum([
   'omang_back',
   'selfie',
   'passport',
-  'drivers_license_front',
-  'drivers_license_back',
+  'drivers_licence_front',
+  'drivers_licence_back',
   'id_card_front',
   'id_card_back',
 ]);
@@ -74,8 +74,13 @@ export function validateUploadDocumentRequest(
 }
 
 /**
- * Parse base64 data URI and extract mime type and binary data
+ * Parse base64 data URI and extract mime type and binary data.
+ * Validates MIME type and checks magic bytes to prevent type spoofing.
+ *
  * Supports format: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD...
+ *
+ * @param dataUri - Base64 data URI string
+ * @returns Parsed data with validated MIME type, or null if invalid
  */
 export function parseBase64DataUri(dataUri: string): ParsedBase64 | null {
   // Match data URI pattern
@@ -94,6 +99,12 @@ export function parseBase64DataUri(dataUri: string): ParsedBase64 | null {
 
   try {
     const data = Buffer.from(base64Data, 'base64');
+
+    // Validate magic bytes match declared MIME type (prevent type spoofing)
+    if (!validateMagicBytes(data, mimeType as AllowedMimeType)) {
+      return null;
+    }
+
     return {
       mimeType: mimeType as AllowedMimeType,
       data,
@@ -105,7 +116,46 @@ export function parseBase64DataUri(dataUri: string): ParsedBase64 | null {
 }
 
 /**
- * Validate file size (max 10MB)
+ * Validate file magic bytes match declared MIME type.
+ * Prevents attackers from uploading malicious files with fake MIME type headers.
+ *
+ * @param buffer - File data buffer
+ * @param mimeType - Declared MIME type
+ * @returns True if magic bytes match MIME type
+ */
+function validateMagicBytes(buffer: Buffer, mimeType: AllowedMimeType): boolean {
+  if (buffer.length < 4) {
+    return false;
+  }
+
+  switch (mimeType) {
+    case 'image/jpeg':
+      // JPEG: FF D8 FF
+      return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+
+    case 'image/png':
+      // PNG: 89 50 4E 47 0D 0A 1A 0A
+      return (
+        buffer[0] === 0x89 &&
+        buffer[1] === 0x50 &&
+        buffer[2] === 0x4e &&
+        buffer[3] === 0x47
+      );
+
+    case 'application/pdf':
+      // PDF: %PDF
+      return buffer.toString('utf8', 0, 4) === '%PDF';
+
+    default:
+      return false;
+  }
+}
+
+/**
+ * Validate file size against maximum allowed size.
+ *
+ * @param size - File size in bytes
+ * @returns Validation result with error message if invalid
  */
 export function validateFileSize(size: number): { valid: true } | { valid: false; message: string } {
   if (size > MAX_FILE_SIZE) {
@@ -120,7 +170,10 @@ export function validateFileSize(size: number): { valid: true } | { valid: false
 }
 
 /**
- * Validate mime type
+ * Validate MIME type against allowed types.
+ *
+ * @param mimeType - MIME type string to validate
+ * @returns Validation result with error message if invalid
  */
 export function validateMimeType(
   mimeType: string
@@ -275,8 +328,20 @@ export interface VirusScanThreat {
 }
 
 /**
- * Scan file buffer for known malicious signatures
- * This is a basic signature-based scan - production should use ClamAV or similar
+ * Scan file buffer for known malicious signatures.
+ *
+ * This is a basic signature-based scan suitable for common threats.
+ * For production, consider integrating ClamAV or AWS GuardDuty Malware Protection.
+ *
+ * Scans entire file for:
+ * - EICAR test signatures
+ * - Executable file headers (PE, ELF)
+ * - Script files (PHP, JavaScript, shell)
+ * - Archive files (ZIP, RAR)
+ * - Embedded scripts in images
+ *
+ * @param buffer - File data buffer to scan
+ * @returns Scan result indicating if file is clean or contains threats
  */
 export function scanForViruses(buffer: Buffer): VirusScanResult | VirusScanThreat {
   // Check for EICAR test file (standard antivirus test)
@@ -285,7 +350,7 @@ export function scanForViruses(buffer: Buffer): VirusScanResult | VirusScanThrea
     return { clean: false, threat: 'EICAR test file detected' };
   }
 
-  // Check for known malicious signatures
+  // Check for known malicious signatures at file start
   for (const { signature, name } of MALICIOUS_SIGNATURES) {
     if (buffer.length >= signature.length) {
       const header = buffer.slice(0, signature.length);
@@ -295,10 +360,14 @@ export function scanForViruses(buffer: Buffer): VirusScanResult | VirusScanThrea
     }
   }
 
-  // Check for embedded scripts in image files
-  const lowerContent = buffer.toString('utf8', 0, Math.min(buffer.length, 1024)).toLowerCase();
-  if (lowerContent.includes('<script') || lowerContent.includes('javascript:')) {
-    return { clean: false, threat: 'Embedded script detected' };
+  // Check for embedded scripts throughout entire file (not just first 1KB)
+  // Scan in chunks to avoid memory issues with large files
+  const chunkSize = 4096;
+  for (let offset = 0; offset < buffer.length; offset += chunkSize) {
+    const chunk = buffer.toString('utf8', offset, Math.min(offset + chunkSize, buffer.length)).toLowerCase();
+    if (chunk.includes('<script') || chunk.includes('javascript:') || chunk.includes('<?php')) {
+      return { clean: false, threat: 'Embedded script detected in file content' };
+    }
   }
 
   return { clean: true };
@@ -413,6 +482,92 @@ function calculateContrast(buffer: Buffer): number {
 
   // Normalize to 0-1 (typical stdDev for good contrast is 50-80)
   return Math.min(stdDev / 80, 1);
+}
+
+/**
+ * Parse multipart/form-data request body
+ * Extracts documentType, file data, and optional metadata
+ */
+export function parseMultipartFormData(
+  body: string,
+  contentType: string
+): {
+  documentType: string;
+  imageBuffer: Buffer;
+  mimeType: string;
+  metadata?: {
+    captureMethod?: 'camera' | 'upload';
+    deviceType?: 'mobile' | 'desktop' | 'tablet';
+    timestamp?: string;
+  };
+} | null {
+  // Extract boundary from content-type header
+  const boundaryMatch = contentType.match(/boundary=(.+)$/);
+  if (!boundaryMatch) {
+    return null;
+  }
+
+  const boundary = boundaryMatch[1];
+  const parts = body.split(`--${boundary}`);
+
+  let documentType = '';
+  let imageBuffer: Buffer | null = null;
+  let mimeType = '';
+  const metadata: {
+    captureMethod?: 'camera' | 'upload';
+    deviceType?: 'mobile' | 'desktop' | 'tablet';
+    timestamp?: string;
+  } = {};
+
+  for (const part of parts) {
+    if (part.includes('Content-Disposition')) {
+      // Parse part headers and body
+      const [headers, ...bodyParts] = part.split('\r\n\r\n');
+      const partBody = bodyParts.join('\r\n\r\n').trim();
+
+      if (headers.includes('name="documentType"')) {
+        documentType = partBody;
+      } else if (headers.includes('name="file"')) {
+        // Extract MIME type from Content-Type header
+        const mimeMatch = headers.match(/Content-Type:\s*(.+)/i);
+        if (mimeMatch) {
+          mimeType = mimeMatch[1].trim();
+        }
+
+        // Convert body to buffer
+        imageBuffer = Buffer.from(partBody, 'binary');
+      } else if (headers.includes('name="metadata"')) {
+        try {
+          const parsedMetadata = JSON.parse(partBody);
+
+          // Validate metadata fields match expected types
+          if (parsedMetadata.captureMethod && !['camera', 'upload'].includes(parsedMetadata.captureMethod)) {
+            // Invalid captureMethod, skip this field
+          } else if (parsedMetadata.captureMethod) {
+            metadata.captureMethod = parsedMetadata.captureMethod;
+          }
+
+          if (parsedMetadata.deviceType && !['mobile', 'desktop', 'tablet'].includes(parsedMetadata.deviceType)) {
+            // Invalid deviceType, skip this field
+          } else if (parsedMetadata.deviceType) {
+            metadata.deviceType = parsedMetadata.deviceType;
+          }
+
+          if (parsedMetadata.timestamp && typeof parsedMetadata.timestamp === 'string') {
+            metadata.timestamp = parsedMetadata.timestamp;
+          }
+        } catch {
+          // Ignore invalid metadata JSON
+        }
+      }
+    }
+  }
+
+  if (!documentType || !imageBuffer) {
+    return null;
+  }
+
+  return { documentType, imageBuffer, mimeType, metadata };
 }
 
 /**

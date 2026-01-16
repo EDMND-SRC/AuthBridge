@@ -3,7 +3,7 @@ import type { DocumentEntity } from '../types/document';
 export declare class DynamoDBService {
     private client;
     private tableName;
-    constructor(tableName: string, region: string);
+    constructor(tableName?: string, region?: string, endpoint?: string);
     /**
      * Put verification entity with conditional write to prevent duplicates
      */
@@ -36,5 +36,31 @@ export declare class DynamoDBService {
      * Query all documents for a verification
      */
     queryDocuments(verificationId: string): Promise<DocumentEntity[]>;
+    /**
+     * Query verifications by Omang hash (GSI2)
+     * Used for duplicate detection
+     *
+     * @param omangHashKey - GSI2PK key (OMANG#<hash>)
+     * @returns Array of verification entities with matching Omang
+     */
+    queryByOmangHash(omangHashKey: string): Promise<VerificationEntity[]>;
+    /**
+     * Generic update item method for flexible updates
+     */
+    updateItem(params: {
+        Key: Record<string, string>;
+        UpdateExpression: string;
+        ExpressionAttributeNames?: Record<string, string>;
+        ExpressionAttributeValues?: Record<string, unknown>;
+        ConditionExpression?: string;
+    }): Promise<void>;
+    /**
+     * Generic get item method
+     */
+    getItem(params: {
+        Key: Record<string, string>;
+    }): Promise<{
+        Item?: unknown;
+    }>;
 }
 //# sourceMappingURL=dynamodb.d.ts.map

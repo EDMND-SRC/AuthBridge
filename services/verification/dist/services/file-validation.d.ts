@@ -100,6 +100,20 @@ export interface ImageQualityFailure {
     metrics: ImageQualityMetrics;
 }
 /**
+ * Parse multipart/form-data request body
+ * Extracts documentType, file data, and optional metadata
+ */
+export declare function parseMultipartFormData(body: string, contentType: string): {
+    documentType: string;
+    imageBuffer: Buffer;
+    mimeType: string;
+    metadata?: {
+        captureMethod?: 'camera' | 'upload';
+        deviceType?: 'mobile' | 'desktop' | 'tablet';
+        timestamp?: string;
+    };
+} | null;
+/**
  * Check image quality (blur, brightness, contrast)
  * Returns quality metrics and whether image is acceptable
  */

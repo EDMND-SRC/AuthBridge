@@ -7,8 +7,8 @@ export type DocumentSide =
   | 'omang_back'
   | 'selfie'
   | 'passport'
-  | 'drivers_license_front'
-  | 'drivers_license_back'
+  | 'drivers_licence_front'
+  | 'drivers_licence_back'
   | 'id_card_front'
   | 'id_card_back';
 

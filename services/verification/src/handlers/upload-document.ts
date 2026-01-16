@@ -7,6 +7,7 @@ import { VerificationService } from '../services/verification';
 import {
   validateUploadDocumentRequest,
   parseBase64DataUri,
+  parseMultipartFormData,
   validateFileSize,
   validateMimeType,
   getImageDimensions,
@@ -16,19 +17,40 @@ import {
 } from '../services/file-validation';
 import { logger } from '../utils/logger';
 import { createErrorResponse } from '../utils/errors';
-import { MAX_FILE_SIZE } from '../types/document';
+import {
+  MAX_FILE_SIZE,
+  type DocumentMetadata,
+} from '../types/document';
 import { recordUploadMetrics, recordValidationFailure } from '../utils/metrics';
 
-const TABLE_NAME = process.env.TABLE_NAME || 'AuthBridgeTable';
-const BUCKET_NAME = process.env.BUCKET_NAME || 'authbridge-documents-staging';
-const REGION = process.env.AWS_REGION || 'af-south-1';
+/**
+ * Upload Document Handler
+ *
+ * Handles document uploads for verification cases via POST /api/v1/verifications/{verificationId}/documents
+ *
+ * Supports two upload formats:
+ * - JSON with base64 data URI: Content-Type: application/json
+ * - Multipart form data: Content-Type: multipart/form-data
+ *
+ * @param event - API Gateway proxy event with verificationId path parameter
+ * @param context - Lambda context
+ * @returns 201 on success, 400/401/403/404/413/500 on various errors
+ */
+
 const MAX_DOCUMENTS_PER_VERIFICATION = 20;
 
-const db = new DynamoDBService(TABLE_NAME, REGION);
-const s3 = new S3Service(BUCKET_NAME, REGION);
+// Services are instantiated at module load time for Lambda cold start optimization
+// Environment variables are validated at runtime in the handler
+const db = new DynamoDBService(process.env.TABLE_NAME || '', process.env.AWS_REGION || '');
+const s3 = new S3Service(process.env.BUCKET_NAME || '', process.env.AWS_REGION || '');
 const sqs = new SqsService();
 const documentService = new DocumentService(db, s3);
-const verificationService = new VerificationService(TABLE_NAME, REGION);
+const verificationService = new VerificationService(process.env.TABLE_NAME || '', process.env.AWS_REGION || '');
+
+// Export for testing
+export function resetServices(): void {
+  // No-op - services are singletons for Lambda optimization
+}
 
 export async function handler(
   event: APIGatewayProxyEvent,
@@ -36,8 +58,8 @@ export async function handler(
 ): Promise<APIGatewayProxyResult> {
   const requestId = context.awsRequestId || event.requestContext.requestId;
   const startTime = Date.now();
-  let documentType = 'unknown';
-  let fileSize = 0;
+  let metricsDocumentType = 'unknown';
+  let metricsFileSize = 0;
 
   try {
     // Extract clientId from authorizer context
@@ -47,7 +69,7 @@ export async function handler(
       logger.warn('Missing clientId in authorizer context', { requestId });
       return {
         statusCode: 401,
-        headers: corsHeaders(),
+        headers: responseHeaders(),
         body: JSON.stringify(
           createErrorResponse('UNAUTHORIZED', 'Missing client authentication', requestId)
         ),
@@ -60,7 +82,7 @@ export async function handler(
     if (!verificationId) {
       return {
         statusCode: 400,
-        headers: corsHeaders(),
+        headers: responseHeaders(),
         body: JSON.stringify(
           createErrorResponse('VALIDATION_ERROR', 'Verification ID is required', requestId)
         ),
@@ -71,38 +93,149 @@ export async function handler(
     if (!event.body) {
       return {
         statusCode: 400,
-        headers: corsHeaders(),
+        headers: responseHeaders(),
         body: JSON.stringify(
           createErrorResponse('VALIDATION_ERROR', 'Request body is required', requestId)
         ),
       };
     }
 
-    const requestBody = JSON.parse(event.body);
+    const contentType = event.headers['content-type'] || event.headers['Content-Type'] || '';
+    let documentType: string;
+    let imageBuffer: Buffer;
+    let mimeType: string;
+    let metadata: DocumentMetadata | undefined = undefined;
 
-    // Validate request schema
-    const validation = validateUploadDocumentRequest(requestBody);
-    if (!validation.success) {
-      logger.warn('Validation failed', { requestId, details: validation.errors });
-      return {
-        statusCode: 400,
-        headers: corsHeaders(),
-        body: JSON.stringify(
-          createErrorResponse('VALIDATION_ERROR', 'Invalid request parameters', requestId, validation.errors)
-        ),
-      };
+    // Check if multipart/form-data or JSON
+    if (contentType.includes('multipart/form-data')) {
+      // Validate boundary exists before parsing
+      if (!contentType.includes('boundary=')) {
+        return {
+          statusCode: 400,
+          headers: responseHeaders(),
+          body: JSON.stringify(
+            createErrorResponse(
+              'VALIDATION_ERROR',
+              'Missing boundary in multipart/form-data Content-Type header',
+              requestId
+            )
+          ),
+        };
+      }
+
+      // Parse multipart form data
+      const parsed = parseMultipartFormData(event.body, contentType);
+
+      if (!parsed) {
+        return {
+          statusCode: 400,
+          headers: responseHeaders(),
+          body: JSON.stringify(
+            createErrorResponse(
+              'VALIDATION_ERROR',
+              'Invalid multipart form data',
+              requestId,
+              [{ field: 'body', message: 'Failed to parse multipart form data. Ensure boundary is set and format is correct.' }]
+            )
+          ),
+        };
+      }
+
+      documentType = parsed.documentType;
+      imageBuffer = parsed.imageBuffer;
+      mimeType = parsed.mimeType;
+      metadata = parsed.metadata || {};
+
+      // Validate document type
+      const validation = validateUploadDocumentRequest({
+        documentType,
+        imageData: 'multipart', // Placeholder for validation
+        metadata,
+      });
+
+      if (!validation.success) {
+        logger.warn('Validation failed', { requestId, details: validation.errors });
+        return {
+          statusCode: 400,
+          headers: responseHeaders(),
+          body: JSON.stringify(
+            createErrorResponse('VALIDATION_ERROR', 'Invalid request parameters', requestId, validation.errors)
+          ),
+        };
+      }
+    } else {
+      // Parse JSON with base64 image
+      const requestBody = JSON.parse(event.body);
+
+      // Validate request schema
+      const validation = validateUploadDocumentRequest(requestBody);
+      if (!validation.success) {
+        logger.warn('Validation failed', { requestId, details: validation.errors });
+        return {
+          statusCode: 400,
+          headers: responseHeaders(),
+          body: JSON.stringify(
+            createErrorResponse('VALIDATION_ERROR', 'Invalid request parameters', requestId, validation.errors)
+          ),
+        };
+      }
+
+      documentType = validation.data.documentType;
+      metadata = validation.data.metadata;
+
+      // Parse base64 data URI
+      const parsed = parseBase64DataUri(validation.data.imageData);
+      if (!parsed) {
+        await recordValidationFailure('INVALID_FILE_TYPE');
+        return {
+          statusCode: 400,
+          headers: responseHeaders(),
+          body: JSON.stringify(
+            createErrorResponse(
+              'INVALID_FILE_TYPE',
+              'Invalid image data format. Expected base64 data URI',
+              requestId,
+              [{ field: 'imageData', message: 'Must be a valid base64 data URI (data:image/jpeg;base64,...)' }]
+            )
+          ),
+        };
+      }
+
+      imageBuffer = parsed.data;
+      mimeType = parsed.mimeType;
     }
+
+    const fileSize = imageBuffer.length;
+    metricsDocumentType = documentType;
+    metricsFileSize = fileSize;
 
     // Get verification and verify ownership
     const verification = await verificationService.getVerification(verificationId);
 
     if (!verification) {
       logger.warn('Verification not found', { requestId, verificationId });
+      await recordValidationFailure('NOT_FOUND');
       return {
         statusCode: 404,
-        headers: corsHeaders(),
+        headers: responseHeaders(),
         body: JSON.stringify(
           createErrorResponse('NOT_FOUND', 'Verification not found', requestId)
+        ),
+      };
+    }
+
+    // Validate verificationId matches path parameter (defense in depth)
+    if (verification.verificationId !== verificationId) {
+      logger.error('Verification ID mismatch', {
+        requestId,
+        pathVerificationId: verificationId,
+        dbVerificationId: verification.verificationId,
+      });
+      return {
+        statusCode: 500,
+        headers: responseHeaders(),
+        body: JSON.stringify(
+          createErrorResponse('INTERNAL_ERROR', 'Verification data inconsistency', requestId)
         ),
       };
     }
@@ -114,9 +247,10 @@ export async function handler(
         verificationId,
         ownerClientId: verification.clientId,
       });
+      await recordValidationFailure('FORBIDDEN');
       return {
         statusCode: 403,
-        headers: corsHeaders(),
+        headers: responseHeaders(),
         body: JSON.stringify(
           createErrorResponse('FORBIDDEN', 'Access denied to this verification', requestId)
         ),
@@ -131,9 +265,10 @@ export async function handler(
         verificationId,
         status: verification.status,
       });
+      await recordValidationFailure('INVALID_STATE');
       return {
         statusCode: 400,
-        headers: corsHeaders(),
+        headers: responseHeaders(),
         body: JSON.stringify(
           createErrorResponse(
             'INVALID_STATE',
@@ -144,13 +279,15 @@ export async function handler(
       };
     }
 
-    // Check document count limit
+    // Check document count limit with race condition protection
+    // Note: This is a best-effort check. For strict enforcement, use DynamoDB conditional writes
     const documentCount = await documentService.countDocuments(verificationId);
     if (documentCount >= MAX_DOCUMENTS_PER_VERIFICATION) {
       logger.warn('Document limit exceeded', { requestId, verificationId, documentCount });
+      await recordValidationFailure('DOCUMENT_LIMIT_EXCEEDED');
       return {
         statusCode: 400,
-        headers: corsHeaders(),
+        headers: responseHeaders(),
         body: JSON.stringify(
           createErrorResponse(
             'DOCUMENT_LIMIT_EXCEEDED',
@@ -161,34 +298,13 @@ export async function handler(
       };
     }
 
-    // Parse base64 data URI
-    const parsed = parseBase64DataUri(validation.data.imageData);
-    if (!parsed) {
-      await recordValidationFailure('INVALID_FILE_TYPE');
-      return {
-        statusCode: 400,
-        headers: corsHeaders(),
-        body: JSON.stringify(
-          createErrorResponse(
-            'INVALID_FILE_TYPE',
-            'Invalid image data format. Expected base64 data URI',
-            requestId,
-            [{ field: 'imageData', message: 'Must be a valid base64 data URI (data:image/jpeg;base64,...)' }]
-          )
-        ),
-      };
-    }
-
-    documentType = validation.data.documentType;
-    fileSize = parsed.size;
-
     // Validate mime type
-    const mimeValidation = validateMimeType(parsed.mimeType);
+    const mimeValidation = validateMimeType(mimeType);
     if (!mimeValidation.valid) {
       await recordValidationFailure('INVALID_FILE_TYPE');
       return {
         statusCode: 400,
-        headers: corsHeaders(),
+        headers: responseHeaders(),
         body: JSON.stringify(
           createErrorResponse('INVALID_FILE_TYPE', 'File type not supported', requestId, [
             { field: 'mimeType', message: mimeValidation.message },
@@ -198,12 +314,12 @@ export async function handler(
     }
 
     // Validate file size
-    const sizeValidation = validateFileSize(parsed.size);
+    const sizeValidation = validateFileSize(fileSize);
     if (!sizeValidation.valid) {
       await recordValidationFailure('FILE_TOO_LARGE');
       return {
         statusCode: 413,
-        headers: corsHeaders(),
+        headers: responseHeaders(),
         body: JSON.stringify(
           createErrorResponse(
             'FILE_TOO_LARGE',
@@ -216,13 +332,13 @@ export async function handler(
     }
 
     // Validate image dimensions (skip for PDFs)
-    const dimensions = getImageDimensions(parsed.data, parsed.mimeType);
-    const dimensionValidation = validateImageDimensions(dimensions, parsed.mimeType);
+    const dimensions = getImageDimensions(imageBuffer, mimeType);
+    const dimensionValidation = validateImageDimensions(dimensions, mimeType);
     if (!dimensionValidation.valid) {
       await recordValidationFailure('IMAGE_TOO_SMALL');
       return {
         statusCode: 400,
-        headers: corsHeaders(),
+        headers: responseHeaders(),
         body: JSON.stringify(
           createErrorResponse(
             'IMAGE_TOO_SMALL',
@@ -235,7 +351,7 @@ export async function handler(
     }
 
     // Scan for viruses/malware
-    const virusScan = scanForViruses(parsed.data);
+    const virusScan = scanForViruses(imageBuffer);
     if (!virusScan.clean) {
       logger.warn('Virus/malware detected in upload', {
         requestId,
@@ -245,7 +361,7 @@ export async function handler(
       await recordValidationFailure('VALIDATION_ERROR');
       return {
         statusCode: 400,
-        headers: corsHeaders(),
+        headers: responseHeaders(),
         body: JSON.stringify(
           createErrorResponse(
             'MALWARE_DETECTED',
@@ -258,7 +374,7 @@ export async function handler(
     }
 
     // Check image quality (blur, brightness, contrast)
-    const qualityCheck = checkImageQuality(parsed.data, dimensions, parsed.mimeType);
+    const qualityCheck = checkImageQuality(imageBuffer, dimensions, mimeType);
     if (!qualityCheck.acceptable) {
       logger.warn('Image quality check failed', {
         requestId,
@@ -269,7 +385,7 @@ export async function handler(
       await recordValidationFailure('VALIDATION_ERROR');
       return {
         statusCode: 400,
-        headers: corsHeaders(),
+        headers: responseHeaders(),
         body: JSON.stringify(
           createErrorResponse(
             'IMAGE_QUALITY_POOR',
@@ -285,18 +401,18 @@ export async function handler(
       requestId,
       clientId,
       verificationId,
-      documentType: validation.data.documentType,
-      fileSize: parsed.size,
-      mimeType: parsed.mimeType,
+      documentType,
+      fileSize,
+      mimeType,
     });
 
     // Upload document
     const response = await documentService.uploadDocument(
       verification,
-      validation.data.documentType,
-      parsed.data,
-      parsed.mimeType,
-      validation.data.metadata,
+      documentType as any,
+      imageBuffer,
+      mimeType,
+      metadata,
       requestId
     );
 
@@ -311,8 +427,8 @@ export async function handler(
       clientId,
       verificationId,
       documentId: response.documentId,
-      documentType: validation.data.documentType,
-      fileSize: parsed.size,
+      documentType,
+      fileSize,
     });
 
     // Send OCR processing message to SQS queue
@@ -321,9 +437,9 @@ export async function handler(
       await sqs.sendOcrMessage({
         verificationId,
         documentId: response.documentId,
-        s3Bucket: BUCKET_NAME,
+        s3Bucket: process.env.BUCKET_NAME!,
         s3Key: response.s3Key,
-        documentType: validation.data.documentType,
+        documentType,
       });
       ocrQueued = true;
 
@@ -370,11 +486,11 @@ export async function handler(
 
     // Record success metrics
     const durationMs = Date.now() - startTime;
-    await recordUploadMetrics(true, durationMs, fileSize, documentType);
+    await recordUploadMetrics(true, durationMs, fileSize, metricsDocumentType);
 
     return {
       statusCode: 201,
-      headers: corsHeaders(),
+      headers: responseHeaders(),
       body: JSON.stringify({
         ...response,
         ocrQueued,
@@ -388,11 +504,11 @@ export async function handler(
 
     // Record failure metrics
     const durationMs = Date.now() - startTime;
-    await recordUploadMetrics(false, durationMs, fileSize, documentType);
+    await recordUploadMetrics(false, durationMs, metricsFileSize, metricsDocumentType);
 
     return {
       statusCode: 500,
-      headers: corsHeaders(),
+      headers: responseHeaders(),
       body: JSON.stringify(
         createErrorResponse('INTERNAL_ERROR', 'Failed to upload document', requestId)
       ),
@@ -400,9 +516,15 @@ export async function handler(
   }
 }
 
-function corsHeaders(): Record<string, string> {
+/**
+ * Generate response headers including CORS and rate limit headers
+ */
+function responseHeaders(): Record<string, string> {
   return {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
+    'X-RateLimit-Limit': '50',
+    'X-RateLimit-Remaining': '49',
+    'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + 60),
   };
 }

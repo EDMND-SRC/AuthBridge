@@ -3,14 +3,29 @@ import { DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand, UpdateCom
 export class DynamoDBService {
     client;
     tableName;
-    constructor(tableName, region) {
-        const dynamoClient = new DynamoDBClient({ region });
+    constructor(tableName, region, endpoint) {
+        // Only use test credentials for local DynamoDB (when endpoint is explicitly set)
+        const isLocalDynamoDB = !!(endpoint || process.env.DYNAMODB_ENDPOINT);
+        const dynamoClient = new DynamoDBClient({
+            region: region || process.env.AWS_REGION || 'af-south-1',
+            ...(isLocalDynamoDB
+                ? {
+                    endpoint: endpoint || process.env.DYNAMODB_ENDPOINT,
+                    // Local DynamoDB requires dummy credentials
+                    credentials: {
+                        accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'local',
+                        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'local',
+                    },
+                }
+                : {}),
+            // In production, AWS SDK uses default credential chain (IAM role, env vars, etc.)
+        });
         this.client = DynamoDBDocumentClient.from(dynamoClient, {
             marshallOptions: {
                 removeUndefinedValues: true,
             },
         });
-        this.tableName = tableName;
+        this.tableName = tableName || process.env.TABLE_NAME || 'AuthBridgeTable';
     }
     /**
      * Put verification entity with conditional write to prevent duplicates
@@ -141,6 +156,49 @@ export class DynamoDBService {
         });
         const result = await this.client.send(command);
         return result.Items || [];
+    }
+    /**
+     * Query verifications by Omang hash (GSI2)
+     * Used for duplicate detection
+     *
+     * @param omangHashKey - GSI2PK key (OMANG#<hash>)
+     * @returns Array of verification entities with matching Omang
+     */
+    async queryByOmangHash(omangHashKey) {
+        const command = new QueryCommand({
+            TableName: this.tableName,
+            IndexName: 'OmangHashIndex',
+            KeyConditionExpression: 'GSI2PK = :pk',
+            ExpressionAttributeValues: {
+                ':pk': omangHashKey,
+            },
+            ProjectionExpression: 'verificationId, clientId, #status, createdAt, biometricSummary',
+            ExpressionAttributeNames: {
+                '#status': 'status',
+            },
+        });
+        const result = await this.client.send(command);
+        return result.Items || [];
+    }
+    /**
+     * Generic update item method for flexible updates
+     */
+    async updateItem(params) {
+        const command = new UpdateCommand({
+            TableName: this.tableName,
+            ...params,
+        });
+        await this.client.send(command);
+    }
+    /**
+     * Generic get item method
+     */
+    async getItem(params) {
+        const command = new GetCommand({
+            TableName: this.tableName,
+            ...params,
+        });
+        return await this.client.send(command);
     }
 }
 //# sourceMappingURL=dynamodb.js.map

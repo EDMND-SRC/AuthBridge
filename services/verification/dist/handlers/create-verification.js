@@ -1,3 +1,4 @@
+import { SignJWT } from 'jose';
 import { VerificationService } from '../services/verification';
 import { IdempotencyService, IdempotencyConflictError } from '../services/idempotency';
 import { validateCreateVerificationRequest } from '../services/validation';
@@ -5,8 +6,73 @@ import { logger } from '../utils/logger';
 import { createErrorResponse } from '../utils/errors';
 const TABLE_NAME = process.env.TABLE_NAME || 'AuthBridgeTable';
 const REGION = process.env.AWS_REGION || 'af-south-1';
+const SDK_BASE_URL = process.env.SDK_BASE_URL || 'https://sdk.authbridge.io';
+const JWT_SECRET = process.env.JWT_SECRET || '';
+const JWT_ISSUER = process.env.JWT_ISSUER || 'authbridge';
+const SESSION_TOKEN_EXPIRY_HOURS = parseFloat(process.env.SESSION_TOKEN_EXPIRY_HOURS || '0.5'); // 30 minutes default
 const verificationService = new VerificationService(TABLE_NAME, REGION);
 const idempotencyService = new IdempotencyService(TABLE_NAME, REGION);
+// Cache the secret key for JWT signing
+let secretKey = null;
+function getSecretKey() {
+    if (!secretKey) {
+        if (!JWT_SECRET) {
+            const stage = process.env.STAGE || process.env.AWS_LAMBDA_FUNCTION_NAME?.includes('prod') ? 'production' : 'development';
+            if (stage === 'production') {
+                throw new Error('JWT_SECRET environment variable is required in production');
+            }
+            logger.warn('JWT_SECRET not configured, using fallback for development only');
+            secretKey = new TextEncoder().encode('dev-secret-do-not-use-in-production');
+        }
+        else {
+            secretKey = new TextEncoder().encode(JWT_SECRET);
+        }
+    }
+    return secretKey;
+}
+/**
+ * Generate a secure JWT session token for SDK access
+ * Token includes verification ID, expiry, and issuer claims
+ */
+async function generateSessionToken(verificationId, clientId) {
+    const expiresAt = new Date();
+    // Convert hours to milliseconds for precise calculation (0.5 hours = 30 minutes)
+    const expiryMs = SESSION_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000;
+    expiresAt.setTime(expiresAt.getTime() + expiryMs);
+    const token = await new SignJWT({
+        sub: verificationId,
+        clientId,
+        type: 'sdk_session',
+    })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setIssuer(JWT_ISSUER)
+        .setExpirationTime(expiresAt)
+        .sign(getSecretKey());
+    return token;
+}
+/**
+ * Build SDK URL with session token
+ */
+function buildSdkUrl(sessionToken) {
+    return `${SDK_BASE_URL}?token=${sessionToken}`;
+}
+/**
+ * Build standard response headers including rate limit information
+ * Rate limits are enforced at API Gateway level (50 RPS per client)
+ */
+function buildResponseHeaders(event) {
+    // Rate limit values from API Gateway (configured in serverless.yml)
+    const rateLimit = 50; // requests per second
+    const windowResetTime = Math.floor(Date.now() / 1000) + 1; // Next second
+    return {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'X-RateLimit-Limit': String(rateLimit),
+        'X-RateLimit-Remaining': String(rateLimit - 1), // Approximate, actual tracking at API Gateway
+        'X-RateLimit-Reset': String(windowResetTime),
+    };
+}
 export async function handler(event, context) {
     // Prefer context.awsRequestId for consistency across Lambda invocations
     const requestId = context.awsRequestId || event.requestContext.requestId;
@@ -17,10 +83,7 @@ export async function handler(event, context) {
             logger.warn('Missing clientId in authorizer context', { requestId });
             return {
                 statusCode: 401,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                },
+                headers: buildResponseHeaders(event),
                 body: JSON.stringify(createErrorResponse('UNAUTHORIZED', 'Missing client authentication', requestId)),
             };
         }
@@ -28,10 +91,7 @@ export async function handler(event, context) {
         if (!event.body) {
             return {
                 statusCode: 400,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                },
+                headers: buildResponseHeaders(event),
                 body: JSON.stringify(createErrorResponse('VALIDATION_ERROR', 'Request body is required', requestId)),
             };
         }
@@ -45,10 +105,7 @@ export async function handler(event, context) {
             logger.warn('Validation failed', { requestId, details });
             return {
                 statusCode: 400,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                },
+                headers: buildResponseHeaders(event),
                 body: JSON.stringify(createErrorResponse('VALIDATION_ERROR', 'Invalid request parameters', requestId, details)),
             };
         }
@@ -65,15 +122,11 @@ export async function handler(event, context) {
                 });
                 const existingVerification = await verificationService.getVerification(existingVerificationId);
                 if (existingVerification) {
-                    // TODO: Replace with real JWT session token in future story
-                    const sessionToken = `session_${existingVerification.verificationId}`;
-                    const sdkUrl = `https://sdk.authbridge.io?token=${sessionToken}`;
+                    const sessionToken = await generateSessionToken(existingVerification.verificationId, clientId);
+                    const sdkUrl = buildSdkUrl(sessionToken);
                     return {
                         statusCode: 200, // Return 200 for idempotent request
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Access-Control-Allow-Origin': '*',
-                        },
+                        headers: buildResponseHeaders(event),
                         body: JSON.stringify({
                             verificationId: existingVerification.verificationId,
                             status: existingVerification.status,
@@ -95,6 +148,8 @@ export async function handler(event, context) {
             requestId,
             clientId,
             documentType: validation.data.documentType,
+            hasRedirectUrl: !!validation.data.redirectUrl,
+            hasWebhookUrl: !!validation.data.webhookUrl,
             idempotencyKey: idempotencyKey || undefined,
         });
         let verification;
@@ -113,14 +168,11 @@ export async function handler(event, context) {
                         if (existingId) {
                             const existingVerification = await verificationService.getVerification(existingId);
                             if (existingVerification) {
-                                const sessionToken = `session_${existingVerification.verificationId}`;
-                                const sdkUrl = `https://sdk.authbridge.io?token=${sessionToken}`;
+                                const sessionToken = await generateSessionToken(existingVerification.verificationId, clientId);
+                                const sdkUrl = buildSdkUrl(sessionToken);
                                 return {
                                     statusCode: 200,
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'Access-Control-Allow-Origin': '*',
-                                    },
+                                    headers: buildResponseHeaders(event),
                                     body: JSON.stringify({
                                         verificationId: existingVerification.verificationId,
                                         status: existingVerification.status,
@@ -139,12 +191,12 @@ export async function handler(event, context) {
             }
         }
         catch (error) {
+            // Re-throw with context for upstream error handling
+            logger.error('Verification creation failed', { requestId, error: error.message });
             throw error;
         }
-        // TODO: Replace with real JWT session token in future story (Story 1.5.x)
-        // Current placeholder format: session_<verificationId>
-        const sessionToken = `session_${verification.verificationId}`;
-        const sdkUrl = `https://sdk.authbridge.io?token=${sessionToken}`;
+        const sessionToken = await generateSessionToken(verification.verificationId, clientId);
+        const sdkUrl = buildSdkUrl(sessionToken);
         // Audit log
         logger.audit('verification_created', {
             requestId,
@@ -155,10 +207,7 @@ export async function handler(event, context) {
         // Return response
         return {
             statusCode: 201,
-            headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-            },
+            headers: buildResponseHeaders(event),
             body: JSON.stringify({
                 verificationId: verification.verificationId,
                 status: verification.status,
@@ -182,6 +231,9 @@ export async function handler(event, context) {
             headers: {
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*',
+                'X-RateLimit-Limit': '50',
+                'X-RateLimit-Remaining': '49',
+                'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + 1),
             },
             body: JSON.stringify(createErrorResponse('INTERNAL_ERROR', 'Failed to create verification', requestId)),
         };

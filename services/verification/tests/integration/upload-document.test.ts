@@ -151,8 +151,8 @@ describe('Document Upload Integration Tests', () => {
         'omang_back',
         'selfie',
         'passport',
-        'drivers_license_front',
-        'drivers_license_back',
+        'drivers_licence_front',
+        'drivers_licence_back',
       ];
 
       for (const docType of documentTypes) {

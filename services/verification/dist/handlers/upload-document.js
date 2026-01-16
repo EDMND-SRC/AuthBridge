@@ -1,11 +1,12 @@
 import { DynamoDBService } from '../services/dynamodb';
 import { S3Service } from '../services/s3';
+import { SqsService } from '../services/sqs';
 import { DocumentService } from '../services/document';
 import { VerificationService } from '../services/verification';
-import { validateUploadDocumentRequest, parseBase64DataUri, validateFileSize, validateMimeType, getImageDimensions, validateImageDimensions, scanForViruses, checkImageQuality, } from '../services/file-validation';
+import { validateUploadDocumentRequest, parseBase64DataUri, parseMultipartFormData, validateFileSize, validateMimeType, getImageDimensions, validateImageDimensions, scanForViruses, checkImageQuality, } from '../services/file-validation';
 import { logger } from '../utils/logger';
 import { createErrorResponse } from '../utils/errors';
-import { MAX_FILE_SIZE } from '../types/document';
+import { MAX_FILE_SIZE, } from '../types/document';
 import { recordUploadMetrics, recordValidationFailure } from '../utils/metrics';
 const TABLE_NAME = process.env.TABLE_NAME || 'AuthBridgeTable';
 const BUCKET_NAME = process.env.BUCKET_NAME || 'authbridge-documents-staging';
@@ -13,6 +14,7 @@ const REGION = process.env.AWS_REGION || 'af-south-1';
 const MAX_DOCUMENTS_PER_VERIFICATION = 20;
 const db = new DynamoDBService(TABLE_NAME, REGION);
 const s3 = new S3Service(BUCKET_NAME, REGION);
+const sqs = new SqsService();
 const documentService = new DocumentService(db, s3);
 const verificationService = new VerificationService(TABLE_NAME, REGION);
 export async function handler(event, context) {
@@ -48,17 +50,71 @@ export async function handler(event, context) {
                 body: JSON.stringify(createErrorResponse('VALIDATION_ERROR', 'Request body is required', requestId)),
             };
         }
-        const requestBody = JSON.parse(event.body);
-        // Validate request schema
-        const validation = validateUploadDocumentRequest(requestBody);
-        if (!validation.success) {
-            logger.warn('Validation failed', { requestId, details: validation.errors });
-            return {
-                statusCode: 400,
-                headers: corsHeaders(),
-                body: JSON.stringify(createErrorResponse('VALIDATION_ERROR', 'Invalid request parameters', requestId, validation.errors)),
-            };
+        const contentType = event.headers['content-type'] || event.headers['Content-Type'] || '';
+        let documentType;
+        let imageBuffer;
+        let mimeType;
+        let metadata = undefined;
+        // Check if multipart/form-data or JSON
+        if (contentType.includes('multipart/form-data')) {
+            // Parse multipart form data
+            const parsed = parseMultipartFormData(event.body, contentType);
+            if (!parsed) {
+                return {
+                    statusCode: 400,
+                    headers: corsHeaders(),
+                    body: JSON.stringify(createErrorResponse('VALIDATION_ERROR', 'Invalid multipart form data', requestId, [{ field: 'body', message: 'Failed to parse multipart form data' }])),
+                };
+            }
+            documentType = parsed.documentType;
+            imageBuffer = parsed.imageBuffer;
+            mimeType = parsed.mimeType;
+            metadata = parsed.metadata || {};
+            // Validate document type
+            const validation = validateUploadDocumentRequest({
+                documentType,
+                imageData: 'multipart', // Placeholder for validation
+                metadata,
+            });
+            if (!validation.success) {
+                logger.warn('Validation failed', { requestId, details: validation.errors });
+                return {
+                    statusCode: 400,
+                    headers: corsHeaders(),
+                    body: JSON.stringify(createErrorResponse('VALIDATION_ERROR', 'Invalid request parameters', requestId, validation.errors)),
+                };
+            }
         }
+        else {
+            // Parse JSON with base64 image
+            const requestBody = JSON.parse(event.body);
+            // Validate request schema
+            const validation = validateUploadDocumentRequest(requestBody);
+            if (!validation.success) {
+                logger.warn('Validation failed', { requestId, details: validation.errors });
+                return {
+                    statusCode: 400,
+                    headers: corsHeaders(),
+                    body: JSON.stringify(createErrorResponse('VALIDATION_ERROR', 'Invalid request parameters', requestId, validation.errors)),
+                };
+            }
+            documentType = validation.data.documentType;
+            metadata = validation.data.metadata;
+            // Parse base64 data URI
+            const parsed = parseBase64DataUri(validation.data.imageData);
+            if (!parsed) {
+                await recordValidationFailure('INVALID_FILE_TYPE');
+                return {
+                    statusCode: 400,
+                    headers: corsHeaders(),
+                    body: JSON.stringify(createErrorResponse('INVALID_FILE_TYPE', 'Invalid image data format. Expected base64 data URI', requestId, [{ field: 'imageData', message: 'Must be a valid base64 data URI (data:image/jpeg;base64,...)' }])),
+                };
+            }
+            imageBuffer = parsed.data;
+            mimeType = parsed.mimeType;
+        }
+        const fileSize = imageBuffer.length;
+        documentType = documentType;
         // Get verification and verify ownership
         const verification = await verificationService.getVerification(verificationId);
         if (!verification) {
@@ -106,20 +162,8 @@ export async function handler(event, context) {
                 body: JSON.stringify(createErrorResponse('DOCUMENT_LIMIT_EXCEEDED', `Maximum ${MAX_DOCUMENTS_PER_VERIFICATION} documents allowed per verification`, requestId)),
             };
         }
-        // Parse base64 data URI
-        const parsed = parseBase64DataUri(validation.data.imageData);
-        if (!parsed) {
-            await recordValidationFailure('INVALID_FILE_TYPE');
-            return {
-                statusCode: 400,
-                headers: corsHeaders(),
-                body: JSON.stringify(createErrorResponse('INVALID_FILE_TYPE', 'Invalid image data format. Expected base64 data URI', requestId, [{ field: 'imageData', message: 'Must be a valid base64 data URI (data:image/jpeg;base64,...)' }])),
-            };
-        }
-        documentType = validation.data.documentType;
-        fileSize = parsed.size;
         // Validate mime type
-        const mimeValidation = validateMimeType(parsed.mimeType);
+        const mimeValidation = validateMimeType(mimeType);
         if (!mimeValidation.valid) {
             await recordValidationFailure('INVALID_FILE_TYPE');
             return {
@@ -131,7 +175,7 @@ export async function handler(event, context) {
             };
         }
         // Validate file size
-        const sizeValidation = validateFileSize(parsed.size);
+        const sizeValidation = validateFileSize(fileSize);
         if (!sizeValidation.valid) {
             await recordValidationFailure('FILE_TOO_LARGE');
             return {
@@ -141,8 +185,8 @@ export async function handler(event, context) {
             };
         }
         // Validate image dimensions (skip for PDFs)
-        const dimensions = getImageDimensions(parsed.data, parsed.mimeType);
-        const dimensionValidation = validateImageDimensions(dimensions, parsed.mimeType);
+        const dimensions = getImageDimensions(imageBuffer, mimeType);
+        const dimensionValidation = validateImageDimensions(dimensions, mimeType);
         if (!dimensionValidation.valid) {
             await recordValidationFailure('IMAGE_TOO_SMALL');
             return {
@@ -152,7 +196,7 @@ export async function handler(event, context) {
             };
         }
         // Scan for viruses/malware
-        const virusScan = scanForViruses(parsed.data);
+        const virusScan = scanForViruses(imageBuffer);
         if (!virusScan.clean) {
             logger.warn('Virus/malware detected in upload', {
                 requestId,
@@ -167,7 +211,7 @@ export async function handler(event, context) {
             };
         }
         // Check image quality (blur, brightness, contrast)
-        const qualityCheck = checkImageQuality(parsed.data, dimensions, parsed.mimeType);
+        const qualityCheck = checkImageQuality(imageBuffer, dimensions, mimeType);
         if (!qualityCheck.acceptable) {
             logger.warn('Image quality check failed', {
                 requestId,
@@ -186,12 +230,12 @@ export async function handler(event, context) {
             requestId,
             clientId,
             verificationId,
-            documentType: validation.data.documentType,
-            fileSize: parsed.size,
-            mimeType: parsed.mimeType,
+            documentType,
+            fileSize,
+            mimeType,
         });
         // Upload document
-        const response = await documentService.uploadDocument(verification, validation.data.documentType, parsed.data, parsed.mimeType, validation.data.metadata, requestId);
+        const response = await documentService.uploadDocument(verification, documentType, imageBuffer, mimeType, metadata, requestId);
         // Update verification status to documents_uploading if first document
         if (verification.status === 'created') {
             await verificationService.updateStatus(verificationId, 'documents_uploading');
@@ -202,16 +246,71 @@ export async function handler(event, context) {
             clientId,
             verificationId,
             documentId: response.documentId,
-            documentType: validation.data.documentType,
-            fileSize: parsed.size,
+            documentType,
+            fileSize,
         });
+        // Send OCR processing message to SQS queue
+        let ocrQueued = false;
+        try {
+            await sqs.sendOcrMessage({
+                verificationId,
+                documentId: response.documentId,
+                s3Bucket: BUCKET_NAME,
+                s3Key: response.s3Key,
+                documentType,
+            });
+            ocrQueued = true;
+            logger.info('OCR message sent to queue', {
+                requestId,
+                verificationId,
+                documentId: response.documentId,
+            });
+        }
+        catch (error) {
+            // Log error and mark document as pending OCR for retry
+            logger.error('Failed to send OCR message to queue', {
+                requestId,
+                verificationId,
+                documentId: response.documentId,
+                error: error instanceof Error ? error.message : 'Unknown error',
+            });
+            // Store pending OCR job in DynamoDB for retry mechanism
+            try {
+                await db.updateItem({
+                    Key: {
+                        PK: `CASE#${verificationId}`,
+                        SK: `DOC#${response.documentId}`,
+                    },
+                    UpdateExpression: 'SET #ocrPending = :pending, #ocrError = :error',
+                    ExpressionAttributeNames: {
+                        '#ocrPending': 'ocrPending',
+                        '#ocrError': 'ocrError',
+                    },
+                    ExpressionAttributeValues: {
+                        ':pending': true,
+                        ':error': error instanceof Error ? error.message : 'Unknown error',
+                    },
+                });
+            }
+            catch (dbError) {
+                logger.error('Failed to mark document as pending OCR', {
+                    requestId,
+                    verificationId,
+                    documentId: response.documentId,
+                    error: dbError instanceof Error ? dbError.message : 'Unknown error',
+                });
+            }
+        }
         // Record success metrics
         const durationMs = Date.now() - startTime;
         await recordUploadMetrics(true, durationMs, fileSize, documentType);
         return {
             statusCode: 201,
             headers: corsHeaders(),
-            body: JSON.stringify(response),
+            body: JSON.stringify({
+                ...response,
+                ocrQueued,
+            }),
         };
     }
     catch (error) {

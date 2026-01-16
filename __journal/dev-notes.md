@@ -6,7 +6,7 @@
 
 # Workflow commands:
 
-/ @sm.md run *create-story
+/ @sm.md run *create-story workflow
 
 / @dev.md run *dev-story workflow for Story 4.2 #4-2-create...
 

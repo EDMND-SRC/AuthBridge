@@ -1,6 +1,7 @@
 export type VerificationStatus = 'created' | 'documents_uploading' | 'documents_complete' | 'submitted' | 'processing' | 'pending_review' | 'in_review' | 'approved' | 'rejected' | 'auto_rejected' | 'resubmission_required' | 'expired';
-export type DocumentType = 'omang' | 'passport' | 'drivers_license' | 'id_card';
+export type DocumentType = 'omang' | 'passport' | 'drivers_licence' | 'id_card';
 export interface CustomerMetadata {
+    name?: string;
     email?: string;
     phone?: string;
     externalId?: string;
@@ -12,8 +13,12 @@ export interface VerificationEntity {
     verificationId: string;
     clientId: string;
     status: VerificationStatus;
-    documentType: DocumentType;
-    customerMetadata: CustomerMetadata;
+    documentType?: DocumentType;
+    customer?: Customer;
+    customerMetadata?: CustomerMetadata;
+    redirectUrl?: string;
+    webhookUrl?: string;
+    metadata?: Record<string, string>;
     createdAt: string;
     updatedAt: string;
     submittedAt?: string;
@@ -24,6 +29,24 @@ export interface VerificationEntity {
     GSI1SK: string;
     GSI2PK: string;
     GSI2SK: string;
+    biometricSummary?: {
+        livenessScore: number;
+        similarityScore: number;
+        overallScore: number;
+        passed: boolean;
+        requiresManualReview: boolean;
+        processedAt: string;
+    };
+    extractedData?: {
+        idNumber?: string;
+        surname?: string;
+        forenames?: string;
+        dateOfBirth?: string;
+        sex?: string;
+        dateOfExpiry?: string;
+        [key: string]: unknown;
+    };
+    assignee?: string;
 }
 export interface DocumentEntity {
     PK: string;
@@ -43,9 +66,17 @@ export interface DocumentEntity {
         qualityChecks?: unknown;
     };
 }
+export interface Customer {
+    email?: string;
+    name?: string;
+    phone?: string;
+}
 export interface CreateVerificationRequest {
-    documentType: DocumentType;
-    customerMetadata: CustomerMetadata;
+    customer: Customer;
+    documentType?: DocumentType;
+    redirectUrl?: string;
+    webhookUrl?: string;
+    metadata?: Record<string, string>;
     idempotencyKey?: string;
 }
 export interface CreateVerificationResponse {

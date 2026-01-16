@@ -206,6 +206,12 @@ functions:
           path: /api/v1/verifications/{verificationId}/documents
           method: post
           cors: true
+          authorizer:
+            name: apiKeyAuthorizer
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authbridge-auth-${self:provider.stage}-apiKeyAuthorizer
+            type: request
+            identitySource: method.request.header.Authorization
+            resultTtlInSeconds: 300
 
   refreshDocumentUrl:
     handler: dist/handlers/refresh-document-url.handler

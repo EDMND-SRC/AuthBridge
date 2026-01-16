@@ -77,8 +77,8 @@ describe('file-validation', () => {
         'omang_back',
         'selfie',
         'passport',
-        'drivers_license_front',
-        'drivers_license_back',
+        'drivers_licence_front',
+        'drivers_licence_back',
         'id_card_front',
         'id_card_back',
       ];
@@ -220,8 +220,8 @@ describe('file-validation', () => {
         'omang_back',
         'selfie',
         'passport',
-        'drivers_license_front',
-        'drivers_license_back',
+        'drivers_licence_front',
+        'drivers_licence_back',
         'id_card_front',
         'id_card_back',
       ];
@@ -359,7 +359,153 @@ describe('validateImageDimensions', () => {
 });
 
 
-import { scanForViruses, checkImageQuality } from './file-validation';
+import { scanForViruses, checkImageQuality, parseMultipartFormData } from './file-validation';
+
+describe('parseMultipartFormData', () => {
+  it('should parse valid multipart form data', () => {
+    const boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW';
+    const contentType = `multipart/form-data; boundary=${boundary}`;
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="documentType"',
+      '',
+      'omang_front',
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="file"; filename="test.jpg"',
+      'Content-Type: image/jpeg',
+      '',
+      'fake-image-data',
+      `--${boundary}--`,
+    ].join('\r\n');
+
+    const result = parseMultipartFormData(body, contentType);
+
+    expect(result).not.toBeNull();
+    expect(result?.documentType).toBe('omang_front');
+    expect(result?.mimeType).toBe('image/jpeg');
+    expect(result?.imageBuffer).toBeInstanceOf(Buffer);
+  });
+
+  it('should parse multipart with metadata', () => {
+    const boundary = '----WebKitFormBoundary';
+    const contentType = `multipart/form-data; boundary=${boundary}`;
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="documentType"',
+      '',
+      'selfie',
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="metadata"',
+      '',
+      '{"captureMethod":"camera","deviceType":"mobile"}',
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="file"; filename="selfie.jpg"',
+      'Content-Type: image/jpeg',
+      '',
+      'image-bytes',
+      `--${boundary}--`,
+    ].join('\r\n');
+
+    const result = parseMultipartFormData(body, contentType);
+
+    expect(result).not.toBeNull();
+    expect(result?.documentType).toBe('selfie');
+    expect(result?.metadata?.captureMethod).toBe('camera');
+    expect(result?.metadata?.deviceType).toBe('mobile');
+  });
+
+  it('should return null when boundary is missing', () => {
+    const contentType = 'multipart/form-data';
+    const body = 'some data';
+
+    const result = parseMultipartFormData(body, contentType);
+
+    expect(result).toBeNull();
+  });
+
+  it('should return null when documentType is missing', () => {
+    const boundary = '----WebKitFormBoundary';
+    const contentType = `multipart/form-data; boundary=${boundary}`;
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="file"; filename="test.jpg"',
+      'Content-Type: image/jpeg',
+      '',
+      'image-data',
+      `--${boundary}--`,
+    ].join('\r\n');
+
+    const result = parseMultipartFormData(body, contentType);
+
+    expect(result).toBeNull();
+  });
+
+  it('should return null when file is missing', () => {
+    const boundary = '----WebKitFormBoundary';
+    const contentType = `multipart/form-data; boundary=${boundary}`;
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="documentType"',
+      '',
+      'omang_front',
+      `--${boundary}--`,
+    ].join('\r\n');
+
+    const result = parseMultipartFormData(body, contentType);
+
+    expect(result).toBeNull();
+  });
+
+  it('should handle invalid metadata JSON gracefully', () => {
+    const boundary = '----WebKitFormBoundary';
+    const contentType = `multipart/form-data; boundary=${boundary}`;
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="documentType"',
+      '',
+      'passport',
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="metadata"',
+      '',
+      'not-valid-json',
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="file"; filename="passport.jpg"',
+      'Content-Type: image/jpeg',
+      '',
+      'image-bytes',
+      `--${boundary}--`,
+    ].join('\r\n');
+
+    const result = parseMultipartFormData(body, contentType);
+
+    expect(result).not.toBeNull();
+    expect(result?.documentType).toBe('passport');
+    // Metadata should be empty object since JSON parsing failed
+    expect(result?.metadata).toEqual({});
+  });
+
+  it('should extract mime type from Content-Type header', () => {
+    const boundary = '----Boundary';
+    const contentType = `multipart/form-data; boundary=${boundary}`;
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="documentType"',
+      '',
+      'omang_back',
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="file"; filename="doc.png"',
+      'Content-Type: image/png',
+      '',
+      'png-data',
+      `--${boundary}--`,
+    ].join('\r\n');
+
+    const result = parseMultipartFormData(body, contentType);
+
+    expect(result).not.toBeNull();
+    expect(result?.mimeType).toBe('image/png');
+  });
+});
 
 describe('scanForViruses', () => {
   it('should return clean for normal image data', () => {

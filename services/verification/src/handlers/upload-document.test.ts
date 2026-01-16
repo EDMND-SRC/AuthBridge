@@ -1,19 +1,34 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
 
+// Set environment variables before importing handler
+process.env.TABLE_NAME = 'TestTable';
+process.env.BUCKET_NAME = 'test-bucket';
+process.env.AWS_REGION = 'af-south-1';
+
 // Create mock functions
 const mockGetVerification = vi.fn();
 const mockUpdateStatus = vi.fn();
 const mockUploadDocument = vi.fn();
 const mockCountDocuments = vi.fn();
+const mockSendOcrMessage = vi.fn();
+const mockUpdateItem = vi.fn();
 
 // Mock services before importing handler
 vi.mock('../services/dynamodb', () => ({
-  DynamoDBService: vi.fn().mockImplementation(() => ({})),
+  DynamoDBService: vi.fn().mockImplementation(() => ({
+    updateItem: mockUpdateItem,
+  })),
 }));
 
 vi.mock('../services/s3', () => ({
   S3Service: vi.fn().mockImplementation(() => ({})),
+}));
+
+vi.mock('../services/sqs', () => ({
+  SqsService: vi.fn().mockImplementation(() => ({
+    sendOcrMessage: mockSendOcrMessage,
+  })),
 }));
 
 vi.mock('../services/verification', () => ({
@@ -33,6 +48,7 @@ vi.mock('../services/document', () => ({
 // Mock file validation - return valid results by default
 const mockValidateUploadDocumentRequest = vi.fn();
 const mockParseBase64DataUri = vi.fn();
+const mockParseMultipartFormData = vi.fn();
 const mockValidateFileSize = vi.fn();
 const mockValidateMimeType = vi.fn();
 const mockGetImageDimensions = vi.fn();
@@ -43,6 +59,7 @@ const mockCheckImageQuality = vi.fn();
 vi.mock('../services/file-validation', () => ({
   validateUploadDocumentRequest: (...args: unknown[]) => mockValidateUploadDocumentRequest(...args),
   parseBase64DataUri: (...args: unknown[]) => mockParseBase64DataUri(...args),
+  parseMultipartFormData: (...args: unknown[]) => mockParseMultipartFormData(...args),
   validateFileSize: (...args: unknown[]) => mockValidateFileSize(...args),
   validateMimeType: (...args: unknown[]) => mockValidateMimeType(...args),
   getImageDimensions: (...args: unknown[]) => mockGetImageDimensions(...args),
@@ -58,7 +75,7 @@ vi.mock('../utils/metrics', () => ({
 }));
 
 // Import handler after mocks are set up
-import { handler } from './upload-document';
+import { handler, resetServices } from './upload-document';
 
 describe('upload-document handler', () => {
   let mockEvent: APIGatewayProxyEvent;
@@ -68,6 +85,7 @@ describe('upload-document handler', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resetServices(); // Reset services to use fresh mocks
 
     mockContext = {
       awsRequestId: 'test-request-id',
@@ -82,6 +100,9 @@ describe('upload-document handler', () => {
       },
       pathParameters: {
         verificationId: 'ver_456',
+      },
+      headers: {
+        'content-type': 'application/json',
       },
       body: JSON.stringify({
         documentType: 'omang_front',
@@ -99,6 +120,7 @@ describe('upload-document handler', () => {
       data: Buffer.from('test'),
       size: 1024,
     });
+    mockParseMultipartFormData.mockReturnValue(null); // Default to null, set in specific tests
     mockValidateFileSize.mockReturnValue({ valid: true });
     mockValidateMimeType.mockReturnValue({ valid: true });
     mockGetImageDimensions.mockReturnValue({ width: 800, height: 600 });
@@ -114,6 +136,8 @@ describe('upload-document handler', () => {
     });
 
     mockCountDocuments.mockResolvedValue(0);
+    mockSendOcrMessage.mockResolvedValue(undefined);
+    mockUpdateItem.mockResolvedValue(undefined);
 
     mockUploadDocument.mockResolvedValue({
       documentId: 'doc_789',
@@ -439,5 +463,146 @@ describe('upload-document handler', () => {
     const body = JSON.parse(result.body);
     expect(body.error.code).toBe('IMAGE_QUALITY_POOR');
     expect(body.error.details[0].message).toContain('contrast');
+  });
+
+  it('should include rate limit headers in response', async () => {
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.headers).toHaveProperty('X-RateLimit-Limit', '50');
+    expect(result.headers).toHaveProperty('X-RateLimit-Remaining', '49');
+    expect(result.headers).toHaveProperty('X-RateLimit-Reset');
+  });
+
+  it('should include rate limit headers in error responses', async () => {
+    mockEvent.body = null;
+
+    const result = await handler(mockEvent, mockContext);
+
+    expect(result.statusCode).toBe(400);
+    expect(result.headers).toHaveProperty('X-RateLimit-Limit', '50');
+    expect(result.headers).toHaveProperty('X-RateLimit-Remaining', '49');
+  });
+
+  describe('Multipart Form Data Upload', () => {
+    it('should handle valid multipart/form-data upload', async () => {
+      mockEvent.headers = {
+        'content-type': 'multipart/form-data; boundary=----WebKitFormBoundary',
+      };
+      mockEvent.body = '------WebKitFormBoundary\r\nContent-Disposition: form-data; name="documentType"\r\n\r\nomang_front\r\n------WebKitFormBoundary\r\nContent-Disposition: form-data; name="file"; filename="test.jpg"\r\nContent-Type: image/jpeg\r\n\r\n[binary]\r\n------WebKitFormBoundary--';
+
+      mockParseMultipartFormData.mockReturnValue({
+        documentType: 'omang_front',
+        imageBuffer: Buffer.from('test-image-data'),
+        mimeType: 'image/jpeg',
+        metadata: { captureMethod: 'upload' },
+      });
+
+      const result = await handler(mockEvent, mockContext);
+
+      expect(result.statusCode).toBe(201);
+      expect(mockParseMultipartFormData).toHaveBeenCalled();
+    });
+
+    it('should return 400 when multipart parsing fails', async () => {
+      mockEvent.headers = {
+        'content-type': 'multipart/form-data; boundary=----WebKitFormBoundary',
+      };
+      mockEvent.body = 'invalid-multipart-data';
+
+      mockParseMultipartFormData.mockReturnValue(null);
+
+      const result = await handler(mockEvent, mockContext);
+
+      expect(result.statusCode).toBe(400);
+      const body = JSON.parse(result.body);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+      expect(body.error.message).toContain('multipart');
+    });
+
+    it('should return 400 when multipart has invalid document type', async () => {
+      mockEvent.headers = {
+        'content-type': 'multipart/form-data; boundary=----WebKitFormBoundary',
+      };
+      mockEvent.body = 'multipart-data';
+
+      mockParseMultipartFormData.mockReturnValue({
+        documentType: 'invalid_type',
+        imageBuffer: Buffer.from('test'),
+        mimeType: 'image/jpeg',
+      });
+
+      mockValidateUploadDocumentRequest.mockReturnValue({
+        success: false,
+        errors: [{ field: 'documentType', message: 'Invalid document type' }],
+      });
+
+      const result = await handler(mockEvent, mockContext);
+
+      expect(result.statusCode).toBe(400);
+      const body = JSON.parse(result.body);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+  });
+
+  describe('SQS OCR Queue Integration', () => {
+    it('should send OCR message to queue on successful upload', async () => {
+      const result = await handler(mockEvent, mockContext);
+
+      expect(result.statusCode).toBe(201);
+      expect(mockSendOcrMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          verificationId: 'ver_456',
+          documentId: 'doc_789',
+        })
+      );
+    });
+
+    it('should set ocrQueued to true when SQS succeeds', async () => {
+      mockSendOcrMessage.mockResolvedValue(undefined);
+
+      const result = await handler(mockEvent, mockContext);
+
+      expect(result.statusCode).toBe(201);
+      const body = JSON.parse(result.body);
+      expect(body.ocrQueued).toBe(true);
+    });
+
+    it('should set ocrQueued to false when SQS fails', async () => {
+      mockSendOcrMessage.mockRejectedValue(new Error('SQS error'));
+
+      const result = await handler(mockEvent, mockContext);
+
+      expect(result.statusCode).toBe(201);
+      const body = JSON.parse(result.body);
+      expect(body.ocrQueued).toBe(false);
+    });
+
+    it('should still return 201 when SQS fails (graceful degradation)', async () => {
+      mockSendOcrMessage.mockRejectedValue(new Error('SQS unavailable'));
+
+      const result = await handler(mockEvent, mockContext);
+
+      // Upload should still succeed even if OCR queue fails
+      expect(result.statusCode).toBe(201);
+      const body = JSON.parse(result.body);
+      expect(body.documentId).toBe('doc_789');
+    });
+
+    it('should mark document as ocrPending when SQS fails', async () => {
+      mockSendOcrMessage.mockRejectedValue(new Error('SQS unavailable'));
+
+      await handler(mockEvent, mockContext);
+
+      // Verify DynamoDB was called to mark document as pending OCR
+      expect(mockUpdateItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Key: {
+            PK: 'CASE#ver_456',
+            SK: 'DOC#doc_789',
+          },
+          UpdateExpression: 'SET #ocrPending = :pending, #ocrError = :error',
+        })
+      );
+    });
   });
 });

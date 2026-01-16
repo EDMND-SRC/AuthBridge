@@ -4,11 +4,15 @@
       "type": "http",
       "url": "https://knowledge-mcp.global.api.aws",
       "disabled": false,
-      "autoApprove": []
+      "autoApprove": [
+        "aws___list_regions"
+      ]
     },
     "awslabs.dynamodb-mcp-server": {
       "command": "/Users/edmond/.local/bin/uvx",
-      "args": ["awslabs.dynamodb-mcp-server@latest"],
+      "args": [
+        "awslabs.dynamodb-mcp-server@latest"
+      ],
       "env": {
         "AWS_PROFILE": "default",
         "AWS_REGION": "af-south-1",

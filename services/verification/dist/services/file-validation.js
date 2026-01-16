@@ -299,6 +299,54 @@ function calculateContrast(buffer) {
     return Math.min(stdDev / 80, 1);
 }
 /**
+ * Parse multipart/form-data request body
+ * Extracts documentType, file data, and optional metadata
+ */
+export function parseMultipartFormData(body, contentType) {
+    // Extract boundary from content-type header
+    const boundaryMatch = contentType.match(/boundary=(.+)$/);
+    if (!boundaryMatch) {
+        return null;
+    }
+    const boundary = boundaryMatch[1];
+    const parts = body.split(`--${boundary}`);
+    let documentType = '';
+    let imageBuffer = null;
+    let mimeType = '';
+    const metadata = {};
+    for (const part of parts) {
+        if (part.includes('Content-Disposition')) {
+            // Parse part headers and body
+            const [headers, ...bodyParts] = part.split('\r\n\r\n');
+            const partBody = bodyParts.join('\r\n\r\n').trim();
+            if (headers.includes('name="documentType"')) {
+                documentType = partBody;
+            }
+            else if (headers.includes('name="file"')) {
+                // Extract MIME type from Content-Type header
+                const mimeMatch = headers.match(/Content-Type:\s*(.+)/i);
+                if (mimeMatch) {
+                    mimeType = mimeMatch[1].trim();
+                }
+                // Convert body to buffer
+                imageBuffer = Buffer.from(partBody, 'binary');
+            }
+            else if (headers.includes('name="metadata"')) {
+                try {
+                    Object.assign(metadata, JSON.parse(partBody));
+                }
+                catch {
+                    // Ignore invalid metadata
+                }
+            }
+        }
+    }
+    if (!documentType || !imageBuffer) {
+        return null;
+    }
+    return { documentType, imageBuffer, mimeType, metadata };
+}
+/**
  * Check image quality (blur, brightness, contrast)
  * Returns quality metrics and whether image is acceptable
  */
