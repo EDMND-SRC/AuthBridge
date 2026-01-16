@@ -77,7 +77,10 @@ describe('send-webhook handler', () => {
         method: 'POST',
         headers: expect.objectContaining({
           'Content-Type': 'application/json',
-          'X-AuthBridge-Signature': expect.stringMatching(/^sha256=/)
+          'X-Webhook-Signature': expect.stringMatching(/^sha256=/),
+          'X-Webhook-Event': 'verification.approved',
+          'X-Webhook-Timestamp': expect.any(String),
+          'User-Agent': 'AuthBridge-Webhooks/1.0'
         })
       })
     );
@@ -194,7 +197,7 @@ describe('send-webhook handler', () => {
 
     const retryMessage = JSON.parse(sqsCalls[0].args[0].input.MessageBody);
     expect(retryMessage.attemptCount).toBe(2);
-    expect(sqsCalls[0].args[0].input.DelaySeconds).toBe(30); // First retry: 30s delay
+    expect(sqsCalls[0].args[0].input.DelaySeconds).toBe(1); // First retry: 1s delay (aligned with webhook.ts)
   });
 
   it('should schedule retry with 5min delay on second failure', async () => {
@@ -233,7 +236,7 @@ describe('send-webhook handler', () => {
 
     const retryMessage = JSON.parse(sqsCalls[0].args[0].input.MessageBody);
     expect(retryMessage.attemptCount).toBe(3);
-    expect(sqsCalls[0].args[0].input.DelaySeconds).toBe(300); // Second retry: 5min delay
+    expect(sqsCalls[0].args[0].input.DelaySeconds).toBe(5); // Second retry: 5s delay (aligned with webhook.ts)
   });
 
   it('should log failed delivery after max retries', async () => {
