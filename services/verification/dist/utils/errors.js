@@ -37,4 +37,20 @@ export class ValidationError extends Error {
         this.name = 'ValidationError';
     }
 }
+export class NotFoundError extends Error {
+    details;
+    constructor(message, details) {
+        super(message);
+        this.details = details;
+        this.name = 'NotFoundError';
+    }
+}
+export class UnauthorizedError extends Error {
+    details;
+    constructor(message, details) {
+        super(message);
+        this.details = details;
+        this.name = 'UnauthorizedError';
+    }
+}
 //# sourceMappingURL=errors.js.map

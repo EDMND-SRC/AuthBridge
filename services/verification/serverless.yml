@@ -185,14 +185,22 @@ functions:
             identitySource: method.request.header.Authorization
             resultTtlInSeconds: 300
 
-  getVerification:
-    handler: dist/handlers/get-verification.handler
-    description: Get verification case by ID
+  getVerificationStatus:
+    handler: dist/handlers/get-verification-status.handler
+    description: Get verification status and details
+    memorySize: 512
+    timeout: 10
     events:
       - http:
-          path: /api/v1/verifications/{verificationId}
+          path: /api/v1/verifications/{id}
           method: get
           cors: true
+          authorizer:
+            name: apiKeyAuthorizer
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authbridge-auth-${self:provider.stage}-apiKeyAuthorizer
+            type: request
+            identitySource: method.request.header.Authorization
+            resultTtlInSeconds: 300
 
   uploadDocument:
     handler: dist/handlers/upload-document.handler

@@ -42,6 +42,14 @@ export interface DocumentEntity {
   uploadedAt: string; // ISO 8601
   status: DocumentStatus;
   metadata?: DocumentMetadata;
+  // OCR processing results
+  ocrConfidence?: number;
+  processedAt?: string; // ISO 8601
+  processingResults?: {
+    ocrData?: unknown;
+    biometricScore?: number;
+    qualityChecks?: unknown;
+  };
 }
 
 export interface UploadDocumentResponse {

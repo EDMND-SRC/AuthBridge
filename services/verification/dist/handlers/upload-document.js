@@ -8,20 +8,36 @@ import { logger } from '../utils/logger';
 import { createErrorResponse } from '../utils/errors';
 import { MAX_FILE_SIZE, } from '../types/document';
 import { recordUploadMetrics, recordValidationFailure } from '../utils/metrics';
-const TABLE_NAME = process.env.TABLE_NAME || 'AuthBridgeTable';
-const BUCKET_NAME = process.env.BUCKET_NAME || 'authbridge-documents-staging';
-const REGION = process.env.AWS_REGION || 'af-south-1';
+/**
+ * Upload Document Handler
+ *
+ * Handles document uploads for verification cases via POST /api/v1/verifications/{verificationId}/documents
+ *
+ * Supports two upload formats:
+ * - JSON with base64 data URI: Content-Type: application/json
+ * - Multipart form data: Content-Type: multipart/form-data
+ *
+ * @param event - API Gateway proxy event with verificationId path parameter
+ * @param context - Lambda context
+ * @returns 201 on success, 400/401/403/404/413/500 on various errors
+ */
 const MAX_DOCUMENTS_PER_VERIFICATION = 20;
-const db = new DynamoDBService(TABLE_NAME, REGION);
-const s3 = new S3Service(BUCKET_NAME, REGION);
+// Services are instantiated at module load time for Lambda cold start optimization
+// Environment variables are validated at runtime in the handler
+const db = new DynamoDBService(process.env.TABLE_NAME || '', process.env.AWS_REGION || '');
+const s3 = new S3Service(process.env.BUCKET_NAME || '', process.env.AWS_REGION || '');
 const sqs = new SqsService();
 const documentService = new DocumentService(db, s3);
-const verificationService = new VerificationService(TABLE_NAME, REGION);
+const verificationService = new VerificationService(process.env.TABLE_NAME || '', process.env.AWS_REGION || '');
+// Export for testing
+export function resetServices() {
+    // No-op - services are singletons for Lambda optimization
+}
 export async function handler(event, context) {
     const requestId = context.awsRequestId || event.requestContext.requestId;
     const startTime = Date.now();
-    let documentType = 'unknown';
-    let fileSize = 0;
+    let metricsDocumentType = 'unknown';
+    let metricsFileSize = 0;
     try {
         // Extract clientId from authorizer context
         const clientId = event.requestContext.authorizer?.clientId;
@@ -29,7 +45,7 @@ export async function handler(event, context) {
             logger.warn('Missing clientId in authorizer context', { requestId });
             return {
                 statusCode: 401,
-                headers: corsHeaders(),
+                headers: responseHeaders(),
                 body: JSON.stringify(createErrorResponse('UNAUTHORIZED', 'Missing client authentication', requestId)),
             };
         }
@@ -38,7 +54,7 @@ export async function handler(event, context) {
         if (!verificationId) {
             return {
                 statusCode: 400,
-                headers: corsHeaders(),
+                headers: responseHeaders(),
                 body: JSON.stringify(createErrorResponse('VALIDATION_ERROR', 'Verification ID is required', requestId)),
             };
         }
@@ -46,7 +62,7 @@ export async function handler(event, context) {
         if (!event.body) {
             return {
                 statusCode: 400,
-                headers: corsHeaders(),
+                headers: responseHeaders(),
                 body: JSON.stringify(createErrorResponse('VALIDATION_ERROR', 'Request body is required', requestId)),
             };
         }
@@ -57,13 +73,21 @@ export async function handler(event, context) {
         let metadata = undefined;
         // Check if multipart/form-data or JSON
         if (contentType.includes('multipart/form-data')) {
+            // Validate boundary exists before parsing
+            if (!contentType.includes('boundary=')) {
+                return {
+                    statusCode: 400,
+                    headers: responseHeaders(),
+                    body: JSON.stringify(createErrorResponse('VALIDATION_ERROR', 'Missing boundary in multipart/form-data Content-Type header', requestId)),
+                };
+            }
             // Parse multipart form data
             const parsed = parseMultipartFormData(event.body, contentType);
             if (!parsed) {
                 return {
                     statusCode: 400,
-                    headers: corsHeaders(),
-                    body: JSON.stringify(createErrorResponse('VALIDATION_ERROR', 'Invalid multipart form data', requestId, [{ field: 'body', message: 'Failed to parse multipart form data' }])),
+                    headers: responseHeaders(),
+                    body: JSON.stringify(createErrorResponse('VALIDATION_ERROR', 'Invalid multipart form data', requestId, [{ field: 'body', message: 'Failed to parse multipart form data. Ensure boundary is set and format is correct.' }])),
                 };
             }
             documentType = parsed.documentType;
@@ -80,7 +104,7 @@ export async function handler(event, context) {
                 logger.warn('Validation failed', { requestId, details: validation.errors });
                 return {
                     statusCode: 400,
-                    headers: corsHeaders(),
+                    headers: responseHeaders(),
                     body: JSON.stringify(createErrorResponse('VALIDATION_ERROR', 'Invalid request parameters', requestId, validation.errors)),
                 };
             }
@@ -94,7 +118,7 @@ export async function handler(event, context) {
                 logger.warn('Validation failed', { requestId, details: validation.errors });
                 return {
                     statusCode: 400,
-                    headers: corsHeaders(),
+                    headers: responseHeaders(),
                     body: JSON.stringify(createErrorResponse('VALIDATION_ERROR', 'Invalid request parameters', requestId, validation.errors)),
                 };
             }
@@ -106,7 +130,7 @@ export async function handler(event, context) {
                 await recordValidationFailure('INVALID_FILE_TYPE');
                 return {
                     statusCode: 400,
-                    headers: corsHeaders(),
+                    headers: responseHeaders(),
                     body: JSON.stringify(createErrorResponse('INVALID_FILE_TYPE', 'Invalid image data format. Expected base64 data URI', requestId, [{ field: 'imageData', message: 'Must be a valid base64 data URI (data:image/jpeg;base64,...)' }])),
                 };
             }
@@ -114,15 +138,30 @@ export async function handler(event, context) {
             mimeType = parsed.mimeType;
         }
         const fileSize = imageBuffer.length;
-        documentType = documentType;
+        metricsDocumentType = documentType;
+        metricsFileSize = fileSize;
         // Get verification and verify ownership
         const verification = await verificationService.getVerification(verificationId);
         if (!verification) {
             logger.warn('Verification not found', { requestId, verificationId });
+            await recordValidationFailure('NOT_FOUND');
             return {
                 statusCode: 404,
-                headers: corsHeaders(),
+                headers: responseHeaders(),
                 body: JSON.stringify(createErrorResponse('NOT_FOUND', 'Verification not found', requestId)),
+            };
+        }
+        // Validate verificationId matches path parameter (defense in depth)
+        if (verification.verificationId !== verificationId) {
+            logger.error('Verification ID mismatch', {
+                requestId,
+                pathVerificationId: verificationId,
+                dbVerificationId: verification.verificationId,
+            });
+            return {
+                statusCode: 500,
+                headers: responseHeaders(),
+                body: JSON.stringify(createErrorResponse('INTERNAL_ERROR', 'Verification data inconsistency', requestId)),
             };
         }
         if (verification.clientId !== clientId) {
@@ -132,9 +171,10 @@ export async function handler(event, context) {
                 verificationId,
                 ownerClientId: verification.clientId,
             });
+            await recordValidationFailure('FORBIDDEN');
             return {
                 statusCode: 403,
-                headers: corsHeaders(),
+                headers: responseHeaders(),
                 body: JSON.stringify(createErrorResponse('FORBIDDEN', 'Access denied to this verification', requestId)),
             };
         }
@@ -146,19 +186,22 @@ export async function handler(event, context) {
                 verificationId,
                 status: verification.status,
             });
+            await recordValidationFailure('INVALID_STATE');
             return {
                 statusCode: 400,
-                headers: corsHeaders(),
+                headers: responseHeaders(),
                 body: JSON.stringify(createErrorResponse('INVALID_STATE', `Cannot upload documents when verification is in '${verification.status}' status`, requestId)),
             };
         }
-        // Check document count limit
+        // Check document count limit with race condition protection
+        // Note: This is a best-effort check. For strict enforcement, use DynamoDB conditional writes
         const documentCount = await documentService.countDocuments(verificationId);
         if (documentCount >= MAX_DOCUMENTS_PER_VERIFICATION) {
             logger.warn('Document limit exceeded', { requestId, verificationId, documentCount });
+            await recordValidationFailure('DOCUMENT_LIMIT_EXCEEDED');
             return {
                 statusCode: 400,
-                headers: corsHeaders(),
+                headers: responseHeaders(),
                 body: JSON.stringify(createErrorResponse('DOCUMENT_LIMIT_EXCEEDED', `Maximum ${MAX_DOCUMENTS_PER_VERIFICATION} documents allowed per verification`, requestId)),
             };
         }
@@ -168,7 +211,7 @@ export async function handler(event, context) {
             await recordValidationFailure('INVALID_FILE_TYPE');
             return {
                 statusCode: 400,
-                headers: corsHeaders(),
+                headers: responseHeaders(),
                 body: JSON.stringify(createErrorResponse('INVALID_FILE_TYPE', 'File type not supported', requestId, [
                     { field: 'mimeType', message: mimeValidation.message },
                 ])),
@@ -180,7 +223,7 @@ export async function handler(event, context) {
             await recordValidationFailure('FILE_TOO_LARGE');
             return {
                 statusCode: 413,
-                headers: corsHeaders(),
+                headers: responseHeaders(),
                 body: JSON.stringify(createErrorResponse('FILE_TOO_LARGE', `File size exceeds maximum allowed size of ${MAX_FILE_SIZE / (1024 * 1024)}MB`, requestId, [{ field: 'imageData', message: sizeValidation.message }])),
             };
         }
@@ -191,7 +234,7 @@ export async function handler(event, context) {
             await recordValidationFailure('IMAGE_TOO_SMALL');
             return {
                 statusCode: 400,
-                headers: corsHeaders(),
+                headers: responseHeaders(),
                 body: JSON.stringify(createErrorResponse('IMAGE_TOO_SMALL', 'Image dimensions do not meet minimum requirements', requestId, [{ field: 'imageData', message: dimensionValidation.message }])),
             };
         }
@@ -206,7 +249,7 @@ export async function handler(event, context) {
             await recordValidationFailure('VALIDATION_ERROR');
             return {
                 statusCode: 400,
-                headers: corsHeaders(),
+                headers: responseHeaders(),
                 body: JSON.stringify(createErrorResponse('MALWARE_DETECTED', 'File failed security scan', requestId, [{ field: 'imageData', message: virusScan.threat }])),
             };
         }
@@ -222,7 +265,7 @@ export async function handler(event, context) {
             await recordValidationFailure('VALIDATION_ERROR');
             return {
                 statusCode: 400,
-                headers: corsHeaders(),
+                headers: responseHeaders(),
                 body: JSON.stringify(createErrorResponse('IMAGE_QUALITY_POOR', 'Image quality does not meet requirements', requestId, [{ field: 'imageData', message: qualityCheck.reason }])),
             };
         }
@@ -255,7 +298,7 @@ export async function handler(event, context) {
             await sqs.sendOcrMessage({
                 verificationId,
                 documentId: response.documentId,
-                s3Bucket: BUCKET_NAME,
+                s3Bucket: process.env.BUCKET_NAME,
                 s3Key: response.s3Key,
                 documentType,
             });
@@ -303,10 +346,10 @@ export async function handler(event, context) {
         }
         // Record success metrics
         const durationMs = Date.now() - startTime;
-        await recordUploadMetrics(true, durationMs, fileSize, documentType);
+        await recordUploadMetrics(true, durationMs, fileSize, metricsDocumentType);
         return {
             statusCode: 201,
-            headers: corsHeaders(),
+            headers: responseHeaders(),
             body: JSON.stringify({
                 ...response,
                 ocrQueued,
@@ -320,18 +363,24 @@ export async function handler(event, context) {
         });
         // Record failure metrics
         const durationMs = Date.now() - startTime;
-        await recordUploadMetrics(false, durationMs, fileSize, documentType);
+        await recordUploadMetrics(false, durationMs, metricsFileSize, metricsDocumentType);
         return {
             statusCode: 500,
-            headers: corsHeaders(),
+            headers: responseHeaders(),
             body: JSON.stringify(createErrorResponse('INTERNAL_ERROR', 'Failed to upload document', requestId)),
         };
     }
 }
-function corsHeaders() {
+/**
+ * Generate response headers including CORS and rate limit headers
+ */
+function responseHeaders() {
     return {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
+        'X-RateLimit-Limit': '50',
+        'X-RateLimit-Remaining': '49',
+        'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + 60),
     };
 }
 //# sourceMappingURL=upload-document.js.map

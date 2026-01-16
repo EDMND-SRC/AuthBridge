@@ -105,10 +105,10 @@ development_status:
   # EPIC 4: REST API & Webhooks (MVP)
   # ═══════════════════════════════════════════════════════════════════════════
   epic-4: in-progress
-  4-1-api-authentication: review
+  4-1-api-authentication: done
   4-2-create-verification-endpoint: done
   4-3-document-upload-endpoint: done  # Code review completed 2026-01-16
-  4-4-verification-status-endpoint: backlog
+  4-4-verification-status-endpoint: done  # Code review completed 2026-01-16
   4-5-webhook-notifications: backlog
   epic-4-retrospective: optional
 

@@ -1,4 +1,3 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
-export declare function resetServices(): void;
 export declare function handler(event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult>;
-//# sourceMappingURL=upload-document.d.ts.map
+//# sourceMappingURL=get-verification-status.d.ts.map

@@ -35,4 +35,12 @@ export declare class ValidationError extends Error {
         message: string;
     }>);
 }
+export declare class NotFoundError extends Error {
+    details?: Record<string, unknown> | undefined;
+    constructor(message: string, details?: Record<string, unknown> | undefined);
+}
+export declare class UnauthorizedError extends Error {
+    details?: Record<string, unknown> | undefined;
+    constructor(message: string, details?: Record<string, unknown> | undefined);
+}
 //# sourceMappingURL=errors.d.ts.map

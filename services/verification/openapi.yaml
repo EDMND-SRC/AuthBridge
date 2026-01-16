@@ -137,6 +137,168 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /api/v1/verifications/{id}:
+    get:
+      summary: Get Verification Status
+      description: |
+        Retrieve the current status and details of a verification case.
+
+        **Authentication:** Requires API key authentication.
+
+        **Rate Limits:** 50 requests/second per API key.
+
+        **Response Format:**
+        - **Created/Uploading:** Returns basic verification info and document list
+        - **Approved:** Includes extracted data (masked PII) and biometric scores
+        - **Rejected:** Includes rejection reason and code
+        - **Processing:** Includes submitted timestamp
+
+        **PII Masking:**
+        - Omang numbers: Last 4 digits only (***6789)
+        - Addresses: District only (Gaborone)
+      operationId: getVerificationStatus
+      tags:
+        - Verifications
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Verification ID
+          schema:
+            type: string
+            pattern: '^ver_[a-f0-9]{16}$'
+            example: 'ver_1234567890abcdef'
+      responses:
+        '200':
+          description: Verification status retrieved successfully
+          headers:
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+              description: Maximum requests per window
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Requests remaining in current window
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix timestamp when the window resets
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/VerificationStatusCreated'
+                  - $ref: '#/components/schemas/VerificationStatusApproved'
+                  - $ref: '#/components/schemas/VerificationStatusRejected'
+              examples:
+                created:
+                  summary: Created status
+                  value:
+                    verificationId: ver_1234567890abcdef
+                    status: created
+                    documentType: omang
+                    documents: []
+                    createdAt: '2026-01-16T11:00:00Z'
+                    updatedAt: '2026-01-16T11:00:00Z'
+                    meta:
+                      requestId: req_abc123
+                      timestamp: '2026-01-16T11:05:00Z'
+                approved:
+                  summary: Approved status with masked PII
+                  value:
+                    verificationId: ver_1234567890abcdef
+                    status: approved
+                    documentType: omang
+                    customer:
+                      name: John Doe
+                      email: john@example.com
+                      dateOfBirth: '1990-01-15'
+                      omangNumber: '***6789'
+                      address: Gaborone
+                    extractedData:
+                      fullName: John Doe
+                      omangNumber: '***6789'
+                      dateOfBirth: '1990-01-15'
+                      sex: M
+                      dateOfExpiry: '2030-01-15'
+                      address:
+                        district: Gaborone
+                        locality: Block 8
+                    biometricScore: 92.5
+                    documents:
+                      - documentId: doc_abc123
+                        documentType: omang_front
+                        status: processed
+                        uploadedAt: '2026-01-16T11:01:00Z'
+                      - documentId: doc_def456
+                        documentType: selfie
+                        status: processed
+                        uploadedAt: '2026-01-16T11:02:00Z'
+                    createdAt: '2026-01-16T11:00:00Z'
+                    updatedAt: '2026-01-16T11:10:00Z'
+                    submittedAt: '2026-01-16T11:05:00Z'
+                    completedAt: '2026-01-16T11:10:00Z'
+                    meta:
+                      requestId: req_abc123
+                      timestamp: '2026-01-16T11:15:00Z'
+                rejected:
+                  summary: Rejected status with reason
+                  value:
+                    verificationId: ver_1234567890abcdef
+                    status: rejected
+                    documentType: omang
+                    customer:
+                      email: john@example.com
+                    rejectionReason: Face does not match ID photo
+                    rejectionCode: FACE_MISMATCH
+                    documents:
+                      - documentId: doc_abc123
+                        documentType: omang_front
+                        status: processed
+                        uploadedAt: '2026-01-16T11:01:00Z'
+                    createdAt: '2026-01-16T11:00:00Z'
+                    updatedAt: '2026-01-16T11:10:00Z'
+                    submittedAt: '2026-01-16T11:05:00Z'
+                    completedAt: '2026-01-16T11:10:00Z'
+                    meta:
+                      requestId: req_abc123
+                      timestamp: '2026-01-16T11:15:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Forbidden - client does not own verification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: UNAUTHORIZED
+                  message: You do not have permission to access this verification
+                meta:
+                  requestId: req_abc123
+                  timestamp: '2026-01-16T11:00:00Z'
+        '404':
+          description: Verification not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: VERIFICATION_NOT_FOUND
+                  message: Verification not found
+                meta:
+                  requestId: req_abc123
+                  timestamp: '2026-01-16T11:00:00Z'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/cases:
     get:
       summary: List Cases
@@ -1146,6 +1308,205 @@ components:
           example: "2026-01-14T10:15:00Z"
         meta:
           $ref: '#/components/schemas/ResponseMeta'
+
+    VerificationStatusCreated:
+      type: object
+      description: Verification in created or documents_uploading status
+      properties:
+        verificationId:
+          type: string
+          example: 'ver_1234567890abcdef'
+        status:
+          type: string
+          enum: [created, documents_uploading]
+          example: 'created'
+        documentType:
+          type: string
+          enum: [omang, passport, drivers_licence]
+          example: 'omang'
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/VerificationDocumentSummary'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-01-16T11:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2026-01-16T11:00:00Z'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    VerificationStatusApproved:
+      type: object
+      description: Verification in approved status with masked PII
+      properties:
+        verificationId:
+          type: string
+          example: 'ver_1234567890abcdef'
+        status:
+          type: string
+          enum: [approved]
+          example: 'approved'
+        documentType:
+          type: string
+          enum: [omang, passport, drivers_licence]
+          example: 'omang'
+        customer:
+          type: object
+          properties:
+            name:
+              type: string
+              example: 'John Doe'
+            email:
+              type: string
+              example: 'john@example.com'
+            dateOfBirth:
+              type: string
+              format: date
+              example: '1990-01-15'
+            omangNumber:
+              type: string
+              description: Masked Omang number (last 4 digits only)
+              example: '***6789'
+            address:
+              type: string
+              description: Masked address (district only)
+              example: 'Gaborone'
+        extractedData:
+          type: object
+          properties:
+            fullName:
+              type: string
+              example: 'John Doe'
+            omangNumber:
+              type: string
+              description: Masked Omang number
+              example: '***6789'
+            dateOfBirth:
+              type: string
+              format: date
+              example: '1990-01-15'
+            sex:
+              type: string
+              enum: [M, F]
+              example: 'M'
+            dateOfExpiry:
+              type: string
+              format: date
+              example: '2030-01-15'
+            address:
+              type: object
+              properties:
+                district:
+                  type: string
+                  example: 'Gaborone'
+                locality:
+                  type: string
+                  example: 'Block 8'
+        biometricScore:
+          type: number
+          format: float
+          description: Overall biometric matching score (0-100)
+          example: 92.5
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/VerificationDocumentSummary'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-01-16T11:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2026-01-16T11:10:00Z'
+        submittedAt:
+          type: string
+          format: date-time
+          example: '2026-01-16T11:05:00Z'
+        completedAt:
+          type: string
+          format: date-time
+          example: '2026-01-16T11:10:00Z'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    VerificationStatusRejected:
+      type: object
+      description: Verification in rejected or auto_rejected status
+      properties:
+        verificationId:
+          type: string
+          example: 'ver_1234567890abcdef'
+        status:
+          type: string
+          enum: [rejected, auto_rejected]
+          example: 'rejected'
+        documentType:
+          type: string
+          enum: [omang, passport, drivers_licence]
+          example: 'omang'
+        customer:
+          type: object
+          properties:
+            email:
+              type: string
+              example: 'john@example.com'
+        rejectionReason:
+          type: string
+          description: Human-readable rejection reason
+          example: 'Face does not match ID photo'
+        rejectionCode:
+          type: string
+          enum: [BLURRY_IMAGE, FACE_MISMATCH, INVALID_DOCUMENT, EXPIRED_DOCUMENT, DUPLICATE_OMANG]
+          description: Machine-readable rejection code
+          example: 'FACE_MISMATCH'
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/VerificationDocumentSummary'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-01-16T11:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2026-01-16T11:10:00Z'
+        submittedAt:
+          type: string
+          format: date-time
+          example: '2026-01-16T11:05:00Z'
+        completedAt:
+          type: string
+          format: date-time
+          example: '2026-01-16T11:10:00Z'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    VerificationDocumentSummary:
+      type: object
+      description: Document summary in verification status response
+      properties:
+        documentId:
+          type: string
+          example: 'doc_abc123'
+        documentType:
+          type: string
+          enum: [omang_front, omang_back, passport, drivers_licence_front, drivers_licence_back, selfie]
+          example: 'omang_front'
+        status:
+          type: string
+          enum: [uploaded, processing, processed, failed]
+          description: Document processing status
+          example: 'processed'
+        uploadedAt:
+          type: string
+          format: date-time
+          example: '2026-01-16T11:01:00Z'
 
     ErrorResponse:
       type: object

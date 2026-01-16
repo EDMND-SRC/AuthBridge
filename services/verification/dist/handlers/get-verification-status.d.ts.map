@@ -1,0 +1,1 @@
+{"version":3,"file":"get-verification-status.d.ts","sourceRoot":"","sources":["../../src/handlers/get-verification-status.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,oBAAoB,EAAE,qBAAqB,EAAE,OAAO,EAAE,MAAM,YAAY,CAAC;AAoBvF,wBAAsB,OAAO,CAC3B,KAAK,EAAE,oBAAoB,EAC3B,OAAO,EAAE,OAAO,GACf,OAAO,CAAC,qBAAqB,CAAC,CA2GhC"}

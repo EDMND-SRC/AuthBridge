@@ -1,7 +1,7 @@
 /**
  * Document types for document upload functionality
  */
-export type DocumentSide = 'omang_front' | 'omang_back' | 'selfie' | 'passport' | 'drivers_license_front' | 'drivers_license_back' | 'id_card_front' | 'id_card_back';
+export type DocumentSide = 'omang_front' | 'omang_back' | 'selfie' | 'passport' | 'drivers_licence_front' | 'drivers_licence_back' | 'id_card_front' | 'id_card_back';
 export type DocumentStatus = 'uploaded' | 'processing' | 'processed' | 'failed';
 export type CaptureMethod = 'camera' | 'upload';
 export type DeviceType = 'mobile' | 'desktop' | 'tablet';
@@ -28,6 +28,13 @@ export interface DocumentEntity {
     uploadedAt: string;
     status: DocumentStatus;
     metadata?: DocumentMetadata;
+    ocrConfidence?: number;
+    processedAt?: string;
+    processingResults?: {
+        ocrData?: unknown;
+        biometricScore?: number;
+        qualityChecks?: unknown;
+    };
 }
 export interface UploadDocumentResponse {
     documentId: string;

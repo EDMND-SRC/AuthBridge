@@ -24,12 +24,20 @@ export interface FileValidationError {
  */
 export declare function validateUploadDocumentRequest(request: unknown): FileValidationResult | FileValidationError;
 /**
- * Parse base64 data URI and extract mime type and binary data
+ * Parse base64 data URI and extract mime type and binary data.
+ * Validates MIME type and checks magic bytes to prevent type spoofing.
+ *
  * Supports format: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD...
+ *
+ * @param dataUri - Base64 data URI string
+ * @returns Parsed data with validated MIME type, or null if invalid
  */
 export declare function parseBase64DataUri(dataUri: string): ParsedBase64 | null;
 /**
- * Validate file size (max 10MB)
+ * Validate file size against maximum allowed size.
+ *
+ * @param size - File size in bytes
+ * @returns Validation result with error message if invalid
  */
 export declare function validateFileSize(size: number): {
     valid: true;
@@ -38,7 +46,10 @@ export declare function validateFileSize(size: number): {
     message: string;
 };
 /**
- * Validate mime type
+ * Validate MIME type against allowed types.
+ *
+ * @param mimeType - MIME type string to validate
+ * @returns Validation result with error message if invalid
  */
 export declare function validateMimeType(mimeType: string): {
     valid: true;
@@ -81,8 +92,20 @@ export interface VirusScanThreat {
     threat: string;
 }
 /**
- * Scan file buffer for known malicious signatures
- * This is a basic signature-based scan - production should use ClamAV or similar
+ * Scan file buffer for known malicious signatures.
+ *
+ * This is a basic signature-based scan suitable for common threats.
+ * For production, consider integrating ClamAV or AWS GuardDuty Malware Protection.
+ *
+ * Scans entire file for:
+ * - EICAR test signatures
+ * - Executable file headers (PE, ELF)
+ * - Script files (PHP, JavaScript, shell)
+ * - Archive files (ZIP, RAR)
+ * - Embedded scripts in images
+ *
+ * @param buffer - File data buffer to scan
+ * @returns Scan result indicating if file is clean or contains threats
  */
 export declare function scanForViruses(buffer: Buffer): VirusScanResult | VirusScanThreat;
 export interface ImageQualityMetrics {

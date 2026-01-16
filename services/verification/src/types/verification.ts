@@ -59,8 +59,13 @@ export interface VerificationEntity {
     dateOfBirth?: string;
     sex?: string;
     dateOfExpiry?: string;
+    district?: string;
+    locality?: string;
     [key: string]: unknown;
   };
+  // Rejection fields (for rejected/auto_rejected status)
+  rejectionReason?: string;
+  rejectionCode?: 'BLURRY_IMAGE' | 'FACE_MISMATCH' | 'INVALID_DOCUMENT' | 'EXPIRED_DOCUMENT' | 'DUPLICATE_OMANG';
   assignee?: string;
 }
 
