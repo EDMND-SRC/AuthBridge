@@ -74,79 +74,79 @@
     "AuthorizerLogGroup": {
       "Type": "AWS::Logs::LogGroup",
       "Properties": {
-        "LogGroupName": "/aws/lambda/authbridge-auth-production-authorizer"
+        "LogGroupName": "/aws/lambda/authbridge-auth-staging-authorizer"
       }
     },
     "ApiKeyAuthorizerLogGroup": {
       "Type": "AWS::Logs::LogGroup",
       "Properties": {
-        "LogGroupName": "/aws/lambda/authbridge-auth-production-apiKeyAuthorizer"
+        "LogGroupName": "/aws/lambda/authbridge-auth-staging-apiKeyAuthorizer"
       }
     },
     "CreateSessionLogGroup": {
       "Type": "AWS::Logs::LogGroup",
       "Properties": {
-        "LogGroupName": "/aws/lambda/authbridge-auth-production-createSession"
+        "LogGroupName": "/aws/lambda/authbridge-auth-staging-createSession"
       }
     },
     "ValidateSessionLogGroup": {
       "Type": "AWS::Logs::LogGroup",
       "Properties": {
-        "LogGroupName": "/aws/lambda/authbridge-auth-production-validateSession"
+        "LogGroupName": "/aws/lambda/authbridge-auth-staging-validateSession"
       }
     },
     "CreateApiKeyLogGroup": {
       "Type": "AWS::Logs::LogGroup",
       "Properties": {
-        "LogGroupName": "/aws/lambda/authbridge-auth-production-createApiKey"
+        "LogGroupName": "/aws/lambda/authbridge-auth-staging-createApiKey"
       }
     },
     "ListApiKeysLogGroup": {
       "Type": "AWS::Logs::LogGroup",
       "Properties": {
-        "LogGroupName": "/aws/lambda/authbridge-auth-production-listApiKeys"
+        "LogGroupName": "/aws/lambda/authbridge-auth-staging-listApiKeys"
       }
     },
     "RevokeApiKeyLogGroup": {
       "Type": "AWS::Logs::LogGroup",
       "Properties": {
-        "LogGroupName": "/aws/lambda/authbridge-auth-production-revokeApiKey"
+        "LogGroupName": "/aws/lambda/authbridge-auth-staging-revokeApiKey"
       }
     },
     "RotateApiKeyLogGroup": {
       "Type": "AWS::Logs::LogGroup",
       "Properties": {
-        "LogGroupName": "/aws/lambda/authbridge-auth-production-rotateApiKey"
+        "LogGroupName": "/aws/lambda/authbridge-auth-staging-rotateApiKey"
       }
     },
     "UserLoginLogGroup": {
       "Type": "AWS::Logs::LogGroup",
       "Properties": {
-        "LogGroupName": "/aws/lambda/authbridge-auth-production-userLogin"
+        "LogGroupName": "/aws/lambda/authbridge-auth-staging-userLogin"
       }
     },
     "UserVerifyOtpLogGroup": {
       "Type": "AWS::Logs::LogGroup",
       "Properties": {
-        "LogGroupName": "/aws/lambda/authbridge-auth-production-userVerifyOtp"
+        "LogGroupName": "/aws/lambda/authbridge-auth-staging-userVerifyOtp"
       }
     },
     "UserRefreshTokenLogGroup": {
       "Type": "AWS::Logs::LogGroup",
       "Properties": {
-        "LogGroupName": "/aws/lambda/authbridge-auth-production-userRefreshToken"
+        "LogGroupName": "/aws/lambda/authbridge-auth-staging-userRefreshToken"
       }
     },
     "UserLogoutLogGroup": {
       "Type": "AWS::Logs::LogGroup",
       "Properties": {
-        "LogGroupName": "/aws/lambda/authbridge-auth-production-userLogout"
+        "LogGroupName": "/aws/lambda/authbridge-auth-staging-userLogout"
       }
     },
     "UserMeLogGroup": {
       "Type": "AWS::Logs::LogGroup",
       "Properties": {
-        "LogGroupName": "/aws/lambda/authbridge-auth-production-userMe"
+        "LogGroupName": "/aws/lambda/authbridge-auth-staging-userMe"
       }
     },
     "IamRoleLambdaExecution": {
@@ -175,7 +175,7 @@
                 "-",
                 [
                   "authbridge-auth",
-                  "production",
+                  "staging",
                   "lambda"
                 ]
               ]
@@ -192,7 +192,7 @@
                   ],
                   "Resource": [
                     {
-                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/authbridge-auth-production*:*"
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/authbridge-auth-staging*:*"
                     }
                   ]
                 },
@@ -203,7 +203,7 @@
                   ],
                   "Resource": [
                     {
-                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/authbridge-auth-production*:*:*"
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/authbridge-auth-staging*:*:*"
                     }
                   ]
                 },
@@ -254,7 +254,7 @@
             "-",
             [
               "authbridge-auth",
-              "production",
+              "staging",
               {
                 "Ref": "AWS::Region"
               },
@@ -271,11 +271,11 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/authbridge-auth/production/1768644974778-2026-01-17T10:16:14.778Z/authbridge-auth.zip"
+          "S3Key": "serverless/authbridge-auth/staging/1768680104010-2026-01-17T20:01:44.010Z/authbridge-auth.zip"
         },
         "Handler": "dist/handlers/authorizer.handler",
         "Runtime": "nodejs20.x",
-        "FunctionName": "authbridge-auth-production-authorizer",
+        "FunctionName": "authbridge-auth-staging-authorizer",
         "MemorySize": 512,
         "Timeout": 30,
         "Description": "JWT token validation Lambda authorizer",
@@ -307,11 +307,11 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/authbridge-auth/production/1768644974778-2026-01-17T10:16:14.778Z/authbridge-auth.zip"
+          "S3Key": "serverless/authbridge-auth/staging/1768680104010-2026-01-17T20:01:44.010Z/authbridge-auth.zip"
         },
         "Handler": "dist/handlers/api-key-authorizer.handler",
         "Runtime": "nodejs20.x",
-        "FunctionName": "authbridge-auth-production-apiKeyAuthorizer",
+        "FunctionName": "authbridge-auth-staging-apiKeyAuthorizer",
         "MemorySize": 512,
         "Timeout": 30,
         "Description": "API key validation Lambda authorizer",
@@ -343,11 +343,11 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/authbridge-auth/production/1768644974778-2026-01-17T10:16:14.778Z/authbridge-auth.zip"
+          "S3Key": "serverless/authbridge-auth/staging/1768680104010-2026-01-17T20:01:44.010Z/authbridge-auth.zip"
         },
         "Handler": "dist/handlers/create-session.handler",
         "Runtime": "nodejs20.x",
-        "FunctionName": "authbridge-auth-production-createSession",
+        "FunctionName": "authbridge-auth-staging-createSession",
         "MemorySize": 512,
         "Timeout": 30,
         "Description": "Create new verification session",
@@ -379,11 +379,11 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/authbridge-auth/production/1768644974778-2026-01-17T10:16:14.778Z/authbridge-auth.zip"
+          "S3Key": "serverless/authbridge-auth/staging/1768680104010-2026-01-17T20:01:44.010Z/authbridge-auth.zip"
         },
         "Handler": "dist/handlers/validate-session.handler",
         "Runtime": "nodejs20.x",
-        "FunctionName": "authbridge-auth-production-validateSession",
+        "FunctionName": "authbridge-auth-staging-validateSession",
         "MemorySize": 512,
         "Timeout": 30,
         "Description": "Validate existing session",
@@ -415,11 +415,11 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/authbridge-auth/production/1768644974778-2026-01-17T10:16:14.778Z/authbridge-auth.zip"
+          "S3Key": "serverless/authbridge-auth/staging/1768680104010-2026-01-17T20:01:44.010Z/authbridge-auth.zip"
         },
         "Handler": "dist/handlers/create-api-key.handler",
         "Runtime": "nodejs20.x",
-        "FunctionName": "authbridge-auth-production-createApiKey",
+        "FunctionName": "authbridge-auth-staging-createApiKey",
         "MemorySize": 512,
         "Timeout": 30,
         "Description": "Create new API key",
@@ -451,11 +451,11 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/authbridge-auth/production/1768644974778-2026-01-17T10:16:14.778Z/authbridge-auth.zip"
+          "S3Key": "serverless/authbridge-auth/staging/1768680104010-2026-01-17T20:01:44.010Z/authbridge-auth.zip"
         },
         "Handler": "dist/handlers/list-api-keys.handler",
         "Runtime": "nodejs20.x",
-        "FunctionName": "authbridge-auth-production-listApiKeys",
+        "FunctionName": "authbridge-auth-staging-listApiKeys",
         "MemorySize": 512,
         "Timeout": 30,
         "Description": "List all API keys for a client",
@@ -487,11 +487,11 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/authbridge-auth/production/1768644974778-2026-01-17T10:16:14.778Z/authbridge-auth.zip"
+          "S3Key": "serverless/authbridge-auth/staging/1768680104010-2026-01-17T20:01:44.010Z/authbridge-auth.zip"
         },
         "Handler": "dist/handlers/revoke-api-key.handler",
         "Runtime": "nodejs20.x",
-        "FunctionName": "authbridge-auth-production-revokeApiKey",
+        "FunctionName": "authbridge-auth-staging-revokeApiKey",
         "MemorySize": 512,
         "Timeout": 30,
         "Description": "Revoke an API key",
@@ -523,11 +523,11 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/authbridge-auth/production/1768644974778-2026-01-17T10:16:14.778Z/authbridge-auth.zip"
+          "S3Key": "serverless/authbridge-auth/staging/1768680104010-2026-01-17T20:01:44.010Z/authbridge-auth.zip"
         },
         "Handler": "dist/handlers/rotate-api-key.handler",
         "Runtime": "nodejs20.x",
-        "FunctionName": "authbridge-auth-production-rotateApiKey",
+        "FunctionName": "authbridge-auth-staging-rotateApiKey",
         "MemorySize": 512,
         "Timeout": 30,
         "Description": "Rotate an API key",
@@ -559,11 +559,11 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/authbridge-auth/production/1768644974778-2026-01-17T10:16:14.778Z/authbridge-auth.zip"
+          "S3Key": "serverless/authbridge-auth/staging/1768680104010-2026-01-17T20:01:44.010Z/authbridge-auth.zip"
         },
         "Handler": "dist/handlers/user-login.handler",
         "Runtime": "nodejs20.x",
-        "FunctionName": "authbridge-auth-production-userLogin",
+        "FunctionName": "authbridge-auth-staging-userLogin",
         "MemorySize": 512,
         "Timeout": 30,
         "Description": "Initiate passwordless login (sends OTP)",
@@ -595,11 +595,11 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/authbridge-auth/production/1768644974778-2026-01-17T10:16:14.778Z/authbridge-auth.zip"
+          "S3Key": "serverless/authbridge-auth/staging/1768680104010-2026-01-17T20:01:44.010Z/authbridge-auth.zip"
         },
         "Handler": "dist/handlers/user-verify-otp.handler",
         "Runtime": "nodejs20.x",
-        "FunctionName": "authbridge-auth-production-userVerifyOtp",
+        "FunctionName": "authbridge-auth-staging-userVerifyOtp",
         "MemorySize": 512,
         "Timeout": 30,
         "Description": "Verify OTP and complete authentication",
@@ -631,11 +631,11 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/authbridge-auth/production/1768644974778-2026-01-17T10:16:14.778Z/authbridge-auth.zip"
+          "S3Key": "serverless/authbridge-auth/staging/1768680104010-2026-01-17T20:01:44.010Z/authbridge-auth.zip"
         },
         "Handler": "dist/handlers/user-refresh-token.handler",
         "Runtime": "nodejs20.x",
-        "FunctionName": "authbridge-auth-production-userRefreshToken",
+        "FunctionName": "authbridge-auth-staging-userRefreshToken",
         "MemorySize": 512,
         "Timeout": 30,
         "Description": "Refresh access tokens",
@@ -667,11 +667,11 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/authbridge-auth/production/1768644974778-2026-01-17T10:16:14.778Z/authbridge-auth.zip"
+          "S3Key": "serverless/authbridge-auth/staging/1768680104010-2026-01-17T20:01:44.010Z/authbridge-auth.zip"
         },
         "Handler": "dist/handlers/user-logout.handler",
         "Runtime": "nodejs20.x",
-        "FunctionName": "authbridge-auth-production-userLogout",
+        "FunctionName": "authbridge-auth-staging-userLogout",
         "MemorySize": 512,
         "Timeout": 30,
         "Description": "Sign out user globally",
@@ -703,11 +703,11 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/authbridge-auth/production/1768644974778-2026-01-17T10:16:14.778Z/authbridge-auth.zip"
+          "S3Key": "serverless/authbridge-auth/staging/1768680104010-2026-01-17T20:01:44.010Z/authbridge-auth.zip"
         },
         "Handler": "dist/handlers/user-me.handler",
         "Runtime": "nodejs20.x",
-        "FunctionName": "authbridge-auth-production-userMe",
+        "FunctionName": "authbridge-auth-staging-userMe",
         "MemorySize": 512,
         "Timeout": 30,
         "Description": "Get current user information",
@@ -732,7 +732,7 @@
         "UserMeLogGroup"
       ]
     },
-    "AuthorizerLambdaVersionrg57wFu63VGJoTDNwO8xQYAihaxh6jNrZnrbH8p61jo": {
+    "AuthorizerLambdaVersionEpbXvJIMaxf6wnFKK3HkpcI4K0ToHWhESU8uD2pkUw": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
@@ -743,7 +743,7 @@
         "Description": "JWT token validation Lambda authorizer"
       }
     },
-    "ApiKeyAuthorizerLambdaVersionxzdivbw1YWSZYIBfjgMZeT4MNI83yFnGJQ9lZEXzYII": {
+    "ApiKeyAuthorizerLambdaVersiondOJ3tV54FbdyWppngMfxCTBURmnKWodORPvbmFpk4": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
@@ -754,7 +754,7 @@
         "Description": "API key validation Lambda authorizer"
       }
     },
-    "CreateSessionLambdaVersionp59a3Cm2w0FAq6s3jccBNi3WDycHhwUrpQ3woYE5JI": {
+    "CreateSessionLambdaVersionbovYzyZf7vmyTJ53C0IrVWRejnZE0TZjMD4XQTa0Y": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
@@ -765,7 +765,7 @@
         "Description": "Create new verification session"
       }
     },
-    "ValidateSessionLambdaVersionySQYTvOMXbPoajIy7mymr44VIJQcFWFUq14nbhvvCzc": {
+    "ValidateSessionLambdaVersion4vSz5nD4cH8xAtpZ31mw7rEsei0wBZ6ZzVG3PBixeg": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
@@ -776,7 +776,7 @@
         "Description": "Validate existing session"
       }
     },
-    "CreateApiKeyLambdaVersionN5Gzln2MEqczmYu1wirUzKJ9m1PLfpuDgZPyHFEEQ": {
+    "CreateApiKeyLambdaVersionekK4Xj2ZKPyGGTygh6nrZbeemaPano8XjA1j0euOyg": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
@@ -787,7 +787,7 @@
         "Description": "Create new API key"
       }
     },
-    "ListApiKeysLambdaVersionrM4R3bgt0qSS7L3aRDu9EVR9WJYWDQjHmAgAbcuAc": {
+    "ListApiKeysLambdaVersionPBOS48cmJCfqNg22FCi2T6nD0GUjqm5zmDzusagC4": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
@@ -798,7 +798,7 @@
         "Description": "List all API keys for a client"
       }
     },
-    "RevokeApiKeyLambdaVersionxZkUHH5LVflAVc3HDd0wHY1eXanWjDdS8nGn6jJAA": {
+    "RevokeApiKeyLambdaVersionZDLEGtjSSjf2NYThWHIUOptSC4FJ9zq7lCybmdBzbs": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
@@ -809,7 +809,7 @@
         "Description": "Revoke an API key"
       }
     },
-    "RotateApiKeyLambdaVersionS9rzgBjH7dTb18KirOLrZSLOGoYpUBHEo3kBTMTP28": {
+    "RotateApiKeyLambdaVersionC37UrRCJ8wTQBIr9Bkyc67zb3H7lr6r7Jiu0X3AHQC4": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
@@ -820,7 +820,7 @@
         "Description": "Rotate an API key"
       }
     },
-    "UserLoginLambdaVersiond37h8UroTjLxZAqH5kOMooDCYMbNufy0NERSKmr8s": {
+    "UserLoginLambdaVersionX3IPW08wrmFT5TH9dadROLPZ5azhFJQ7QTL3r2DDc": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
@@ -831,7 +831,7 @@
         "Description": "Initiate passwordless login (sends OTP)"
       }
     },
-    "UserVerifyOtpLambdaVersion8539luDZFbH1X3y6MSavEgihMLO4B4VMDTyixviKEI": {
+    "UserVerifyOtpLambdaVersionVyWZn8HtszIYpAuJgNbCWGX6eWLtAKaHMEp5kwufbAE": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
@@ -842,7 +842,7 @@
         "Description": "Verify OTP and complete authentication"
       }
     },
-    "UserRefreshTokenLambdaVersion2PQBE7dKoG4rP0m2Sf96alv9saFAo1RP1CSKUvFzv2Q": {
+    "UserRefreshTokenLambdaVersiony3hpk4hbgCNGqh0MClgtVIfsZA59NTJsbMGGyoac": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
@@ -853,7 +853,7 @@
         "Description": "Refresh access tokens"
       }
     },
-    "UserLogoutLambdaVersionwELmbF4c2yiXFTpxt0Zz8PJtrT8I0plKozhW4WlhM": {
+    "UserLogoutLambdaVersionPFQyWZDFS0mwpYupR8Wk3d42c4ibXbElp81sl2miM": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
@@ -864,7 +864,7 @@
         "Description": "Sign out user globally"
       }
     },
-    "UserMeLambdaVersioneEiMALxmMGRgZWbkYSc5FWU2s3ddYi2dhoDYtCxj4": {
+    "UserMeLambdaVersionMn6B8fNqdSaYnjPLxsMHkpyISpNreRnPyIGhB7Mj4": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
@@ -878,7 +878,7 @@
     "ApiGatewayRestApi": {
       "Type": "AWS::ApiGateway::RestApi",
       "Properties": {
-        "Name": "production-authbridge-auth",
+        "Name": "staging-authbridge-auth",
         "EndpointConfiguration": {
           "Types": [
             "EDGE"
@@ -2058,13 +2058,13 @@
         "Type": "TOKEN"
       }
     },
-    "ApiGatewayDeployment1768644865357": {
+    "ApiGatewayDeployment1768679986686": {
       "Type": "AWS::ApiGateway::Deployment",
       "Properties": {
         "RestApiId": {
           "Ref": "ApiGatewayRestApi"
         },
-        "StageName": "production"
+        "StageName": "staging"
       },
       "DependsOn": [
         "ApiGatewayMethodSessionsOptions",
@@ -2541,124 +2541,124 @@
         "Ref": "ServerlessDeploymentBucket"
       },
       "Export": {
-        "Name": "sls-authbridge-auth-production-ServerlessDeploymentBucketName"
+        "Name": "sls-authbridge-auth-staging-ServerlessDeploymentBucketName"
       }
     },
     "AuthorizerLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "AuthorizerLambdaVersionrg57wFu63VGJoTDNwO8xQYAihaxh6jNrZnrbH8p61jo"
+        "Ref": "AuthorizerLambdaVersionEpbXvJIMaxf6wnFKK3HkpcI4K0ToHWhESU8uD2pkUw"
       },
       "Export": {
-        "Name": "sls-authbridge-auth-production-AuthorizerLambdaFunctionQualifiedArn"
+        "Name": "sls-authbridge-auth-staging-AuthorizerLambdaFunctionQualifiedArn"
       }
     },
     "ApiKeyAuthorizerLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "ApiKeyAuthorizerLambdaVersionxzdivbw1YWSZYIBfjgMZeT4MNI83yFnGJQ9lZEXzYII"
+        "Ref": "ApiKeyAuthorizerLambdaVersiondOJ3tV54FbdyWppngMfxCTBURmnKWodORPvbmFpk4"
       },
       "Export": {
-        "Name": "sls-authbridge-auth-production-ApiKeyAuthorizerLambdaFunctionQualifiedArn"
+        "Name": "sls-authbridge-auth-staging-ApiKeyAuthorizerLambdaFunctionQualifiedArn"
       }
     },
     "CreateSessionLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "CreateSessionLambdaVersionp59a3Cm2w0FAq6s3jccBNi3WDycHhwUrpQ3woYE5JI"
+        "Ref": "CreateSessionLambdaVersionbovYzyZf7vmyTJ53C0IrVWRejnZE0TZjMD4XQTa0Y"
       },
       "Export": {
-        "Name": "sls-authbridge-auth-production-CreateSessionLambdaFunctionQualifiedArn"
+        "Name": "sls-authbridge-auth-staging-CreateSessionLambdaFunctionQualifiedArn"
       }
     },
     "ValidateSessionLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "ValidateSessionLambdaVersionySQYTvOMXbPoajIy7mymr44VIJQcFWFUq14nbhvvCzc"
+        "Ref": "ValidateSessionLambdaVersion4vSz5nD4cH8xAtpZ31mw7rEsei0wBZ6ZzVG3PBixeg"
       },
       "Export": {
-        "Name": "sls-authbridge-auth-production-ValidateSessionLambdaFunctionQualifiedArn"
+        "Name": "sls-authbridge-auth-staging-ValidateSessionLambdaFunctionQualifiedArn"
       }
     },
     "CreateApiKeyLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "CreateApiKeyLambdaVersionN5Gzln2MEqczmYu1wirUzKJ9m1PLfpuDgZPyHFEEQ"
+        "Ref": "CreateApiKeyLambdaVersionekK4Xj2ZKPyGGTygh6nrZbeemaPano8XjA1j0euOyg"
       },
       "Export": {
-        "Name": "sls-authbridge-auth-production-CreateApiKeyLambdaFunctionQualifiedArn"
+        "Name": "sls-authbridge-auth-staging-CreateApiKeyLambdaFunctionQualifiedArn"
       }
     },
     "ListApiKeysLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "ListApiKeysLambdaVersionrM4R3bgt0qSS7L3aRDu9EVR9WJYWDQjHmAgAbcuAc"
+        "Ref": "ListApiKeysLambdaVersionPBOS48cmJCfqNg22FCi2T6nD0GUjqm5zmDzusagC4"
       },
       "Export": {
-        "Name": "sls-authbridge-auth-production-ListApiKeysLambdaFunctionQualifiedArn"
+        "Name": "sls-authbridge-auth-staging-ListApiKeysLambdaFunctionQualifiedArn"
       }
     },
     "RevokeApiKeyLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "RevokeApiKeyLambdaVersionxZkUHH5LVflAVc3HDd0wHY1eXanWjDdS8nGn6jJAA"
+        "Ref": "RevokeApiKeyLambdaVersionZDLEGtjSSjf2NYThWHIUOptSC4FJ9zq7lCybmdBzbs"
       },
       "Export": {
-        "Name": "sls-authbridge-auth-production-RevokeApiKeyLambdaFunctionQualifiedArn"
+        "Name": "sls-authbridge-auth-staging-RevokeApiKeyLambdaFunctionQualifiedArn"
       }
     },
     "RotateApiKeyLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "RotateApiKeyLambdaVersionS9rzgBjH7dTb18KirOLrZSLOGoYpUBHEo3kBTMTP28"
+        "Ref": "RotateApiKeyLambdaVersionC37UrRCJ8wTQBIr9Bkyc67zb3H7lr6r7Jiu0X3AHQC4"
       },
       "Export": {
-        "Name": "sls-authbridge-auth-production-RotateApiKeyLambdaFunctionQualifiedArn"
+        "Name": "sls-authbridge-auth-staging-RotateApiKeyLambdaFunctionQualifiedArn"
       }
     },
     "UserLoginLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "UserLoginLambdaVersiond37h8UroTjLxZAqH5kOMooDCYMbNufy0NERSKmr8s"
+        "Ref": "UserLoginLambdaVersionX3IPW08wrmFT5TH9dadROLPZ5azhFJQ7QTL3r2DDc"
       },
       "Export": {
-        "Name": "sls-authbridge-auth-production-UserLoginLambdaFunctionQualifiedArn"
+        "Name": "sls-authbridge-auth-staging-UserLoginLambdaFunctionQualifiedArn"
       }
     },
     "UserVerifyOtpLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "UserVerifyOtpLambdaVersion8539luDZFbH1X3y6MSavEgihMLO4B4VMDTyixviKEI"
+        "Ref": "UserVerifyOtpLambdaVersionVyWZn8HtszIYpAuJgNbCWGX6eWLtAKaHMEp5kwufbAE"
       },
       "Export": {
-        "Name": "sls-authbridge-auth-production-UserVerifyOtpLambdaFunctionQualifiedArn"
+        "Name": "sls-authbridge-auth-staging-UserVerifyOtpLambdaFunctionQualifiedArn"
       }
     },
     "UserRefreshTokenLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "UserRefreshTokenLambdaVersion2PQBE7dKoG4rP0m2Sf96alv9saFAo1RP1CSKUvFzv2Q"
+        "Ref": "UserRefreshTokenLambdaVersiony3hpk4hbgCNGqh0MClgtVIfsZA59NTJsbMGGyoac"
       },
       "Export": {
-        "Name": "sls-authbridge-auth-production-UserRefreshTokenLambdaFunctionQualifiedArn"
+        "Name": "sls-authbridge-auth-staging-UserRefreshTokenLambdaFunctionQualifiedArn"
       }
     },
     "UserLogoutLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "UserLogoutLambdaVersionwELmbF4c2yiXFTpxt0Zz8PJtrT8I0plKozhW4WlhM"
+        "Ref": "UserLogoutLambdaVersionPFQyWZDFS0mwpYupR8Wk3d42c4ibXbElp81sl2miM"
       },
       "Export": {
-        "Name": "sls-authbridge-auth-production-UserLogoutLambdaFunctionQualifiedArn"
+        "Name": "sls-authbridge-auth-staging-UserLogoutLambdaFunctionQualifiedArn"
       }
     },
     "UserMeLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "UserMeLambdaVersioneEiMALxmMGRgZWbkYSc5FWU2s3ddYi2dhoDYtCxj4"
+        "Ref": "UserMeLambdaVersionMn6B8fNqdSaYnjPLxsMHkpyISpNreRnPyIGhB7Mj4"
       },
       "Export": {
-        "Name": "sls-authbridge-auth-production-UserMeLambdaFunctionQualifiedArn"
+        "Name": "sls-authbridge-auth-staging-UserMeLambdaFunctionQualifiedArn"
       }
     },
     "ServiceEndpoint": {
@@ -2679,12 +2679,12 @@
             {
               "Ref": "AWS::URLSuffix"
             },
-            "/production"
+            "/staging"
           ]
         ]
       },
       "Export": {
-        "Name": "sls-authbridge-auth-production-ServiceEndpoint"
+        "Name": "sls-authbridge-auth-staging-ServiceEndpoint"
       }
     }
   }

@@ -23,6 +23,7 @@ export declare class DynamoDBService {
     queryByClientAndStatus(clientId: string, status?: VerificationStatus): Promise<VerificationEntity[]>;
     /**
      * Query verifications by creation date (GSI2)
+     * Decrypts sensitive fields for all results
      */
     queryByDate(date: string): Promise<VerificationEntity[]>;
     /**

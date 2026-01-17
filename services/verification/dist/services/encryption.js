@@ -121,9 +121,9 @@ export class EncryptionService {
         }
     }
     evictOldestEntry() {
-        // Use LRU eviction - evict first entry (oldest in insertion order)
-        // Map maintains insertion order, and we update entries on access by delete + re-insert
-        // This makes eviction O(1) instead of O(n)
+        // LRU eviction: Map maintains insertion order, and we move entries to end on access
+        // (via delete + re-insert in decryptField). The first entry is always the least
+        // recently used, making eviction O(1).
         const firstKey = this.cache.keys().next().value;
         if (firstKey) {
             this.cache.delete(firstKey);

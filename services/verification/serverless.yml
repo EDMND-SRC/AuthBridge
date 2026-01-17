@@ -12,14 +12,18 @@ provider:
   apiGateway:
     minimumCompressionSize: 1024
     shouldStartNameWithService: true
-  endpointType: REGIONAL
+  # IMPORTANT: Endpoint type must match existing API Gateway
+  # staging: EDGE (already deployed as EDGE)
+  # production: REGIONAL (for af-south-1 data residency)
+  endpointType: ${self:custom.endpointTypes.${self:provider.stage}, 'EDGE'}
   environment:
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
     NODE_OPTIONS: '--enable-source-maps'
     TABLE_NAME: AuthBridgeTable
     BUCKET_NAME: authbridge-documents-${self:provider.stage}
-    DATA_ENCRYPTION_KEY_ID: ${cf:authbridge-kms-${self:provider.stage}-DataKeyId}
-    DATA_ENCRYPTION_KEY_ARN: ${cf:authbridge-kms-${self:provider.stage}-DataKeyArn}
+    # Use stage-aware CloudFormation references
+    DATA_ENCRYPTION_KEY_ID: ${cf:authbridge-kms-${self:provider.stage}.DataEncryptionKeyId}
+    DATA_ENCRYPTION_KEY_ARN: ${cf:authbridge-kms-${self:provider.stage}.DataEncryptionKeyArn}
 
   iam:
     role:
@@ -33,6 +37,26 @@ provider:
           Resource:
             - 'arn:aws:dynamodb:${self:provider.region}:*:table/AuthBridgeTable'
             - 'arn:aws:dynamodb:${self:provider.region}:*:table/AuthBridgeTable/index/*'
+        # Audit log immutability: Allow PutItem for audit logs, deny Update/Delete
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+          Resource:
+            - 'arn:aws:dynamodb:${self:provider.region}:*:table/AuthBridgeTable'
+          Condition:
+            StringLike:
+              'dynamodb:LeadingKeys':
+                - 'AUDIT#*'
+        - Effect: Deny
+          Action:
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - 'arn:aws:dynamodb:${self:provider.region}:*:table/AuthBridgeTable'
+          Condition:
+            StringLike:
+              'dynamodb:LeadingKeys':
+                - 'AUDIT#*'
         - Effect: Allow
           Action:
             - s3:PutObject
@@ -81,44 +105,34 @@ provider:
             - kms:GenerateDataKeyWithoutPlaintext
             - kms:DescribeKey
           Resource:
-            - ${cf:authbridge-kms-${self:provider.stage}-DataKeyArn}
+            - ${cf:authbridge-kms-${self:provider.stage}.DataEncryptionKeyArn}
+        # Audit log encryption with dedicated KMS key
+        - Effect: Allow
+          Action:
+            - kms:Decrypt
+            - kms:GenerateDataKey
+          Resource:
+            - ${cf:authbridge-kms-${self:provider.stage}.AuditLogEncryptionKeyArn}
 
+# esbuild handles packaging - minimal exclusions needed
 package:
-  individually: false
-  excludeDevDependencies: true
+  individually: true
   patterns:
-    # Start by excluding everything
     - '!**'
-    # Include only compiled code
-    - 'dist/**'
-    # Explicitly exclude root monorepo node_modules (1.9GB)
-    - '!../../node_modules/**'
-    - '!../node_modules/**'
-    # Include only service-level node_modules (production deps)
-    - 'node_modules/**'
-    - '!node_modules/@types/**'
-    - '!node_modules/**/*.md'
-    - '!node_modules/**/*.txt'
-    - '!node_modules/**/*.map'
-    - '!node_modules/**/test/**'
-    - '!node_modules/**/tests/**'
-    - '!node_modules/**/*.d.ts'
-    # Exclude test and dev files
-    - '!**/*.test.js'
-    - '!**/*.test.ts'
+    - '!node_modules/**'
+    - '!src/**'
     - '!tests/**'
     - '!test-data/**'
-    - '!scripts/**'
     - '!docs/**'
+    - '!scripts/**'
     - '!*.md'
-    - '!src/**'
     - '!*.config.ts'
     - '!*.config.js'
     - '!tsconfig*.json'
 
 functions:
   listCases:
-    handler: dist/handlers/list-cases.handler
+    handler: src/handlers/list-cases.handler
     description: List verification cases with filtering and pagination
     events:
       - http:
@@ -127,7 +141,7 @@ functions:
           cors: true
 
   getCase:
-    handler: dist/handlers/get-case.handler
+    handler: src/handlers/get-case.handler
     description: Get case detail by ID
     events:
       - http:
@@ -136,7 +150,7 @@ functions:
           cors: true
 
   approveCase:
-    handler: dist/handlers/approve-case.handler
+    handler: src/handlers/approve-case.handler
     description: Approve a verification case
     environment:
       WEBHOOK_QUEUE_URL: !Ref WebhookQueue
@@ -147,7 +161,7 @@ functions:
           cors: true
 
   rejectCase:
-    handler: dist/handlers/reject-case.handler
+    handler: src/handlers/reject-case.handler
     description: Reject a verification case with reason
     environment:
       WEBHOOK_QUEUE_URL: !Ref WebhookQueue
@@ -158,7 +172,7 @@ functions:
           cors: true
 
   sendWebhook:
-    handler: dist/handlers/send-webhook.handler
+    handler: src/handlers/send-webhook.handler
     description: Send webhook notifications for case decisions
     memorySize: 256
     timeout: 30
@@ -168,10 +182,9 @@ functions:
       - sqs:
           arn: !GetAtt WebhookQueue.Arn
           batchSize: 10
-          maximumBatchingWindowInSeconds: 5
 
   configureWebhook:
-    handler: dist/handlers/configure-webhook.handler
+    handler: src/handlers/configure-webhook.handler
     description: Configure webhook URL and settings for client
     memorySize: 256
     timeout: 10
@@ -188,7 +201,7 @@ functions:
             resultTtlInSeconds: 300
 
   testWebhook:
-    handler: dist/handlers/test-webhook.handler
+    handler: src/handlers/test-webhook.handler
     description: Send test webhook notification to verify configuration
     memorySize: 256
     timeout: 30
@@ -205,7 +218,7 @@ functions:
             resultTtlInSeconds: 300
 
   addNote:
-    handler: dist/handlers/add-note.handler
+    handler: src/handlers/add-note.handler
     description: Add note to case
     events:
       - http:
@@ -214,7 +227,7 @@ functions:
           cors: true
 
   getNotes:
-    handler: dist/handlers/get-notes.handler
+    handler: src/handlers/get-notes.handler
     description: Get all notes for a case
     events:
       - http:
@@ -222,8 +235,17 @@ functions:
           method: get
           cors: true
 
+  getAuditLogs:
+    handler: src/handlers/get-audit-logs.getAuditLogs
+    description: Query audit logs with filters (date, user, action, resource)
+    events:
+      - http:
+          path: /api/v1/audit
+          method: get
+          cors: true
+
   bulkApprove:
-    handler: dist/handlers/bulk-approve.handler
+    handler: src/handlers/bulk-approve.handler
     description: Bulk approve multiple verification cases
     memorySize: 512
     timeout: 30
@@ -236,7 +258,7 @@ functions:
           cors: true
 
   bulkReject:
-    handler: dist/handlers/bulk-reject.handler
+    handler: src/handlers/bulk-reject.handler
     description: Bulk reject multiple verification cases with reason
     memorySize: 512
     timeout: 30
@@ -249,7 +271,7 @@ functions:
           cors: true
 
   createVerification:
-    handler: dist/handlers/create-verification.handler
+    handler: src/handlers/create-verification.handler
     description: Create new verification case
     environment:
       JWT_SECRET: ${env:JWT_SECRET, 'staging-jwt-secret-change-in-production'}
@@ -269,7 +291,7 @@ functions:
             resultTtlInSeconds: 300
 
   getVerificationStatus:
-    handler: dist/handlers/get-verification-status.handler
+    handler: src/handlers/get-verification-status.handler
     description: Get verification status and details
     memorySize: 512
     timeout: 10
@@ -286,7 +308,7 @@ functions:
             resultTtlInSeconds: 300
 
   uploadDocument:
-    handler: dist/handlers/upload-document.handler
+    handler: src/handlers/upload-document.handler
     description: Upload document to verification case
     memorySize: 1024
     timeout: 30
@@ -305,7 +327,7 @@ functions:
             resultTtlInSeconds: 300
 
   refreshDocumentUrl:
-    handler: dist/handlers/refresh-document-url.handler
+    handler: src/handlers/refresh-document-url.handler
     description: Refresh presigned URL for document access
     events:
       - http:
@@ -314,36 +336,30 @@ functions:
           cors: true
 
   processOCR:
-    handler: dist/handlers/process-ocr.handler
+    handler: src/handlers/process-ocr.handler
     description: Process OCR extraction from document images
     memorySize: 512
     timeout: 60
-    # Note: reservedConcurrency removed due to af-south-1 account limit (10 total)
-    # Textract 1 TPS limit is enforced via SQS batchSize: 1
     environment:
       OCR_ALERT_TOPIC_ARN: !Ref OcrAlertTopic
       BIOMETRIC_QUEUE_URL: !Ref BiometricQueue
     events:
       - sqs:
           arn: !GetAtt OcrQueue.Arn
-          batchSize: 1  # Process one document at a time due to 1 TPS limit
-          maximumBatchingWindowInSeconds: 0
+          batchSize: 1
           functionResponseType: ReportBatchItemFailures
 
   processBiometric:
-    handler: dist/handlers/process-biometric.handler
+    handler: src/handlers/process-biometric.handler
     description: Process biometric face matching (liveness + comparison)
     memorySize: 1024
     timeout: 60
-    # Note: reservedConcurrency removed due to af-south-1 account limit (10 total)
-    # Rekognition 5 TPS limit is enforced via SQS batchSize: 1
     environment:
       BIOMETRIC_QUEUE_URL: !Ref BiometricQueue
     events:
       - sqs:
           arn: !GetAtt BiometricQueue.Arn
-          batchSize: 1  # Process one verification at a time
-          maximumBatchingWindowInSeconds: 0
+          batchSize: 1
           functionResponseType: ReportBatchItemFailures
 
 resources:
@@ -356,7 +372,7 @@ resources:
           ServerSideEncryptionConfiguration:
             - ServerSideEncryptionByDefault:
                 SSEAlgorithm: aws:kms
-                KMSMasterKeyID: ${cf:authbridge-kms-${self:provider.stage}-DataKeyArn}
+                KMSMasterKeyID: ${cf:authbridge-kms-${self:provider.stage}.DataEncryptionKeyArn}
         PublicAccessBlockConfiguration:
           BlockPublicAcls: true
           BlockPublicPolicy: true
@@ -384,14 +400,14 @@ resources:
               Resource: !Sub '${DocumentsBucket.Arn}/*'
               Condition:
                 StringNotEqualsIfExists:
-                  's3:x-amz-server-side-encryption-aws-kms-key-id': ${cf:authbridge-kms-${self:provider.stage}-DataKeyArn}
+                  's3:x-amz-server-side-encryption-aws-kms-key-id': ${cf:authbridge-kms-${self:provider.stage}.DataEncryptionKeyArn}
 
     OcrQueue:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: authbridge-ocr-queue-${self:provider.stage}
-        VisibilityTimeout: 360  # 6 minutes (Lambda timeout 60s + buffer)
-        MessageRetentionPeriod: 345600  # 4 days
+        VisibilityTimeout: 360
+        MessageRetentionPeriod: 345600
         ReceiveMessageWaitTimeSeconds: 0
         RedrivePolicy:
           deadLetterTargetArn: !GetAtt OcrDLQ.Arn
@@ -401,15 +417,15 @@ resources:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: authbridge-ocr-dlq-${self:provider.stage}
-        MessageRetentionPeriod: 1209600  # 14 days
+        MessageRetentionPeriod: 1209600
         ReceiveMessageWaitTimeSeconds: 0
 
     BiometricQueue:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: authbridge-biometric-queue-${self:provider.stage}
-        VisibilityTimeout: 360  # 6 minutes (Lambda timeout 60s + buffer)
-        MessageRetentionPeriod: 345600  # 4 days
+        VisibilityTimeout: 360
+        MessageRetentionPeriod: 345600
         ReceiveMessageWaitTimeSeconds: 0
         RedrivePolicy:
           deadLetterTargetArn: !GetAtt BiometricDLQ.Arn
@@ -419,15 +435,15 @@ resources:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: authbridge-biometric-dlq-${self:provider.stage}
-        MessageRetentionPeriod: 1209600  # 14 days
+        MessageRetentionPeriod: 1209600
         ReceiveMessageWaitTimeSeconds: 0
 
     WebhookQueue:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: authbridge-webhook-queue-${self:provider.stage}
-        VisibilityTimeout: 90  # 1.5 minutes (Lambda timeout 30s + buffer)
-        MessageRetentionPeriod: 86400  # 24 hours
+        VisibilityTimeout: 90
+        MessageRetentionPeriod: 86400
         ReceiveMessageWaitTimeSeconds: 0
         RedrivePolicy:
           deadLetterTargetArn: !GetAtt WebhookDLQ.Arn
@@ -437,15 +453,56 @@ resources:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: authbridge-webhook-dlq-${self:provider.stage}
-        MessageRetentionPeriod: 1209600  # 14 days
+        MessageRetentionPeriod: 1209600
         ReceiveMessageWaitTimeSeconds: 0
 
-    # SNS Topic for OCR failure alerts
     OcrAlertTopic:
       Type: AWS::SNS::Topic
       Properties:
         TopicName: authbridge-ocr-alerts-${self:provider.stage}
         DisplayName: AuthBridge OCR Alerts
+
+    # Audit Log Group with 5-year retention for DPA 2024 compliance
+    AuditLogGroup:
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName: /aws/lambda/authbridge-verification-${self:provider.stage}/audit
+        RetentionInDays: 1827  # Closest valid value to 5 years (1825 days)
+        KmsKeyId: ${cf:authbridge-kms-${self:provider.stage}.AuditLogEncryptionKeyArn}
+
+    # Audit Monitoring Alarms
+    AuditLogWriteFailureAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: authbridge-audit-write-failure-${self:provider.stage}
+        AlarmDescription: Audit log write failures detected
+        MetricName: AuditWriteFailures
+        Namespace: AuthBridge/Audit
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 10
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref OcrAlertTopic
+
+    AuditLogVolumeAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: authbridge-audit-volume-spike-${self:provider.stage}
+        AlarmDescription: Audit log volume spike detected (potential attack or system issue)
+        MetricName: AuditLogEntries
+        Namespace: AuthBridge/Audit
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 2
+        Threshold: 10000
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref OcrAlertTopic
+
 
     # CloudWatch Alarms for OCR monitoring
     OcrSuccessRateAlarm:
@@ -496,22 +553,6 @@ resources:
         AlarmActions:
           - !Ref OcrAlertTopic
 
-    OcrManualReviewRateAlarm:
-      Type: AWS::CloudWatch::Alarm
-      Properties:
-        AlarmName: authbridge-ocr-manual-review-rate-${self:provider.stage}
-        AlarmDescription: Manual review rate exceeds 30%
-        MetricName: OcrManualReviewRequired
-        Namespace: AuthBridge/Verification
-        Statistic: Sum
-        Period: 3600
-        EvaluationPeriods: 1
-        Threshold: 30
-        ComparisonOperator: GreaterThanThreshold
-        TreatMissingData: notBreaching
-        AlarmActions:
-          - !Ref OcrAlertTopic
-
     OcrDLQAlarm:
       Type: AWS::CloudWatch::Alarm
       Properties:
@@ -531,7 +572,6 @@ resources:
         AlarmActions:
           - !Ref OcrAlertTopic
 
-    # CloudWatch Alarms for Biometric monitoring
     BiometricPassRateAlarm:
       Type: AWS::CloudWatch::Alarm
       Properties:
@@ -544,70 +584,6 @@ resources:
         EvaluationPeriods: 1
         Threshold: 70
         ComparisonOperator: LessThanThreshold
-        TreatMissingData: notBreaching
-        AlarmActions:
-          - !Ref OcrAlertTopic
-
-    BiometricSimilarityAlarm:
-      Type: AWS::CloudWatch::Alarm
-      Properties:
-        AlarmName: authbridge-biometric-similarity-${self:provider.stage}
-        AlarmDescription: Average biometric similarity score below 85%
-        MetricName: BiometricSimilarityScore
-        Namespace: AuthBridge/Verification
-        Statistic: Average
-        Period: 300
-        EvaluationPeriods: 3
-        Threshold: 85
-        ComparisonOperator: LessThanThreshold
-        TreatMissingData: notBreaching
-        AlarmActions:
-          - !Ref OcrAlertTopic
-
-    BiometricProcessingTimeAlarm:
-      Type: AWS::CloudWatch::Alarm
-      Properties:
-        AlarmName: authbridge-biometric-processing-time-${self:provider.stage}
-        AlarmDescription: Biometric processing time exceeds 5 seconds (p95)
-        MetricName: BiometricProcessingTime
-        Namespace: AuthBridge/Verification
-        ExtendedStatistic: p95
-        Period: 300
-        EvaluationPeriods: 2
-        Threshold: 5000
-        ComparisonOperator: GreaterThanThreshold
-        TreatMissingData: notBreaching
-        AlarmActions:
-          - !Ref OcrAlertTopic
-
-    BiometricManualReviewRateAlarm:
-      Type: AWS::CloudWatch::Alarm
-      Properties:
-        AlarmName: authbridge-biometric-manual-review-rate-${self:provider.stage}
-        AlarmDescription: Biometric manual review rate exceeds 40%
-        MetricName: BiometricManualReviewRequired
-        Namespace: AuthBridge/Verification
-        Statistic: Sum
-        Period: 3600
-        EvaluationPeriods: 1
-        Threshold: 40
-        ComparisonOperator: GreaterThanThreshold
-        TreatMissingData: notBreaching
-        AlarmActions:
-          - !Ref OcrAlertTopic
-
-    BiometricFaceDetectionIssueAlarm:
-      Type: AWS::CloudWatch::Alarm
-      Properties:
-        AlarmName: authbridge-biometric-face-detection-issues-${self:provider.stage}
-        AlarmDescription: Face detection issue rate exceeds 15%
-        MetricName: FaceDetectionIssue
-        Namespace: AuthBridge/Verification
-        Statistic: Sum
-        Period: 3600
-        EvaluationPeriods: 1
-        Threshold: 15
-        ComparisonOperator: GreaterThanThreshold
         TreatMissingData: notBreaching
         AlarmActions:
           - !Ref OcrAlertTopic
@@ -631,205 +607,6 @@ resources:
         AlarmActions:
           - !Ref OcrAlertTopic
 
-    # CloudWatch Alarms for Duplicate Detection monitoring
-    DuplicateCrossClientRateAlarm:
-      Type: AWS::CloudWatch::Alarm
-      Properties:
-        AlarmName: authbridge-duplicate-cross-client-rate-${self:provider.stage}
-        AlarmDescription: Cross-client duplicate rate exceeds 5% over 1 hour
-        MetricName: Duplicate/CrossClientDuplicates
-        Namespace: AuthBridge/Verification
-        Statistic: Sum
-        Period: 3600
-        EvaluationPeriods: 1
-        Threshold: 5
-        ComparisonOperator: GreaterThanThreshold
-        TreatMissingData: notBreaching
-        AlarmActions:
-          - !Ref OcrAlertTopic
-
-    DuplicateRiskScoreAlarm:
-      Type: AWS::CloudWatch::Alarm
-      Properties:
-        AlarmName: authbridge-duplicate-risk-score-${self:provider.stage}
-        AlarmDescription: Average risk score exceeds 50 over 1 hour
-        MetricName: Duplicate/RiskScore
-        Namespace: AuthBridge/Verification
-        Statistic: Average
-        Period: 3600
-        EvaluationPeriods: 1
-        Threshold: 50
-        ComparisonOperator: GreaterThanThreshold
-        TreatMissingData: notBreaching
-        AlarmActions:
-          - !Ref OcrAlertTopic
-
-    DuplicateCheckFailureAlarm:
-      Type: AWS::CloudWatch::Alarm
-      Properties:
-        AlarmName: authbridge-duplicate-check-failures-${self:provider.stage}
-        AlarmDescription: Duplicate check failure rate exceeds 10% over 5 minutes
-        MetricName: Duplicate/CheckFailure
-        Namespace: AuthBridge/Verification
-        Statistic: Sum
-        Period: 300
-        EvaluationPeriods: 2
-        Threshold: 10
-        ComparisonOperator: GreaterThanThreshold
-        TreatMissingData: notBreaching
-        AlarmActions:
-          - !Ref OcrAlertTopic
-
-    # CloudWatch Dashboard for Duplicate Detection
-    DuplicateDetectionDashboard:
-      Type: AWS::CloudWatch::Dashboard
-      Properties:
-        DashboardName: authbridge-duplicate-detection-${self:provider.stage}
-        DashboardBody: !Sub |
-          {
-            "widgets": [
-              {
-                "type": "metric",
-                "properties": {
-                  "metrics": [
-                    ["AuthBridge/Verification", "Duplicate/ChecksPerformed", {"stat": "Sum", "label": "Total Checks"}],
-                    [".", "Duplicate/DuplicatesFound", {"stat": "Sum", "label": "Duplicates Found"}],
-                    [".", "Duplicate/CrossClientDuplicates", {"stat": "Sum", "label": "Cross-Client"}]
-                  ],
-                  "period": 300,
-                  "stat": "Sum",
-                  "region": "af-south-1",
-                  "title": "Duplicate Detection Overview",
-                  "yAxis": {
-                    "left": {
-                      "min": 0
-                    }
-                  }
-                }
-              },
-              {
-                "type": "metric",
-                "properties": {
-                  "metrics": [
-                    ["AuthBridge/Verification", "Duplicate/RiskLevel/low", {"stat": "Sum", "label": "Low Risk"}],
-                    [".", "Duplicate/RiskLevel/medium", {"stat": "Sum", "label": "Medium Risk"}],
-                    [".", "Duplicate/RiskLevel/high", {"stat": "Sum", "label": "High Risk"}],
-                    [".", "Duplicate/RiskLevel/critical", {"stat": "Sum", "label": "Critical Risk"}]
-                  ],
-                  "period": 300,
-                  "stat": "Sum",
-                  "region": "af-south-1",
-                  "title": "Risk Level Distribution",
-                  "yAxis": {
-                    "left": {
-                      "min": 0
-                    }
-                  }
-                }
-              },
-              {
-                "type": "metric",
-                "properties": {
-                  "metrics": [
-                    ["AuthBridge/Verification", "Duplicate/RiskScore", {"stat": "Average", "label": "Average Risk Score"}]
-                  ],
-                  "period": 300,
-                  "stat": "Average",
-                  "region": "af-south-1",
-                  "title": "Average Risk Score (0-100)",
-                  "yAxis": {
-                    "left": {
-                      "min": 0,
-                      "max": 100
-                    }
-                  },
-                  "annotations": {
-                    "horizontal": [
-                      {
-                        "value": 25,
-                        "label": "Low/Medium Threshold",
-                        "fill": "below"
-                      },
-                      {
-                        "value": 50,
-                        "label": "Medium/High Threshold",
-                        "fill": "below"
-                      },
-                      {
-                        "value": 75,
-                        "label": "High/Critical Threshold",
-                        "fill": "below"
-                      }
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "metric",
-                "properties": {
-                  "metrics": [
-                    ["AuthBridge/Verification", "Duplicate/ManualReviewTriggered", {"stat": "Sum", "label": "Manual Review Required"}]
-                  ],
-                  "period": 300,
-                  "stat": "Sum",
-                  "region": "af-south-1",
-                  "title": "Manual Review Queue",
-                  "yAxis": {
-                    "left": {
-                      "min": 0
-                    }
-                  }
-                }
-              },
-              {
-                "type": "metric",
-                "properties": {
-                  "metrics": [
-                    ["AuthBridge/Verification", "Duplicate/CheckTime", {"stat": "p50", "label": "p50"}],
-                    ["...", {"stat": "p95", "label": "p95"}],
-                    ["...", {"stat": "p99", "label": "p99"}]
-                  ],
-                  "period": 300,
-                  "stat": "Average",
-                  "region": "af-south-1",
-                  "title": "Duplicate Check Latency (ms)",
-                  "yAxis": {
-                    "left": {
-                      "min": 0
-                    }
-                  },
-                  "annotations": {
-                    "horizontal": [
-                      {
-                        "value": 500,
-                        "label": "Target (p95 < 500ms)",
-                        "fill": "above"
-                      }
-                    ]
-                  }
-                }
-              },
-              {
-                "type": "metric",
-                "properties": {
-                  "metrics": [
-                    ["AuthBridge/Verification", "Duplicate/CheckSuccess", {"stat": "Sum", "label": "Success"}],
-                    [".", "Duplicate/CheckFailure", {"stat": "Sum", "label": "Failure"}]
-                  ],
-                  "period": 300,
-                  "stat": "Sum",
-                  "region": "af-south-1",
-                  "title": "Duplicate Check Success/Failure Rate",
-                  "yAxis": {
-                    "left": {
-                      "min": 0
-                    }
-                  }
-                }
-              }
-            ]
-          }
-
   Outputs:
     OcrAlertTopicArn:
       Description: ARN of the OCR Alert SNS Topic
@@ -838,8 +615,31 @@ resources:
         Name: authbridge-ocr-alert-topic-${self:provider.stage}
 
 plugins:
+  - serverless-esbuild
   - serverless-offline
 
 custom:
+  # Stage-specific endpoint types
+  # IMPORTANT: These must match existing API Gateway configurations
+  # Changing endpoint type on existing API Gateway causes deployment failures
+  endpointTypes:
+    staging: EDGE      # Already deployed as EDGE
+    production: REGIONAL  # For af-south-1 data residency compliance
+
+  esbuild:
+    bundle: true
+    minify: true
+    sourcemap: false
+    exclude:
+      # AWS SDK v3 is available in Lambda runtime - don't bundle
+      - '@aws-sdk/*'
+      - '@smithy/*'
+    target: node20
+    platform: node
+    concurrency: 10
+    packager: pnpm
+    treeShaking: true
+    keepNames: true
+
   serverless-offline:
     httpPort: 3002

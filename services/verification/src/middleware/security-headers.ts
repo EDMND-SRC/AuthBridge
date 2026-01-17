@@ -4,7 +4,8 @@
  * DPA 2024 Compliance: TLS 1.2+ enforcement
  */
 
-import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import middy from '@middy/core';
+import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 
 export interface SecurityHeadersConfig {
   hstsMaxAge?: number; // Default: 31536000 (1 year)
@@ -68,6 +69,17 @@ export function addSecurityHeaders(
     },
   };
 }
+
+/**
+ * Middy middleware for security headers
+ */
+export const securityHeadersMiddleware = (config: SecurityHeadersConfig = {}): middy.MiddlewareObj<APIGatewayProxyEvent, APIGatewayProxyResult, Error, Context> => ({
+  after: async (request) => {
+    if (request.response) {
+      request.response = addSecurityHeaders(request.response as APIGatewayProxyResult, config);
+    }
+  },
+});
 
 /**
  * Middleware wrapper for Lambda handlers

@@ -1,17 +1,21 @@
-import { APIGatewayProxyHandler } from 'aws-lambda';
+import middy from '@middy/core';
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { addSecurityHeaders } from '../middleware/security-headers';
+import { auditContextMiddleware, getAuditContext } from '../middleware/audit-context';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
+import { AuditService } from '../services/audit';
 
-const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: 'af-south-1' }));
+const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: process.env.AWS_REGION || 'af-south-1' }));
+const auditService = new AuditService();
 
-export const handler: APIGatewayProxyHandler = async (event) => {
+async function baseHandler(event: APIGatewayProxyEvent, context: any): Promise<APIGatewayProxyResult> {
   const { id: caseId } = event.pathParameters || {};
   const userId = event.requestContext.authorizer?.claims?.sub;
   const userName = event.requestContext.authorizer?.claims?.name || 'Unknown';
   const userRole = event.requestContext.authorizer?.claims?.['custom:role'] || 'analyst';
-  const ipAddress = event.requestContext.identity.sourceIp;
+  const auditContext = getAuditContext(context);
   const timestamp = new Date().toISOString();
 
   if (!caseId) {
@@ -62,31 +66,13 @@ export const handler: APIGatewayProxyHandler = async (event) => {
           role: userRole
         },
         timestamp,
-        ipAddress,
+        ipAddress: auditContext.ipAddress,
         ttl
       }
     }));
 
-    // Create audit log entry
-    await ddbClient.send(new PutCommand({
-      TableName: process.env.TABLE_NAME,
-      Item: {
-        PK: `CASE#${caseId}`,
-        SK: `AUDIT#${timestamp}`,
-        action: 'CASE_NOTE_ADDED',
-        resourceType: 'CASE',
-        resourceId: caseId,
-        userId,
-        userName,
-        ipAddress,
-        timestamp,
-        details: {
-          noteId,
-          contentLength: content.length,
-          contentPreview: content.substring(0, 100)
-        }
-      }
-    }));
+    // Audit log using AuditService
+    await auditService.logCaseNoteAdded(caseId, userId, auditContext.ipAddress, noteId);
 
     return addSecurityHeaders({
       statusCode: 201,
@@ -111,10 +97,21 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     });
   } catch (error) {
     console.error('Error adding note:', error);
+
+    // Audit system error
+    await auditService.logSystemError(
+      'NOTE_CREATION_ERROR',
+      (error as Error).message,
+      { caseId, userId }
+    ).catch(err => console.error('Failed to log audit event:', err));
+
     return addSecurityHeaders({
       statusCode: 500,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Internal server error' })
     });
   }
-};
+}
+
+export const handler = middy(baseHandler)
+  .use(auditContextMiddleware());

@@ -8,21 +8,21 @@
       "name": "aws",
       "runtime": "nodejs20.x",
       "region": "af-south-1",
-      "stage": "production",
+      "stage": "staging",
       "memorySize": 512,
       "timeout": 30,
       "apiGateway": {
         "minimumCompressionSize": 1024,
         "shouldStartNameWithService": true
       },
-      "endpointType": "REGIONAL",
+      "endpointType": "EDGE",
       "environment": {
         "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
         "NODE_OPTIONS": "--enable-source-maps",
         "TABLE_NAME": "AuthBridgeTable",
-        "BUCKET_NAME": "authbridge-documents-production",
-        "DATA_ENCRYPTION_KEY_ID": "fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
-        "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49"
+        "BUCKET_NAME": "authbridge-documents-staging",
+        "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+        "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
       },
       "iam": {
         "role": {
@@ -43,11 +43,40 @@
             {
               "Effect": "Allow",
               "Action": [
+                "dynamodb:PutItem"
+              ],
+              "Resource": "arn:aws:dynamodb:af-south-1:*:table/AuthBridgeTable",
+              "Condition": {
+                "StringLike": {
+                  "dynamodb:LeadingKeys": [
+                    "AUDIT#*"
+                  ]
+                }
+              }
+            },
+            {
+              "Effect": "Deny",
+              "Action": [
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem"
+              ],
+              "Resource": "arn:aws:dynamodb:af-south-1:*:table/AuthBridgeTable",
+              "Condition": {
+                "StringLike": {
+                  "dynamodb:LeadingKeys": [
+                    "AUDIT#*"
+                  ]
+                }
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
                 "s3:PutObject",
                 "s3:GetObject",
                 "s3:DeleteObject"
               ],
-              "Resource": "arn:aws:s3:::authbridge-documents-production/*"
+              "Resource": "arn:aws:s3:::authbridge-documents-staging/*"
             },
             {
               "Effect": "Allow",
@@ -128,7 +157,15 @@
                 "kms:GenerateDataKeyWithoutPlaintext",
                 "kms:DescribeKey"
               ],
-              "Resource": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49"
+              "Resource": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey"
+              ],
+              "Resource": "arn:aws:kms:af-south-1:979237821231:key/40b9adc5-5f4b-4c12-94d3-5e6a8f7e4fc3"
             }
           ]
         }
@@ -210,103 +247,109 @@
           "ListCasesLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/authbridge-verification-production-listCases"
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-listCases"
             }
           },
           "GetCaseLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/authbridge-verification-production-getCase"
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-getCase"
             }
           },
           "ApproveCaseLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/authbridge-verification-production-approveCase"
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-approveCase"
             }
           },
           "RejectCaseLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/authbridge-verification-production-rejectCase"
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-rejectCase"
             }
           },
           "SendWebhookLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/authbridge-verification-production-sendWebhook"
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-sendWebhook"
             }
           },
           "ConfigureWebhookLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/authbridge-verification-production-configureWebhook"
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-configureWebhook"
             }
           },
           "TestWebhookLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/authbridge-verification-production-testWebhook"
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-testWebhook"
             }
           },
           "AddNoteLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/authbridge-verification-production-addNote"
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-addNote"
             }
           },
           "GetNotesLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/authbridge-verification-production-getNotes"
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-getNotes"
+            }
+          },
+          "GetAuditLogsLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-getAuditLogs"
             }
           },
           "BulkApproveLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/authbridge-verification-production-bulkApprove"
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-bulkApprove"
             }
           },
           "BulkRejectLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/authbridge-verification-production-bulkReject"
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-bulkReject"
             }
           },
           "CreateVerificationLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/authbridge-verification-production-createVerification"
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-createVerification"
             }
           },
           "GetVerificationStatusLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/authbridge-verification-production-getVerificationStatus"
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-getVerificationStatus"
             }
           },
           "UploadDocumentLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/authbridge-verification-production-uploadDocument"
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-uploadDocument"
             }
           },
           "RefreshDocumentUrlLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/authbridge-verification-production-refreshDocumentUrl"
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-refreshDocumentUrl"
             }
           },
           "ProcessOCRLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/authbridge-verification-production-processOCR"
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-processOCR"
             }
           },
           "ProcessBiometricLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/authbridge-verification-production-processBiometric"
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-processBiometric"
             }
           },
           "IamRoleLambdaExecution": {
@@ -335,7 +378,7 @@
                       "-",
                       [
                         "authbridge-verification",
-                        "production",
+                        "staging",
                         "lambda"
                       ]
                     ]
@@ -352,7 +395,7 @@
                         ],
                         "Resource": [
                           {
-                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/authbridge-verification-production*:*"
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/authbridge-verification-staging*:*"
                           }
                         ]
                       },
@@ -363,7 +406,7 @@
                         ],
                         "Resource": [
                           {
-                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/authbridge-verification-production*:*:*"
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/authbridge-verification-staging*:*:*"
                           }
                         ]
                       },
@@ -393,6 +436,15 @@
                       },
                       {
                         "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][8]"
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][9]"
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][10]"
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][11]"
                       },
                       {
                         "Effect": "Allow",
@@ -432,7 +484,7 @@
                   "-",
                   [
                     "authbridge-verification",
-                    "production",
+                    "staging",
                     {
                       "Ref": "AWS::Region"
                     },
@@ -449,11 +501,11 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/production/1768665837931-2026-01-17T16:03:57.931Z/authbridge-verification.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/listCases.zip"
               },
-              "Handler": "dist/handlers/list-cases.handler",
+              "Handler": "src/handlers/list-cases.handler",
               "Runtime": "nodejs20.x",
-              "FunctionName": "authbridge-verification-production-listCases",
+              "FunctionName": "authbridge-verification-staging-listCases",
               "MemorySize": 512,
               "Timeout": 30,
               "Description": "List verification cases with filtering and pagination",
@@ -462,9 +514,9 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
-                  "BUCKET_NAME": "authbridge-documents-production",
-                  "DATA_ENCRYPTION_KEY_ID": "fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
-                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49"
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
                 }
               },
               "Role": {
@@ -485,11 +537,11 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/production/1768665837931-2026-01-17T16:03:57.931Z/authbridge-verification.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/getCase.zip"
               },
-              "Handler": "dist/handlers/get-case.handler",
+              "Handler": "src/handlers/get-case.handler",
               "Runtime": "nodejs20.x",
-              "FunctionName": "authbridge-verification-production-getCase",
+              "FunctionName": "authbridge-verification-staging-getCase",
               "MemorySize": 512,
               "Timeout": 30,
               "Description": "Get case detail by ID",
@@ -498,9 +550,9 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
-                  "BUCKET_NAME": "authbridge-documents-production",
-                  "DATA_ENCRYPTION_KEY_ID": "fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
-                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49"
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
                 }
               },
               "Role": {
@@ -521,11 +573,11 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/production/1768665837931-2026-01-17T16:03:57.931Z/authbridge-verification.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/approveCase.zip"
               },
-              "Handler": "dist/handlers/approve-case.handler",
+              "Handler": "src/handlers/approve-case.handler",
               "Runtime": "nodejs20.x",
-              "FunctionName": "authbridge-verification-production-approveCase",
+              "FunctionName": "authbridge-verification-staging-approveCase",
               "MemorySize": 512,
               "Timeout": 30,
               "Description": "Approve a verification case",
@@ -534,9 +586,9 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
-                  "BUCKET_NAME": "authbridge-documents-production",
-                  "DATA_ENCRYPTION_KEY_ID": "fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
-                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
                   "WEBHOOK_QUEUE_URL": {
                     "Ref": "WebhookQueue"
                   }
@@ -560,11 +612,11 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/production/1768665837931-2026-01-17T16:03:57.931Z/authbridge-verification.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/rejectCase.zip"
               },
-              "Handler": "dist/handlers/reject-case.handler",
+              "Handler": "src/handlers/reject-case.handler",
               "Runtime": "nodejs20.x",
-              "FunctionName": "authbridge-verification-production-rejectCase",
+              "FunctionName": "authbridge-verification-staging-rejectCase",
               "MemorySize": 512,
               "Timeout": 30,
               "Description": "Reject a verification case with reason",
@@ -573,9 +625,9 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
-                  "BUCKET_NAME": "authbridge-documents-production",
-                  "DATA_ENCRYPTION_KEY_ID": "fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
-                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
                   "WEBHOOK_QUEUE_URL": {
                     "Ref": "WebhookQueue"
                   }
@@ -599,11 +651,11 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/production/1768665837931-2026-01-17T16:03:57.931Z/authbridge-verification.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/sendWebhook.zip"
               },
-              "Handler": "dist/handlers/send-webhook.handler",
+              "Handler": "src/handlers/send-webhook.handler",
               "Runtime": "nodejs20.x",
-              "FunctionName": "authbridge-verification-production-sendWebhook",
+              "FunctionName": "authbridge-verification-staging-sendWebhook",
               "MemorySize": 256,
               "Timeout": 30,
               "Description": "Send webhook notifications for case decisions",
@@ -612,9 +664,9 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
-                  "BUCKET_NAME": "authbridge-documents-production",
-                  "DATA_ENCRYPTION_KEY_ID": "fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
-                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
                   "WEBHOOK_QUEUE_URL": {
                     "Ref": "WebhookQueue"
                   }
@@ -638,11 +690,11 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/production/1768665837931-2026-01-17T16:03:57.931Z/authbridge-verification.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/configureWebhook.zip"
               },
-              "Handler": "dist/handlers/configure-webhook.handler",
+              "Handler": "src/handlers/configure-webhook.handler",
               "Runtime": "nodejs20.x",
-              "FunctionName": "authbridge-verification-production-configureWebhook",
+              "FunctionName": "authbridge-verification-staging-configureWebhook",
               "MemorySize": 256,
               "Timeout": 10,
               "Description": "Configure webhook URL and settings for client",
@@ -651,9 +703,9 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
-                  "BUCKET_NAME": "authbridge-documents-production",
-                  "DATA_ENCRYPTION_KEY_ID": "fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
-                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49"
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
                 }
               },
               "Role": {
@@ -674,11 +726,11 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/production/1768665837931-2026-01-17T16:03:57.931Z/authbridge-verification.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/testWebhook.zip"
               },
-              "Handler": "dist/handlers/test-webhook.handler",
+              "Handler": "src/handlers/test-webhook.handler",
               "Runtime": "nodejs20.x",
-              "FunctionName": "authbridge-verification-production-testWebhook",
+              "FunctionName": "authbridge-verification-staging-testWebhook",
               "MemorySize": 256,
               "Timeout": 30,
               "Description": "Send test webhook notification to verify configuration",
@@ -687,9 +739,9 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
-                  "BUCKET_NAME": "authbridge-documents-production",
-                  "DATA_ENCRYPTION_KEY_ID": "fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
-                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49"
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
                 }
               },
               "Role": {
@@ -710,11 +762,11 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/production/1768665837931-2026-01-17T16:03:57.931Z/authbridge-verification.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/addNote.zip"
               },
-              "Handler": "dist/handlers/add-note.handler",
+              "Handler": "src/handlers/add-note.handler",
               "Runtime": "nodejs20.x",
-              "FunctionName": "authbridge-verification-production-addNote",
+              "FunctionName": "authbridge-verification-staging-addNote",
               "MemorySize": 512,
               "Timeout": 30,
               "Description": "Add note to case",
@@ -723,9 +775,9 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
-                  "BUCKET_NAME": "authbridge-documents-production",
-                  "DATA_ENCRYPTION_KEY_ID": "fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
-                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49"
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
                 }
               },
               "Role": {
@@ -746,11 +798,11 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/production/1768665837931-2026-01-17T16:03:57.931Z/authbridge-verification.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/getNotes.zip"
               },
-              "Handler": "dist/handlers/get-notes.handler",
+              "Handler": "src/handlers/get-notes.handler",
               "Runtime": "nodejs20.x",
-              "FunctionName": "authbridge-verification-production-getNotes",
+              "FunctionName": "authbridge-verification-staging-getNotes",
               "MemorySize": 512,
               "Timeout": 30,
               "Description": "Get all notes for a case",
@@ -759,9 +811,9 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
-                  "BUCKET_NAME": "authbridge-documents-production",
-                  "DATA_ENCRYPTION_KEY_ID": "fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
-                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49"
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
                 }
               },
               "Role": {
@@ -775,6 +827,42 @@
               "GetNotesLogGroup"
             ]
           },
+          "GetAuditLogsLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/getAuditLogs.zip"
+              },
+              "Handler": "src/handlers/get-audit-logs.getAuditLogs",
+              "Runtime": "nodejs20.x",
+              "FunctionName": "authbridge-verification-staging-getAuditLogs",
+              "MemorySize": 512,
+              "Timeout": 30,
+              "Description": "Query audit logs with filters (date, user, action, resource)",
+              "Environment": {
+                "Variables": {
+                  "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
+                  "NODE_OPTIONS": "--enable-source-maps",
+                  "TABLE_NAME": "AuthBridgeTable",
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "GetAuditLogsLogGroup"
+            ]
+          },
           "BulkApproveLambdaFunction": {
             "Type": "AWS::Lambda::Function",
             "Properties": {
@@ -782,11 +870,11 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/production/1768665837931-2026-01-17T16:03:57.931Z/authbridge-verification.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/bulkApprove.zip"
               },
-              "Handler": "dist/handlers/bulk-approve.handler",
+              "Handler": "src/handlers/bulk-approve.handler",
               "Runtime": "nodejs20.x",
-              "FunctionName": "authbridge-verification-production-bulkApprove",
+              "FunctionName": "authbridge-verification-staging-bulkApprove",
               "MemorySize": 512,
               "Timeout": 30,
               "Description": "Bulk approve multiple verification cases",
@@ -795,9 +883,9 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
-                  "BUCKET_NAME": "authbridge-documents-production",
-                  "DATA_ENCRYPTION_KEY_ID": "fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
-                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
                   "WEBHOOK_QUEUE_URL": {
                     "Ref": "WebhookQueue"
                   }
@@ -821,11 +909,11 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/production/1768665837931-2026-01-17T16:03:57.931Z/authbridge-verification.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/bulkReject.zip"
               },
-              "Handler": "dist/handlers/bulk-reject.handler",
+              "Handler": "src/handlers/bulk-reject.handler",
               "Runtime": "nodejs20.x",
-              "FunctionName": "authbridge-verification-production-bulkReject",
+              "FunctionName": "authbridge-verification-staging-bulkReject",
               "MemorySize": 512,
               "Timeout": 30,
               "Description": "Bulk reject multiple verification cases with reason",
@@ -834,9 +922,9 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
-                  "BUCKET_NAME": "authbridge-documents-production",
-                  "DATA_ENCRYPTION_KEY_ID": "fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
-                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
                   "WEBHOOK_QUEUE_URL": {
                     "Ref": "WebhookQueue"
                   }
@@ -860,11 +948,11 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/production/1768665837931-2026-01-17T16:03:57.931Z/authbridge-verification.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/createVerification.zip"
               },
-              "Handler": "dist/handlers/create-verification.handler",
+              "Handler": "src/handlers/create-verification.handler",
               "Runtime": "nodejs20.x",
-              "FunctionName": "authbridge-verification-production-createVerification",
+              "FunctionName": "authbridge-verification-staging-createVerification",
               "MemorySize": 512,
               "Timeout": 30,
               "Description": "Create new verification case",
@@ -873,9 +961,9 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
-                  "BUCKET_NAME": "authbridge-documents-production",
-                  "DATA_ENCRYPTION_KEY_ID": "fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
-                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
                   "JWT_SECRET": "staging-jwt-secret-change-in-production",
                   "JWT_ISSUER": "authbridge",
                   "SESSION_TOKEN_EXPIRY_HOURS": "0.5",
@@ -900,11 +988,11 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/production/1768665837931-2026-01-17T16:03:57.931Z/authbridge-verification.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/getVerificationStatus.zip"
               },
-              "Handler": "dist/handlers/get-verification-status.handler",
+              "Handler": "src/handlers/get-verification-status.handler",
               "Runtime": "nodejs20.x",
-              "FunctionName": "authbridge-verification-production-getVerificationStatus",
+              "FunctionName": "authbridge-verification-staging-getVerificationStatus",
               "MemorySize": 512,
               "Timeout": 10,
               "Description": "Get verification status and details",
@@ -913,9 +1001,9 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
-                  "BUCKET_NAME": "authbridge-documents-production",
-                  "DATA_ENCRYPTION_KEY_ID": "fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
-                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49"
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
                 }
               },
               "Role": {
@@ -936,11 +1024,11 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/production/1768665837931-2026-01-17T16:03:57.931Z/authbridge-verification.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/uploadDocument.zip"
               },
-              "Handler": "dist/handlers/upload-document.handler",
+              "Handler": "src/handlers/upload-document.handler",
               "Runtime": "nodejs20.x",
-              "FunctionName": "authbridge-verification-production-uploadDocument",
+              "FunctionName": "authbridge-verification-staging-uploadDocument",
               "MemorySize": 1024,
               "Timeout": 30,
               "Description": "Upload document to verification case",
@@ -949,9 +1037,9 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
-                  "BUCKET_NAME": "authbridge-documents-production",
-                  "DATA_ENCRYPTION_KEY_ID": "fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
-                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
                   "OCR_QUEUE_URL": {
                     "Ref": "OcrQueue"
                   }
@@ -975,11 +1063,11 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/production/1768665837931-2026-01-17T16:03:57.931Z/authbridge-verification.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/refreshDocumentUrl.zip"
               },
-              "Handler": "dist/handlers/refresh-document-url.handler",
+              "Handler": "src/handlers/refresh-document-url.handler",
               "Runtime": "nodejs20.x",
-              "FunctionName": "authbridge-verification-production-refreshDocumentUrl",
+              "FunctionName": "authbridge-verification-staging-refreshDocumentUrl",
               "MemorySize": 512,
               "Timeout": 30,
               "Description": "Refresh presigned URL for document access",
@@ -988,9 +1076,9 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
-                  "BUCKET_NAME": "authbridge-documents-production",
-                  "DATA_ENCRYPTION_KEY_ID": "fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
-                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49"
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
                 }
               },
               "Role": {
@@ -1011,11 +1099,11 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/production/1768665837931-2026-01-17T16:03:57.931Z/authbridge-verification.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/processOCR.zip"
               },
-              "Handler": "dist/handlers/process-ocr.handler",
+              "Handler": "src/handlers/process-ocr.handler",
               "Runtime": "nodejs20.x",
-              "FunctionName": "authbridge-verification-production-processOCR",
+              "FunctionName": "authbridge-verification-staging-processOCR",
               "MemorySize": 512,
               "Timeout": 60,
               "Description": "Process OCR extraction from document images",
@@ -1024,9 +1112,9 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
-                  "BUCKET_NAME": "authbridge-documents-production",
-                  "DATA_ENCRYPTION_KEY_ID": "fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
-                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
                   "OCR_ALERT_TOPIC_ARN": {
                     "Ref": "OcrAlertTopic"
                   },
@@ -1053,11 +1141,11 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/production/1768665837931-2026-01-17T16:03:57.931Z/authbridge-verification.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/processBiometric.zip"
               },
-              "Handler": "dist/handlers/process-biometric.handler",
+              "Handler": "src/handlers/process-biometric.handler",
               "Runtime": "nodejs20.x",
-              "FunctionName": "authbridge-verification-production-processBiometric",
+              "FunctionName": "authbridge-verification-staging-processBiometric",
               "MemorySize": 1024,
               "Timeout": 60,
               "Description": "Process biometric face matching (liveness + comparison)",
@@ -1066,9 +1154,9 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
-                  "BUCKET_NAME": "authbridge-documents-production",
-                  "DATA_ENCRYPTION_KEY_ID": "fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
-                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49",
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
                   "BIOMETRIC_QUEUE_URL": {
                     "Ref": "BiometricQueue"
                   }
@@ -1085,200 +1173,211 @@
               "ProcessBiometricLogGroup"
             ]
           },
-          "ListCasesLambdaVersiond3uGDEFUjKSjB19sLBUZVHFH37zmquAsoddwq99eBG8": {
+          "ListCasesLambdaVersionlFeNsnM8AIa1aZbJFm3We0dR4YAQvykUrw10": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "ListCasesLambdaFunction"
               },
-              "CodeSha256": "B038XVn4xIB4X4/X1G45jIicF3OxPoyQlgoeGd9nN30=",
+              "CodeSha256": "9eZyF+z42shjMVG1/KvW//nFhvORyaQQNi37/Xuib0I=",
               "Description": "List verification cases with filtering and pagination"
             }
           },
-          "GetCaseLambdaVersionmx4vIQWGycOzQnLxToc6QFy6RTk2l2d0b5KBmsp1gY": {
+          "GetCaseLambdaVersionbG6SPKwWHzq6PyGkrQb1KPyaWm73VNqGAZGZj1FMY": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "GetCaseLambdaFunction"
               },
-              "CodeSha256": "B038XVn4xIB4X4/X1G45jIicF3OxPoyQlgoeGd9nN30=",
+              "CodeSha256": "z8i/ARft0I3Crwf0/d60zMOF1DJ01RCWsXPA7ZhVPkY=",
               "Description": "Get case detail by ID"
             }
           },
-          "ApproveCaseLambdaVersionwu4I7Eapk8XS6ZsmUWpOlJWrxROTDi4egGRz81uGpEs": {
+          "ApproveCaseLambdaVersionA2Pk5ce7ubkezUnd0cWhYWvYDrRogUDKHaT7SV863eE": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "ApproveCaseLambdaFunction"
               },
-              "CodeSha256": "B038XVn4xIB4X4/X1G45jIicF3OxPoyQlgoeGd9nN30=",
+              "CodeSha256": "v4j8+mVTStQTPTqyDp0s1I2/cfIQrCrx8f6eqQE1esY=",
               "Description": "Approve a verification case"
             }
           },
-          "RejectCaseLambdaVersion7bu8wkJgNyW82zhIGhAB2oreg9SI5BT6OZMRccZ9WzI": {
+          "RejectCaseLambdaVersionxyzJ3u2sbv6dssTAKF5eYtnvda4zL9P4kXsdgHx53Q": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "RejectCaseLambdaFunction"
               },
-              "CodeSha256": "B038XVn4xIB4X4/X1G45jIicF3OxPoyQlgoeGd9nN30=",
+              "CodeSha256": "VMuR4OAtyh2dZqAuuLMLKhZS2Y27TvsYbd1CRCdcSb8=",
               "Description": "Reject a verification case with reason"
             }
           },
-          "SendWebhookLambdaVersionCWF5GuDC7DnoLx2H9bsEaYbyty3vyuJQCnEWGiKU": {
+          "SendWebhookLambdaVersion9dGKyrgxeDX0hdFIYJOTrm4h7j35KiBbqQ3TNLT8E": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "SendWebhookLambdaFunction"
               },
-              "CodeSha256": "B038XVn4xIB4X4/X1G45jIicF3OxPoyQlgoeGd9nN30=",
+              "CodeSha256": "Qkk0kQ+yp61Djl9qf7V13/C82mr+z7zRFDgHzf6jBGA=",
               "Description": "Send webhook notifications for case decisions"
             }
           },
-          "ConfigureWebhookLambdaVersion4U8ooYXDYGQVwz51CLe0rucr0fbEQ1DwaDgI4ReaS4": {
+          "ConfigureWebhookLambdaVersionIUwiAiO2rv6w33q2gTnDctQBCsl6hCnVYOd4l9vpi8": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "ConfigureWebhookLambdaFunction"
               },
-              "CodeSha256": "B038XVn4xIB4X4/X1G45jIicF3OxPoyQlgoeGd9nN30=",
+              "CodeSha256": "aZ16Vz4sYlAz1J5Re0t1PpMFJD2xdKWsgVlWXrgcmiY=",
               "Description": "Configure webhook URL and settings for client"
             }
           },
-          "TestWebhookLambdaVersionq60dtxkaqNk8xQVLMrq0gz3eahSGgVo2Fzy2Gz9A": {
+          "TestWebhookLambdaVersion1sLGbBdiRKGG5TucjQwTfQbiYIpGS20z1MkPuIcFPA": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "TestWebhookLambdaFunction"
               },
-              "CodeSha256": "B038XVn4xIB4X4/X1G45jIicF3OxPoyQlgoeGd9nN30=",
+              "CodeSha256": "XlbQSV1o8n6jIcmAPE0PmOJVAQev8HMcklSIUGYAX3Q=",
               "Description": "Send test webhook notification to verify configuration"
             }
           },
-          "AddNoteLambdaVersionJ9VPOWXYpQGHPMJlLG045xV1XTXt07Lww5xRT0PbA": {
+          "AddNoteLambdaVersiontD8bsiFDPWESaWvoyxdt9QUKtvldUjWhIxdMD5MaFQ": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "AddNoteLambdaFunction"
               },
-              "CodeSha256": "B038XVn4xIB4X4/X1G45jIicF3OxPoyQlgoeGd9nN30=",
+              "CodeSha256": "V2g5oZCe+7K06n23HEda7ZwADnbwt8/OLAn+tT6i2eQ=",
               "Description": "Add note to case"
             }
           },
-          "GetNotesLambdaVersionMjfaUzfnL34zOFAPaOO518TvE1xYSDOJ5pfQsSTZPAY": {
+          "GetNotesLambdaVersionL6fn1AWqMnf5trrnUWceXBgBs0LiQ9bAknC1Peiteao": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "GetNotesLambdaFunction"
               },
-              "CodeSha256": "B038XVn4xIB4X4/X1G45jIicF3OxPoyQlgoeGd9nN30=",
+              "CodeSha256": "ciJ1pxkNbrcKiuEiE5as8IlYFFbwz9zz/HTOFtI+neg=",
               "Description": "Get all notes for a case"
             }
           },
-          "BulkApproveLambdaVersionCxMBa1EC0EvIDkcFbVDCD3Xorms1U25bpe9FwlpBPg": {
+          "GetAuditLogsLambdaVersionV8VRJnqQlgbIlfknGcdpkq99eTHaY0Fa0ToUCWcIDk": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "GetAuditLogsLambdaFunction"
+              },
+              "CodeSha256": "lPAXAnxKCvyAxbxqR/p2LuMsmDx+YMdRMj128dikaYM=",
+              "Description": "Query audit logs with filters (date, user, action, resource)"
+            }
+          },
+          "BulkApproveLambdaVersionY1B6OdBNLj3l87cwKa8vzC7agbIjhFB4xQQHxwkX8k": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "BulkApproveLambdaFunction"
               },
-              "CodeSha256": "B038XVn4xIB4X4/X1G45jIicF3OxPoyQlgoeGd9nN30=",
+              "CodeSha256": "o4cfz+VCr37GjHlU8Xx2oSIFlwQxHRCCcfNUc5DvkpY=",
               "Description": "Bulk approve multiple verification cases"
             }
           },
-          "BulkRejectLambdaVersionkFY5TRY89sFiJOZT02COVUcusuuANGD9DHEFg8w": {
+          "BulkRejectLambdaVersionfR3OH6SLnSyZI8srJ0ERDERVP1VukERyQKXhXK7xM": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "BulkRejectLambdaFunction"
               },
-              "CodeSha256": "B038XVn4xIB4X4/X1G45jIicF3OxPoyQlgoeGd9nN30=",
+              "CodeSha256": "IYjAOYc6CbRxPN5C0oqMUjhbCIOM9BAfs2sYiKQ4k18=",
               "Description": "Bulk reject multiple verification cases with reason"
             }
           },
-          "CreateVerificationLambdaVersionHw285t3aGyIp1YjSwQxUrO15SIMxtliZhdPOXYg": {
+          "CreateVerificationLambdaVersionFmZTKJ4Pl9o4Zk6M6jBPpjWcDISWuq9QcfskeFxQOLc": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "CreateVerificationLambdaFunction"
               },
-              "CodeSha256": "B038XVn4xIB4X4/X1G45jIicF3OxPoyQlgoeGd9nN30=",
+              "CodeSha256": "rwVMORsshb7aLuo9WcSaxq6yz4on47ww2V1OBDPOh1M=",
               "Description": "Create new verification case"
             }
           },
-          "GetVerificationStatusLambdaVersionpcJYD8Q6QkTr3BlvfbjTEFjyOvAbuZ2otfrIJHOLcY": {
-            "Type": "AWS::Lambda::Version",
-            "DeletionPolicy": "Retain",
-            "Properties": {
-              "FunctionName": {
-                "Ref": "GetVerificationStatusLambdaFunction"
-              },
-              "CodeSha256": "B038XVn4xIB4X4/X1G45jIicF3OxPoyQlgoeGd9nN30=",
-              "Description": "Get verification status and details"
-            }
-          },
-          "UploadDocumentLambdaVersionrheps03X2sssX2ucHC2lltYBAGUEVPZXZyWjNam7g": {
+          "UploadDocumentLambdaVersionjtX2WX4HoMXbjSbn408Y13vTloN4kNQThhJAaUhYc": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "UploadDocumentLambdaFunction"
               },
-              "CodeSha256": "B038XVn4xIB4X4/X1G45jIicF3OxPoyQlgoeGd9nN30=",
+              "CodeSha256": "GkL/EH4cDLqAy2yhDf42yMbEd/akNbswKXri6V7kMiE=",
               "Description": "Upload document to verification case"
             }
           },
-          "RefreshDocumentUrlLambdaVersionMhScQcW3s1A49LXfqJpyFRW3t5hsf2jBd3vmNsA": {
+          "GetVerificationStatusLambdaVersionPZAgUNyoBLUyyaEv1AQTXWhlVUkP2tJ8gWrV4tDSDE": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
-                "Ref": "RefreshDocumentUrlLambdaFunction"
+                "Ref": "GetVerificationStatusLambdaFunction"
               },
-              "CodeSha256": "B038XVn4xIB4X4/X1G45jIicF3OxPoyQlgoeGd9nN30=",
-              "Description": "Refresh presigned URL for document access"
+              "CodeSha256": "bWtq2vG98Fh9rEuvHx0ew+UsjVbiOa/buW6eHq8/ve0=",
+              "Description": "Get verification status and details"
             }
           },
-          "ProcessOCRLambdaVersion8CrbsvxKNJS11xNwLgU2iLEJ7ERMn938UtmQQuQRks": {
+          "ProcessOCRLambdaVersionPwhByq9rWMpRovavE0A9KadPTWe64HBM4rkrMzrJlno": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "ProcessOCRLambdaFunction"
               },
-              "CodeSha256": "B038XVn4xIB4X4/X1G45jIicF3OxPoyQlgoeGd9nN30=",
+              "CodeSha256": "G5/N8qPR1RGLNxwsATmVeL6RHsznvVV8ofsHFKTO/7Q=",
               "Description": "Process OCR extraction from document images"
             }
           },
-          "ProcessBiometricLambdaVersion0TX2pl0aK1ywiZbtujNOnClPHyFUNZZdaSRBjus": {
+          "RefreshDocumentUrlLambdaVersionrCNxBUH1kCQpf9cmAvnkTtl6oLHW9hRfV5eJSrZRcEc": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "RefreshDocumentUrlLambdaFunction"
+              },
+              "CodeSha256": "9ak930YwAP08jEFsiZON593lOjZ/vxlLQobRjWfAYZw=",
+              "Description": "Refresh presigned URL for document access"
+            }
+          },
+          "ProcessBiometricLambdaVersionYmsSuwHgABxsEexzNEWWKg1i41ya74QL2ZO4I2yszE": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "ProcessBiometricLambdaFunction"
               },
-              "CodeSha256": "B038XVn4xIB4X4/X1G45jIicF3OxPoyQlgoeGd9nN30=",
+              "CodeSha256": "icMWCPphTOVh3ltiH0LFFRHko7ECoMCuhetls2VR+O4=",
               "Description": "Process biometric face matching (liveness + comparison)"
             }
           },
           "ApiGatewayRestApi": {
             "Type": "AWS::ApiGateway::RestApi",
             "Properties": {
-              "Name": "authbridge-verification-production",
+              "Name": "authbridge-verification-staging",
               "EndpointConfiguration": {
                 "Types": [
-                  "REGIONAL"
+                  "EDGE"
                 ]
               },
               "Policy": "",
@@ -1427,6 +1526,18 @@
                 "Ref": "ApiGatewayResourceApiV1Webhooks"
               },
               "PathPart": "test",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceApiV1Audit": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceApiV1"
+              },
+              "PathPart": "audit",
               "RestApiId": {
                 "Ref": "ApiGatewayRestApi"
               }
@@ -1801,6 +1912,51 @@
               },
               "ResourceId": {
                 "Ref": "ApiGatewayResourceApiV1CasesIdVarNotes"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodApiV1AuditOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": ""
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceApiV1Audit"
               },
               "RestApiId": {
                 "Ref": "ApiGatewayRestApi"
@@ -2451,6 +2607,52 @@
               "GetNotesLambdaPermissionApiGateway"
             ]
           },
+          "ApiGatewayMethodApiV1AuditGet": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "GET",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceApiV1Audit"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "NONE",
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "GetAuditLogsLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "GetAuditLogsLambdaPermissionApiGateway"
+            ]
+          },
           "ApiGatewayMethodApiV1CasesBulkDashapprovePost": {
             "Type": "AWS::ApiGateway::Method",
             "Properties": {
@@ -2758,7 +2960,7 @@
                       "Ref": "AWS::Region"
                     },
                     ":lambda:path/2015-03-31/functions/",
-                    "arn:aws:lambda:af-south-1:979237821231:function:authbridge-auth-production-apiKeyAuthorizer",
+                    "arn:aws:lambda:af-south-1:979237821231:function:authbridge-auth-staging-apiKeyAuthorizer",
                     "/invocations"
                   ]
                 ]
@@ -2766,13 +2968,13 @@
               "Type": "REQUEST"
             }
           },
-          "ApiGatewayDeployment1768665441299": {
+          "ApiGatewayDeployment1768682314434": {
             "Type": "AWS::ApiGateway::Deployment",
             "Properties": {
               "RestApiId": {
                 "Ref": "ApiGatewayRestApi"
               },
-              "StageName": "production"
+              "StageName": "staging"
             },
             "DependsOn": [
               "ApiGatewayMethodApiV1CasesOptions",
@@ -2782,6 +2984,7 @@
               "ApiGatewayMethodApiV1WebhooksConfigureOptions",
               "ApiGatewayMethodApiV1WebhooksTestOptions",
               "ApiGatewayMethodApiV1CasesIdVarNotesOptions",
+              "ApiGatewayMethodApiV1AuditOptions",
               "ApiGatewayMethodApiV1CasesBulkDashapproveOptions",
               "ApiGatewayMethodApiV1CasesBulkDashrejectOptions",
               "ApiGatewayMethodApiV1VerificationsOptions",
@@ -2796,6 +2999,7 @@
               "ApiGatewayMethodApiV1WebhooksTestPost",
               "ApiGatewayMethodApiV1CasesIdVarNotesPost",
               "ApiGatewayMethodApiV1CasesIdVarNotesGet",
+              "ApiGatewayMethodApiV1AuditGet",
               "ApiGatewayMethodApiV1CasesBulkDashapprovePost",
               "ApiGatewayMethodApiV1CasesBulkDashrejectPost",
               "ApiGatewayMethodApiV1VerificationsPost",
@@ -2992,7 +3196,7 @@
           "ApiKeyAuthorizerLambdaPermissionApiGateway": {
             "Type": "AWS::Lambda::Permission",
             "Properties": {
-              "FunctionName": "arn:aws:lambda:af-south-1:979237821231:function:authbridge-auth-production-apiKeyAuthorizer",
+              "FunctionName": "arn:aws:lambda:af-south-1:979237821231:function:authbridge-auth-staging-apiKeyAuthorizer",
               "Action": "lambda:InvokeFunction",
               "Principal": "apigateway.amazonaws.com",
               "SourceArn": {
@@ -3101,6 +3305,43 @@
               "FunctionName": {
                 "Fn::GetAtt": [
                   "GetNotesLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "GetAuditLogsLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "GetAuditLogsLambdaFunction",
                   "Arn"
                 ]
               },
@@ -3429,13 +3670,13 @@
           "DocumentsBucket": {
             "Type": "AWS::S3::Bucket",
             "Properties": {
-              "BucketName": "authbridge-documents-production",
+              "BucketName": "authbridge-documents-staging",
               "BucketEncryption": {
                 "ServerSideEncryptionConfiguration": [
                   {
                     "ServerSideEncryptionByDefault": {
                       "SSEAlgorithm": "aws:kms",
-                      "KMSMasterKeyID": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49"
+                      "KMSMasterKeyID": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
                     }
                   }
                 ]
@@ -3480,7 +3721,7 @@
                     },
                     "Condition": {
                       "StringNotEqualsIfExists": {
-                        "s3:x-amz-server-side-encryption-aws-kms-key-id": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49"
+                        "s3:x-amz-server-side-encryption-aws-kms-key-id": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
                       }
                     }
                   }
@@ -3491,7 +3732,7 @@
           "OcrQueue": {
             "Type": "AWS::SQS::Queue",
             "Properties": {
-              "QueueName": "authbridge-ocr-queue-production",
+              "QueueName": "authbridge-ocr-queue-staging",
               "VisibilityTimeout": 360,
               "MessageRetentionPeriod": 345600,
               "ReceiveMessageWaitTimeSeconds": 0,
@@ -3509,7 +3750,7 @@
           "OcrDLQ": {
             "Type": "AWS::SQS::Queue",
             "Properties": {
-              "QueueName": "authbridge-ocr-dlq-production",
+              "QueueName": "authbridge-ocr-dlq-staging",
               "MessageRetentionPeriod": 1209600,
               "ReceiveMessageWaitTimeSeconds": 0
             }
@@ -3517,7 +3758,7 @@
           "BiometricQueue": {
             "Type": "AWS::SQS::Queue",
             "Properties": {
-              "QueueName": "authbridge-biometric-queue-production",
+              "QueueName": "authbridge-biometric-queue-staging",
               "VisibilityTimeout": 360,
               "MessageRetentionPeriod": 345600,
               "ReceiveMessageWaitTimeSeconds": 0,
@@ -3535,7 +3776,7 @@
           "BiometricDLQ": {
             "Type": "AWS::SQS::Queue",
             "Properties": {
-              "QueueName": "authbridge-biometric-dlq-production",
+              "QueueName": "authbridge-biometric-dlq-staging",
               "MessageRetentionPeriod": 1209600,
               "ReceiveMessageWaitTimeSeconds": 0
             }
@@ -3543,7 +3784,7 @@
           "WebhookQueue": {
             "Type": "AWS::SQS::Queue",
             "Properties": {
-              "QueueName": "authbridge-webhook-queue-production",
+              "QueueName": "authbridge-webhook-queue-staging",
               "VisibilityTimeout": 90,
               "MessageRetentionPeriod": 86400,
               "ReceiveMessageWaitTimeSeconds": 0,
@@ -3561,7 +3802,7 @@
           "WebhookDLQ": {
             "Type": "AWS::SQS::Queue",
             "Properties": {
-              "QueueName": "authbridge-webhook-dlq-production",
+              "QueueName": "authbridge-webhook-dlq-staging",
               "MessageRetentionPeriod": 1209600,
               "ReceiveMessageWaitTimeSeconds": 0
             }
@@ -3569,14 +3810,14 @@
           "OcrAlertTopic": {
             "Type": "AWS::SNS::Topic",
             "Properties": {
-              "TopicName": "authbridge-ocr-alerts-production",
+              "TopicName": "authbridge-ocr-alerts-staging",
               "DisplayName": "AuthBridge OCR Alerts"
             }
           },
           "OcrSuccessRateAlarm": {
             "Type": "AWS::CloudWatch::Alarm",
             "Properties": {
-              "AlarmName": "authbridge-ocr-success-rate-production",
+              "AlarmName": "authbridge-ocr-success-rate-staging",
               "AlarmDescription": "OCR success rate below 85%",
               "MetricName": "OcrSuccess",
               "Namespace": "AuthBridge/Verification",
@@ -3596,7 +3837,7 @@
           "OcrConfidenceAlarm": {
             "Type": "AWS::CloudWatch::Alarm",
             "Properties": {
-              "AlarmName": "authbridge-ocr-confidence-production",
+              "AlarmName": "authbridge-ocr-confidence-staging",
               "AlarmDescription": "Average OCR confidence below 90%",
               "MetricName": "OcrConfidenceScore",
               "Namespace": "AuthBridge/Verification",
@@ -3616,7 +3857,7 @@
           "OcrProcessingTimeAlarm": {
             "Type": "AWS::CloudWatch::Alarm",
             "Properties": {
-              "AlarmName": "authbridge-ocr-processing-time-production",
+              "AlarmName": "authbridge-ocr-processing-time-staging",
               "AlarmDescription": "OCR processing time exceeds 10 seconds (p95)",
               "MetricName": "OcrProcessingTime",
               "Namespace": "AuthBridge/Verification",
@@ -3633,30 +3874,10 @@
               ]
             }
           },
-          "OcrManualReviewRateAlarm": {
-            "Type": "AWS::CloudWatch::Alarm",
-            "Properties": {
-              "AlarmName": "authbridge-ocr-manual-review-rate-production",
-              "AlarmDescription": "Manual review rate exceeds 30%",
-              "MetricName": "OcrManualReviewRequired",
-              "Namespace": "AuthBridge/Verification",
-              "Statistic": "Sum",
-              "Period": 3600,
-              "EvaluationPeriods": 1,
-              "Threshold": 30,
-              "ComparisonOperator": "GreaterThanThreshold",
-              "TreatMissingData": "notBreaching",
-              "AlarmActions": [
-                {
-                  "Ref": "OcrAlertTopic"
-                }
-              ]
-            }
-          },
           "OcrDLQAlarm": {
             "Type": "AWS::CloudWatch::Alarm",
             "Properties": {
-              "AlarmName": "authbridge-ocr-dlq-messages-production",
+              "AlarmName": "authbridge-ocr-dlq-messages-staging",
               "AlarmDescription": "Messages in OCR Dead Letter Queue",
               "MetricName": "ApproximateNumberOfMessagesVisible",
               "Namespace": "AWS/SQS",
@@ -3687,7 +3908,7 @@
           "BiometricPassRateAlarm": {
             "Type": "AWS::CloudWatch::Alarm",
             "Properties": {
-              "AlarmName": "authbridge-biometric-pass-rate-production",
+              "AlarmName": "authbridge-biometric-pass-rate-staging",
               "AlarmDescription": "Biometric pass rate below 70%",
               "MetricName": "BiometricPassed",
               "Namespace": "AuthBridge/Verification",
@@ -3704,90 +3925,10 @@
               ]
             }
           },
-          "BiometricSimilarityAlarm": {
-            "Type": "AWS::CloudWatch::Alarm",
-            "Properties": {
-              "AlarmName": "authbridge-biometric-similarity-production",
-              "AlarmDescription": "Average biometric similarity score below 85%",
-              "MetricName": "BiometricSimilarityScore",
-              "Namespace": "AuthBridge/Verification",
-              "Statistic": "Average",
-              "Period": 300,
-              "EvaluationPeriods": 3,
-              "Threshold": 85,
-              "ComparisonOperator": "LessThanThreshold",
-              "TreatMissingData": "notBreaching",
-              "AlarmActions": [
-                {
-                  "Ref": "OcrAlertTopic"
-                }
-              ]
-            }
-          },
-          "BiometricProcessingTimeAlarm": {
-            "Type": "AWS::CloudWatch::Alarm",
-            "Properties": {
-              "AlarmName": "authbridge-biometric-processing-time-production",
-              "AlarmDescription": "Biometric processing time exceeds 5 seconds (p95)",
-              "MetricName": "BiometricProcessingTime",
-              "Namespace": "AuthBridge/Verification",
-              "ExtendedStatistic": "p95",
-              "Period": 300,
-              "EvaluationPeriods": 2,
-              "Threshold": 5000,
-              "ComparisonOperator": "GreaterThanThreshold",
-              "TreatMissingData": "notBreaching",
-              "AlarmActions": [
-                {
-                  "Ref": "OcrAlertTopic"
-                }
-              ]
-            }
-          },
-          "BiometricManualReviewRateAlarm": {
-            "Type": "AWS::CloudWatch::Alarm",
-            "Properties": {
-              "AlarmName": "authbridge-biometric-manual-review-rate-production",
-              "AlarmDescription": "Biometric manual review rate exceeds 40%",
-              "MetricName": "BiometricManualReviewRequired",
-              "Namespace": "AuthBridge/Verification",
-              "Statistic": "Sum",
-              "Period": 3600,
-              "EvaluationPeriods": 1,
-              "Threshold": 40,
-              "ComparisonOperator": "GreaterThanThreshold",
-              "TreatMissingData": "notBreaching",
-              "AlarmActions": [
-                {
-                  "Ref": "OcrAlertTopic"
-                }
-              ]
-            }
-          },
-          "BiometricFaceDetectionIssueAlarm": {
-            "Type": "AWS::CloudWatch::Alarm",
-            "Properties": {
-              "AlarmName": "authbridge-biometric-face-detection-issues-production",
-              "AlarmDescription": "Face detection issue rate exceeds 15%",
-              "MetricName": "FaceDetectionIssue",
-              "Namespace": "AuthBridge/Verification",
-              "Statistic": "Sum",
-              "Period": 3600,
-              "EvaluationPeriods": 1,
-              "Threshold": 15,
-              "ComparisonOperator": "GreaterThanThreshold",
-              "TreatMissingData": "notBreaching",
-              "AlarmActions": [
-                {
-                  "Ref": "OcrAlertTopic"
-                }
-              ]
-            }
-          },
           "BiometricDLQAlarm": {
             "Type": "AWS::CloudWatch::Alarm",
             "Properties": {
-              "AlarmName": "authbridge-biometric-dlq-messages-production",
+              "AlarmName": "authbridge-biometric-dlq-messages-staging",
               "AlarmDescription": "Messages in Biometric Dead Letter Queue",
               "MetricName": "ApproximateNumberOfMessagesVisible",
               "Namespace": "AWS/SQS",
@@ -3814,75 +3955,6 @@
                 }
               ]
             }
-          },
-          "DuplicateCrossClientRateAlarm": {
-            "Type": "AWS::CloudWatch::Alarm",
-            "Properties": {
-              "AlarmName": "authbridge-duplicate-cross-client-rate-production",
-              "AlarmDescription": "Cross-client duplicate rate exceeds 5% over 1 hour",
-              "MetricName": "Duplicate/CrossClientDuplicates",
-              "Namespace": "AuthBridge/Verification",
-              "Statistic": "Sum",
-              "Period": 3600,
-              "EvaluationPeriods": 1,
-              "Threshold": 5,
-              "ComparisonOperator": "GreaterThanThreshold",
-              "TreatMissingData": "notBreaching",
-              "AlarmActions": [
-                {
-                  "Ref": "OcrAlertTopic"
-                }
-              ]
-            }
-          },
-          "DuplicateRiskScoreAlarm": {
-            "Type": "AWS::CloudWatch::Alarm",
-            "Properties": {
-              "AlarmName": "authbridge-duplicate-risk-score-production",
-              "AlarmDescription": "Average risk score exceeds 50 over 1 hour",
-              "MetricName": "Duplicate/RiskScore",
-              "Namespace": "AuthBridge/Verification",
-              "Statistic": "Average",
-              "Period": 3600,
-              "EvaluationPeriods": 1,
-              "Threshold": 50,
-              "ComparisonOperator": "GreaterThanThreshold",
-              "TreatMissingData": "notBreaching",
-              "AlarmActions": [
-                {
-                  "Ref": "OcrAlertTopic"
-                }
-              ]
-            }
-          },
-          "DuplicateCheckFailureAlarm": {
-            "Type": "AWS::CloudWatch::Alarm",
-            "Properties": {
-              "AlarmName": "authbridge-duplicate-check-failures-production",
-              "AlarmDescription": "Duplicate check failure rate exceeds 10% over 5 minutes",
-              "MetricName": "Duplicate/CheckFailure",
-              "Namespace": "AuthBridge/Verification",
-              "Statistic": "Sum",
-              "Period": 300,
-              "EvaluationPeriods": 2,
-              "Threshold": 10,
-              "ComparisonOperator": "GreaterThanThreshold",
-              "TreatMissingData": "notBreaching",
-              "AlarmActions": [
-                {
-                  "Ref": "OcrAlertTopic"
-                }
-              ]
-            }
-          },
-          "DuplicateDetectionDashboard": {
-            "Type": "AWS::CloudWatch::Dashboard",
-            "Properties": {
-              "DashboardName": "authbridge-duplicate-detection-production",
-              "DashboardBody": {
-                "Fn::Sub": "{\n  \"widgets\": [\n    {\n      \"type\": \"metric\",\n      \"properties\": {\n        \"metrics\": [\n          [\"AuthBridge/Verification\", \"Duplicate/ChecksPerformed\", {\"stat\": \"Sum\", \"label\": \"Total Checks\"}],\n          [\".\", \"Duplicate/DuplicatesFound\", {\"stat\": \"Sum\", \"label\": \"Duplicates Found\"}],\n          [\".\", \"Duplicate/CrossClientDuplicates\", {\"stat\": \"Sum\", \"label\": \"Cross-Client\"}]\n        ],\n        \"period\": 300,\n        \"stat\": \"Sum\",\n        \"region\": \"af-south-1\",\n        \"title\": \"Duplicate Detection Overview\",\n        \"yAxis\": {\n          \"left\": {\n            \"min\": 0\n          }\n        }\n      }\n    },\n    {\n      \"type\": \"metric\",\n      \"properties\": {\n        \"metrics\": [\n          [\"AuthBridge/Verification\", \"Duplicate/RiskLevel/low\", {\"stat\": \"Sum\", \"label\": \"Low Risk\"}],\n          [\".\", \"Duplicate/RiskLevel/medium\", {\"stat\": \"Sum\", \"label\": \"Medium Risk\"}],\n          [\".\", \"Duplicate/RiskLevel/high\", {\"stat\": \"Sum\", \"label\": \"High Risk\"}],\n          [\".\", \"Duplicate/RiskLevel/critical\", {\"stat\": \"Sum\", \"label\": \"Critical Risk\"}]\n        ],\n        \"period\": 300,\n        \"stat\": \"Sum\",\n        \"region\": \"af-south-1\",\n        \"title\": \"Risk Level Distribution\",\n        \"yAxis\": {\n          \"left\": {\n            \"min\": 0\n          }\n        }\n      }\n    },\n    {\n      \"type\": \"metric\",\n      \"properties\": {\n        \"metrics\": [\n          [\"AuthBridge/Verification\", \"Duplicate/RiskScore\", {\"stat\": \"Average\", \"label\": \"Average Risk Score\"}]\n        ],\n        \"period\": 300,\n        \"stat\": \"Average\",\n        \"region\": \"af-south-1\",\n        \"title\": \"Average Risk Score (0-100)\",\n        \"yAxis\": {\n          \"left\": {\n            \"min\": 0,\n            \"max\": 100\n          }\n        },\n        \"annotations\": {\n          \"horizontal\": [\n            {\n              \"value\": 25,\n              \"label\": \"Low/Medium Threshold\",\n              \"fill\": \"below\"\n            },\n            {\n              \"value\": 50,\n              \"label\": \"Medium/High Threshold\",\n              \"fill\": \"below\"\n            },\n            {\n              \"value\": 75,\n              \"label\": \"High/Critical Threshold\",\n              \"fill\": \"below\"\n            }\n          ]\n        }\n      }\n    },\n    {\n      \"type\": \"metric\",\n      \"properties\": {\n        \"metrics\": [\n          [\"AuthBridge/Verification\", \"Duplicate/ManualReviewTriggered\", {\"stat\": \"Sum\", \"label\": \"Manual Review Required\"}]\n        ],\n        \"period\": 300,\n        \"stat\": \"Sum\",\n        \"region\": \"af-south-1\",\n        \"title\": \"Manual Review Queue\",\n        \"yAxis\": {\n          \"left\": {\n            \"min\": 0\n          }\n        }\n      }\n    },\n    {\n      \"type\": \"metric\",\n      \"properties\": {\n        \"metrics\": [\n          [\"AuthBridge/Verification\", \"Duplicate/CheckTime\", {\"stat\": \"p50\", \"label\": \"p50\"}],\n          [\"...\", {\"stat\": \"p95\", \"label\": \"p95\"}],\n          [\"...\", {\"stat\": \"p99\", \"label\": \"p99\"}]\n        ],\n        \"period\": 300,\n        \"stat\": \"Average\",\n        \"region\": \"af-south-1\",\n        \"title\": \"Duplicate Check Latency (ms)\",\n        \"yAxis\": {\n          \"left\": {\n            \"min\": 0\n          }\n        },\n        \"annotations\": {\n          \"horizontal\": [\n            {\n              \"value\": 500,\n              \"label\": \"Target (p95 < 500ms)\",\n              \"fill\": \"above\"\n            }\n          ]\n        }\n      }\n    },\n    {\n      \"type\": \"metric\",\n      \"properties\": {\n        \"metrics\": [\n          [\"AuthBridge/Verification\", \"Duplicate/CheckSuccess\", {\"stat\": \"Sum\", \"label\": \"Success\"}],\n          [\".\", \"Duplicate/CheckFailure\", {\"stat\": \"Sum\", \"label\": \"Failure\"}]\n        ],\n        \"period\": 300,\n        \"stat\": \"Sum\",\n        \"region\": \"af-south-1\",\n        \"title\": \"Duplicate Check Success/Failure Rate\",\n        \"yAxis\": {\n          \"left\": {\n            \"min\": 0\n          }\n        }\n      }\n    }\n  ]\n}\n"
-              }
-            }
           }
         },
         "Outputs": {
@@ -3891,160 +3963,169 @@
               "Ref": "ServerlessDeploymentBucket"
             },
             "Export": {
-              "Name": "sls-authbridge-verification-production-ServerlessDeploymentBucketName"
+              "Name": "sls-authbridge-verification-staging-ServerlessDeploymentBucketName"
             }
           },
           "ListCasesLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ListCasesLambdaVersiond3uGDEFUjKSjB19sLBUZVHFH37zmquAsoddwq99eBG8"
+              "Ref": "ListCasesLambdaVersionlFeNsnM8AIa1aZbJFm3We0dR4YAQvykUrw10"
             },
             "Export": {
-              "Name": "sls-authbridge-verification-production-ListCasesLambdaFunctionQualifiedArn"
+              "Name": "sls-authbridge-verification-staging-ListCasesLambdaFunctionQualifiedArn"
             }
           },
           "GetCaseLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "GetCaseLambdaVersionmx4vIQWGycOzQnLxToc6QFy6RTk2l2d0b5KBmsp1gY"
+              "Ref": "GetCaseLambdaVersionbG6SPKwWHzq6PyGkrQb1KPyaWm73VNqGAZGZj1FMY"
             },
             "Export": {
-              "Name": "sls-authbridge-verification-production-GetCaseLambdaFunctionQualifiedArn"
+              "Name": "sls-authbridge-verification-staging-GetCaseLambdaFunctionQualifiedArn"
             }
           },
           "ApproveCaseLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ApproveCaseLambdaVersionwu4I7Eapk8XS6ZsmUWpOlJWrxROTDi4egGRz81uGpEs"
+              "Ref": "ApproveCaseLambdaVersionA2Pk5ce7ubkezUnd0cWhYWvYDrRogUDKHaT7SV863eE"
             },
             "Export": {
-              "Name": "sls-authbridge-verification-production-ApproveCaseLambdaFunctionQualifiedArn"
+              "Name": "sls-authbridge-verification-staging-ApproveCaseLambdaFunctionQualifiedArn"
             }
           },
           "RejectCaseLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "RejectCaseLambdaVersion7bu8wkJgNyW82zhIGhAB2oreg9SI5BT6OZMRccZ9WzI"
+              "Ref": "RejectCaseLambdaVersionxyzJ3u2sbv6dssTAKF5eYtnvda4zL9P4kXsdgHx53Q"
             },
             "Export": {
-              "Name": "sls-authbridge-verification-production-RejectCaseLambdaFunctionQualifiedArn"
+              "Name": "sls-authbridge-verification-staging-RejectCaseLambdaFunctionQualifiedArn"
             }
           },
           "SendWebhookLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "SendWebhookLambdaVersionCWF5GuDC7DnoLx2H9bsEaYbyty3vyuJQCnEWGiKU"
+              "Ref": "SendWebhookLambdaVersion9dGKyrgxeDX0hdFIYJOTrm4h7j35KiBbqQ3TNLT8E"
             },
             "Export": {
-              "Name": "sls-authbridge-verification-production-SendWebhookLambdaFunctionQualifiedArn"
+              "Name": "sls-authbridge-verification-staging-SendWebhookLambdaFunctionQualifiedArn"
             }
           },
           "ConfigureWebhookLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ConfigureWebhookLambdaVersion4U8ooYXDYGQVwz51CLe0rucr0fbEQ1DwaDgI4ReaS4"
+              "Ref": "ConfigureWebhookLambdaVersionIUwiAiO2rv6w33q2gTnDctQBCsl6hCnVYOd4l9vpi8"
             },
             "Export": {
-              "Name": "sls-authbridge-verification-production-ConfigureWebhookLambdaFunctionQualifiedArn"
+              "Name": "sls-authbridge-verification-staging-ConfigureWebhookLambdaFunctionQualifiedArn"
             }
           },
           "TestWebhookLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "TestWebhookLambdaVersionq60dtxkaqNk8xQVLMrq0gz3eahSGgVo2Fzy2Gz9A"
+              "Ref": "TestWebhookLambdaVersion1sLGbBdiRKGG5TucjQwTfQbiYIpGS20z1MkPuIcFPA"
             },
             "Export": {
-              "Name": "sls-authbridge-verification-production-TestWebhookLambdaFunctionQualifiedArn"
+              "Name": "sls-authbridge-verification-staging-TestWebhookLambdaFunctionQualifiedArn"
             }
           },
           "AddNoteLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "AddNoteLambdaVersionJ9VPOWXYpQGHPMJlLG045xV1XTXt07Lww5xRT0PbA"
+              "Ref": "AddNoteLambdaVersiontD8bsiFDPWESaWvoyxdt9QUKtvldUjWhIxdMD5MaFQ"
             },
             "Export": {
-              "Name": "sls-authbridge-verification-production-AddNoteLambdaFunctionQualifiedArn"
+              "Name": "sls-authbridge-verification-staging-AddNoteLambdaFunctionQualifiedArn"
             }
           },
           "GetNotesLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "GetNotesLambdaVersionMjfaUzfnL34zOFAPaOO518TvE1xYSDOJ5pfQsSTZPAY"
+              "Ref": "GetNotesLambdaVersionL6fn1AWqMnf5trrnUWceXBgBs0LiQ9bAknC1Peiteao"
             },
             "Export": {
-              "Name": "sls-authbridge-verification-production-GetNotesLambdaFunctionQualifiedArn"
+              "Name": "sls-authbridge-verification-staging-GetNotesLambdaFunctionQualifiedArn"
+            }
+          },
+          "GetAuditLogsLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "GetAuditLogsLambdaVersionV8VRJnqQlgbIlfknGcdpkq99eTHaY0Fa0ToUCWcIDk"
+            },
+            "Export": {
+              "Name": "sls-authbridge-verification-staging-GetAuditLogsLambdaFunctionQualifiedArn"
             }
           },
           "BulkApproveLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "BulkApproveLambdaVersionCxMBa1EC0EvIDkcFbVDCD3Xorms1U25bpe9FwlpBPg"
+              "Ref": "BulkApproveLambdaVersionY1B6OdBNLj3l87cwKa8vzC7agbIjhFB4xQQHxwkX8k"
             },
             "Export": {
-              "Name": "sls-authbridge-verification-production-BulkApproveLambdaFunctionQualifiedArn"
+              "Name": "sls-authbridge-verification-staging-BulkApproveLambdaFunctionQualifiedArn"
             }
           },
           "BulkRejectLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "BulkRejectLambdaVersionkFY5TRY89sFiJOZT02COVUcusuuANGD9DHEFg8w"
+              "Ref": "BulkRejectLambdaVersionfR3OH6SLnSyZI8srJ0ERDERVP1VukERyQKXhXK7xM"
             },
             "Export": {
-              "Name": "sls-authbridge-verification-production-BulkRejectLambdaFunctionQualifiedArn"
+              "Name": "sls-authbridge-verification-staging-BulkRejectLambdaFunctionQualifiedArn"
             }
           },
           "CreateVerificationLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "CreateVerificationLambdaVersionHw285t3aGyIp1YjSwQxUrO15SIMxtliZhdPOXYg"
+              "Ref": "CreateVerificationLambdaVersionFmZTKJ4Pl9o4Zk6M6jBPpjWcDISWuq9QcfskeFxQOLc"
             },
             "Export": {
-              "Name": "sls-authbridge-verification-production-CreateVerificationLambdaFunctionQualifiedArn"
-            }
-          },
-          "GetVerificationStatusLambdaFunctionQualifiedArn": {
-            "Description": "Current Lambda function version",
-            "Value": {
-              "Ref": "GetVerificationStatusLambdaVersionpcJYD8Q6QkTr3BlvfbjTEFjyOvAbuZ2otfrIJHOLcY"
-            },
-            "Export": {
-              "Name": "sls-authbridge-verification-production-GetVerificationStatusLambdaFunctionQualifiedArn"
+              "Name": "sls-authbridge-verification-staging-CreateVerificationLambdaFunctionQualifiedArn"
             }
           },
           "UploadDocumentLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "UploadDocumentLambdaVersionrheps03X2sssX2ucHC2lltYBAGUEVPZXZyWjNam7g"
+              "Ref": "UploadDocumentLambdaVersionjtX2WX4HoMXbjSbn408Y13vTloN4kNQThhJAaUhYc"
             },
             "Export": {
-              "Name": "sls-authbridge-verification-production-UploadDocumentLambdaFunctionQualifiedArn"
+              "Name": "sls-authbridge-verification-staging-UploadDocumentLambdaFunctionQualifiedArn"
             }
           },
-          "RefreshDocumentUrlLambdaFunctionQualifiedArn": {
+          "GetVerificationStatusLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "RefreshDocumentUrlLambdaVersionMhScQcW3s1A49LXfqJpyFRW3t5hsf2jBd3vmNsA"
+              "Ref": "GetVerificationStatusLambdaVersionPZAgUNyoBLUyyaEv1AQTXWhlVUkP2tJ8gWrV4tDSDE"
             },
             "Export": {
-              "Name": "sls-authbridge-verification-production-RefreshDocumentUrlLambdaFunctionQualifiedArn"
+              "Name": "sls-authbridge-verification-staging-GetVerificationStatusLambdaFunctionQualifiedArn"
             }
           },
           "ProcessOCRLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ProcessOCRLambdaVersion8CrbsvxKNJS11xNwLgU2iLEJ7ERMn938UtmQQuQRks"
+              "Ref": "ProcessOCRLambdaVersionPwhByq9rWMpRovavE0A9KadPTWe64HBM4rkrMzrJlno"
             },
             "Export": {
-              "Name": "sls-authbridge-verification-production-ProcessOCRLambdaFunctionQualifiedArn"
+              "Name": "sls-authbridge-verification-staging-ProcessOCRLambdaFunctionQualifiedArn"
+            }
+          },
+          "RefreshDocumentUrlLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "RefreshDocumentUrlLambdaVersionrCNxBUH1kCQpf9cmAvnkTtl6oLHW9hRfV5eJSrZRcEc"
+            },
+            "Export": {
+              "Name": "sls-authbridge-verification-staging-RefreshDocumentUrlLambdaFunctionQualifiedArn"
             }
           },
           "ProcessBiometricLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ProcessBiometricLambdaVersion0TX2pl0aK1ywiZbtujNOnClPHyFUNZZdaSRBjus"
+              "Ref": "ProcessBiometricLambdaVersionYmsSuwHgABxsEexzNEWWKg1i41ya74QL2ZO4I2yszE"
             },
             "Export": {
-              "Name": "sls-authbridge-verification-production-ProcessBiometricLambdaFunctionQualifiedArn"
+              "Name": "sls-authbridge-verification-staging-ProcessBiometricLambdaFunctionQualifiedArn"
             }
           },
           "ServiceEndpoint": {
@@ -4065,12 +4146,12 @@
                   {
                     "Ref": "AWS::URLSuffix"
                   },
-                  "/production"
+                  "/staging"
                 ]
               ]
             },
             "Export": {
-              "Name": "sls-authbridge-verification-production-ServiceEndpoint"
+              "Name": "sls-authbridge-verification-staging-ServiceEndpoint"
             }
           },
           "OcrAlertTopicArn": {
@@ -4079,7 +4160,7 @@
               "Ref": "OcrAlertTopic"
             },
             "Export": {
-              "Name": "authbridge-ocr-alert-topic-production"
+              "Name": "authbridge-ocr-alert-topic-staging"
             }
           }
         }
@@ -4169,17 +4250,37 @@
       "vpc": {}
     },
     "custom": {
+      "endpointTypes": {
+        "staging": "EDGE",
+        "production": "REGIONAL"
+      },
+      "esbuild": {
+        "bundle": true,
+        "minify": true,
+        "sourcemap": false,
+        "exclude": [
+          "@aws-sdk/*",
+          "@smithy/*"
+        ],
+        "target": "node20",
+        "platform": "node",
+        "concurrency": 10,
+        "packager": "pnpm",
+        "treeShaking": true,
+        "keepNames": true
+      },
       "serverless-offline": {
         "httpPort": 3002
       }
     },
     "plugins": [
+      "serverless-esbuild",
       "serverless-offline"
     ],
     "pluginsData": {},
     "functions": {
       "listCases": {
-        "handler": "dist/handlers/list-cases.handler",
+        "handler": "src/handlers/list-cases.handler",
         "description": "List verification cases with filtering and pagination",
         "events": [
           {
@@ -4207,16 +4308,18 @@
             }
           }
         ],
-        "name": "authbridge-verification-production-listCases",
-        "package": {},
+        "name": "authbridge-verification-staging-listCases",
+        "package": {
+          "artifact": ".serverless/listCases.zip"
+        },
         "memory": 512,
         "timeout": 30,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "ListCasesLambdaVersiond3uGDEFUjKSjB19sLBUZVHFH37zmquAsoddwq99eBG8"
+        "versionLogicalId": "ListCasesLambdaVersionlFeNsnM8AIa1aZbJFm3We0dR4YAQvykUrw10"
       },
       "getCase": {
-        "handler": "dist/handlers/get-case.handler",
+        "handler": "src/handlers/get-case.handler",
         "description": "Get case detail by ID",
         "events": [
           {
@@ -4244,16 +4347,18 @@
             }
           }
         ],
-        "name": "authbridge-verification-production-getCase",
-        "package": {},
+        "name": "authbridge-verification-staging-getCase",
+        "package": {
+          "artifact": ".serverless/getCase.zip"
+        },
         "memory": 512,
         "timeout": 30,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "GetCaseLambdaVersionmx4vIQWGycOzQnLxToc6QFy6RTk2l2d0b5KBmsp1gY"
+        "versionLogicalId": "GetCaseLambdaVersionbG6SPKwWHzq6PyGkrQb1KPyaWm73VNqGAZGZj1FMY"
       },
       "approveCase": {
-        "handler": "dist/handlers/approve-case.handler",
+        "handler": "src/handlers/approve-case.handler",
         "description": "Approve a verification case",
         "environment": {
           "WEBHOOK_QUEUE_URL": {
@@ -4286,16 +4391,18 @@
             }
           }
         ],
-        "name": "authbridge-verification-production-approveCase",
-        "package": {},
+        "name": "authbridge-verification-staging-approveCase",
+        "package": {
+          "artifact": ".serverless/approveCase.zip"
+        },
         "memory": 512,
         "timeout": 30,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "ApproveCaseLambdaVersionwu4I7Eapk8XS6ZsmUWpOlJWrxROTDi4egGRz81uGpEs"
+        "versionLogicalId": "ApproveCaseLambdaVersionA2Pk5ce7ubkezUnd0cWhYWvYDrRogUDKHaT7SV863eE"
       },
       "rejectCase": {
-        "handler": "dist/handlers/reject-case.handler",
+        "handler": "src/handlers/reject-case.handler",
         "description": "Reject a verification case with reason",
         "environment": {
           "WEBHOOK_QUEUE_URL": {
@@ -4328,16 +4435,18 @@
             }
           }
         ],
-        "name": "authbridge-verification-production-rejectCase",
-        "package": {},
+        "name": "authbridge-verification-staging-rejectCase",
+        "package": {
+          "artifact": ".serverless/rejectCase.zip"
+        },
         "memory": 512,
         "timeout": 30,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "RejectCaseLambdaVersion7bu8wkJgNyW82zhIGhAB2oreg9SI5BT6OZMRccZ9WzI"
+        "versionLogicalId": "RejectCaseLambdaVersionxyzJ3u2sbv6dssTAKF5eYtnvda4zL9P4kXsdgHx53Q"
       },
       "sendWebhook": {
-        "handler": "dist/handlers/send-webhook.handler",
+        "handler": "src/handlers/send-webhook.handler",
         "description": "Send webhook notifications for case decisions",
         "memorySize": 256,
         "timeout": 30,
@@ -4350,22 +4459,23 @@
           {
             "sqs": {
               "arn": {
-                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"IamRoleLambdaExecution\"][\"Properties\"][\"Policies\"][0][\"PolicyDocument\"][\"Statement\"][11][\"Resource\"][0]"
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"IamRoleLambdaExecution\"][\"Properties\"][\"Policies\"][0][\"PolicyDocument\"][\"Statement\"][14][\"Resource\"][0]"
               },
-              "batchSize": 10,
-              "maximumBatchingWindowInSeconds": 5
+              "batchSize": 10
             }
           }
         ],
-        "name": "authbridge-verification-production-sendWebhook",
-        "package": {},
+        "name": "authbridge-verification-staging-sendWebhook",
+        "package": {
+          "artifact": ".serverless/sendWebhook.zip"
+        },
         "memory": 256,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "SendWebhookLambdaVersionCWF5GuDC7DnoLx2H9bsEaYbyty3vyuJQCnEWGiKU"
+        "versionLogicalId": "SendWebhookLambdaVersion9dGKyrgxeDX0hdFIYJOTrm4h7j35KiBbqQ3TNLT8E"
       },
       "configureWebhook": {
-        "handler": "dist/handlers/configure-webhook.handler",
+        "handler": "src/handlers/configure-webhook.handler",
         "description": "Configure webhook URL and settings for client",
         "memorySize": 256,
         "timeout": 10,
@@ -4394,7 +4504,7 @@
               "authorizer": {
                 "type": "request",
                 "name": "apiKeyAuthorizer",
-                "arn": "arn:aws:lambda:af-south-1:979237821231:function:authbridge-auth-production-apiKeyAuthorizer",
+                "arn": "arn:aws:lambda:af-south-1:979237821231:function:authbridge-auth-staging-apiKeyAuthorizer",
                 "managedExternally": false,
                 "resultTtlInSeconds": 300,
                 "identitySource": "method.request.header.Authorization",
@@ -4404,15 +4514,17 @@
             }
           }
         ],
-        "name": "authbridge-verification-production-configureWebhook",
-        "package": {},
+        "name": "authbridge-verification-staging-configureWebhook",
+        "package": {
+          "artifact": ".serverless/configureWebhook.zip"
+        },
         "memory": 256,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "ConfigureWebhookLambdaVersion4U8ooYXDYGQVwz51CLe0rucr0fbEQ1DwaDgI4ReaS4"
+        "versionLogicalId": "ConfigureWebhookLambdaVersionIUwiAiO2rv6w33q2gTnDctQBCsl6hCnVYOd4l9vpi8"
       },
       "testWebhook": {
-        "handler": "dist/handlers/test-webhook.handler",
+        "handler": "src/handlers/test-webhook.handler",
         "description": "Send test webhook notification to verify configuration",
         "memorySize": 256,
         "timeout": 30,
@@ -4441,7 +4553,7 @@
               "authorizer": {
                 "type": "request",
                 "name": "apiKeyAuthorizer",
-                "arn": "arn:aws:lambda:af-south-1:979237821231:function:authbridge-auth-production-apiKeyAuthorizer",
+                "arn": "arn:aws:lambda:af-south-1:979237821231:function:authbridge-auth-staging-apiKeyAuthorizer",
                 "managedExternally": false,
                 "resultTtlInSeconds": 300,
                 "identitySource": "method.request.header.Authorization",
@@ -4451,15 +4563,17 @@
             }
           }
         ],
-        "name": "authbridge-verification-production-testWebhook",
-        "package": {},
+        "name": "authbridge-verification-staging-testWebhook",
+        "package": {
+          "artifact": ".serverless/testWebhook.zip"
+        },
         "memory": 256,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "TestWebhookLambdaVersionq60dtxkaqNk8xQVLMrq0gz3eahSGgVo2Fzy2Gz9A"
+        "versionLogicalId": "TestWebhookLambdaVersion1sLGbBdiRKGG5TucjQwTfQbiYIpGS20z1MkPuIcFPA"
       },
       "addNote": {
-        "handler": "dist/handlers/add-note.handler",
+        "handler": "src/handlers/add-note.handler",
         "description": "Add note to case",
         "events": [
           {
@@ -4487,16 +4601,18 @@
             }
           }
         ],
-        "name": "authbridge-verification-production-addNote",
-        "package": {},
+        "name": "authbridge-verification-staging-addNote",
+        "package": {
+          "artifact": ".serverless/addNote.zip"
+        },
         "memory": 512,
         "timeout": 30,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "AddNoteLambdaVersionJ9VPOWXYpQGHPMJlLG045xV1XTXt07Lww5xRT0PbA"
+        "versionLogicalId": "AddNoteLambdaVersiontD8bsiFDPWESaWvoyxdt9QUKtvldUjWhIxdMD5MaFQ"
       },
       "getNotes": {
-        "handler": "dist/handlers/get-notes.handler",
+        "handler": "src/handlers/get-notes.handler",
         "description": "Get all notes for a case",
         "events": [
           {
@@ -4524,16 +4640,57 @@
             }
           }
         ],
-        "name": "authbridge-verification-production-getNotes",
-        "package": {},
+        "name": "authbridge-verification-staging-getNotes",
+        "package": {
+          "artifact": ".serverless/getNotes.zip"
+        },
         "memory": 512,
         "timeout": 30,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "GetNotesLambdaVersionMjfaUzfnL34zOFAPaOO518TvE1xYSDOJ5pfQsSTZPAY"
+        "versionLogicalId": "GetNotesLambdaVersionL6fn1AWqMnf5trrnUWceXBgBs0LiQ9bAknC1Peiteao"
+      },
+      "getAuditLogs": {
+        "handler": "src/handlers/get-audit-logs.getAuditLogs",
+        "description": "Query audit logs with filters (date, user, action, resource)",
+        "events": [
+          {
+            "http": {
+              "path": "api/v1/audit",
+              "method": "get",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "GET"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "authbridge-verification-staging-getAuditLogs",
+        "package": {
+          "artifact": ".serverless/getAuditLogs.zip"
+        },
+        "memory": 512,
+        "timeout": 30,
+        "runtime": "nodejs20.x",
+        "vpc": {},
+        "versionLogicalId": "GetAuditLogsLambdaVersionV8VRJnqQlgbIlfknGcdpkq99eTHaY0Fa0ToUCWcIDk"
       },
       "bulkApprove": {
-        "handler": "dist/handlers/bulk-approve.handler",
+        "handler": "src/handlers/bulk-approve.handler",
         "description": "Bulk approve multiple verification cases",
         "memorySize": 512,
         "timeout": 30,
@@ -4568,15 +4725,17 @@
             }
           }
         ],
-        "name": "authbridge-verification-production-bulkApprove",
-        "package": {},
+        "name": "authbridge-verification-staging-bulkApprove",
+        "package": {
+          "artifact": ".serverless/bulkApprove.zip"
+        },
         "memory": 512,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "BulkApproveLambdaVersionCxMBa1EC0EvIDkcFbVDCD3Xorms1U25bpe9FwlpBPg"
+        "versionLogicalId": "BulkApproveLambdaVersionY1B6OdBNLj3l87cwKa8vzC7agbIjhFB4xQQHxwkX8k"
       },
       "bulkReject": {
-        "handler": "dist/handlers/bulk-reject.handler",
+        "handler": "src/handlers/bulk-reject.handler",
         "description": "Bulk reject multiple verification cases with reason",
         "memorySize": 512,
         "timeout": 30,
@@ -4611,15 +4770,17 @@
             }
           }
         ],
-        "name": "authbridge-verification-production-bulkReject",
-        "package": {},
+        "name": "authbridge-verification-staging-bulkReject",
+        "package": {
+          "artifact": ".serverless/bulkReject.zip"
+        },
         "memory": 512,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "BulkRejectLambdaVersionkFY5TRY89sFiJOZT02COVUcusuuANGD9DHEFg8w"
+        "versionLogicalId": "BulkRejectLambdaVersionfR3OH6SLnSyZI8srJ0ERDERVP1VukERyQKXhXK7xM"
       },
       "createVerification": {
-        "handler": "dist/handlers/create-verification.handler",
+        "handler": "src/handlers/create-verification.handler",
         "description": "Create new verification case",
         "environment": {
           "JWT_SECRET": "staging-jwt-secret-change-in-production",
@@ -4652,7 +4813,7 @@
               "authorizer": {
                 "type": "request",
                 "name": "apiKeyAuthorizer",
-                "arn": "arn:aws:lambda:af-south-1:979237821231:function:authbridge-auth-production-apiKeyAuthorizer",
+                "arn": "arn:aws:lambda:af-south-1:979237821231:function:authbridge-auth-staging-apiKeyAuthorizer",
                 "managedExternally": false,
                 "resultTtlInSeconds": 300,
                 "identitySource": "method.request.header.Authorization",
@@ -4662,16 +4823,18 @@
             }
           }
         ],
-        "name": "authbridge-verification-production-createVerification",
-        "package": {},
+        "name": "authbridge-verification-staging-createVerification",
+        "package": {
+          "artifact": ".serverless/createVerification.zip"
+        },
         "memory": 512,
         "timeout": 30,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "CreateVerificationLambdaVersionHw285t3aGyIp1YjSwQxUrO15SIMxtliZhdPOXYg"
+        "versionLogicalId": "CreateVerificationLambdaVersionFmZTKJ4Pl9o4Zk6M6jBPpjWcDISWuq9QcfskeFxQOLc"
       },
       "getVerificationStatus": {
-        "handler": "dist/handlers/get-verification-status.handler",
+        "handler": "src/handlers/get-verification-status.handler",
         "description": "Get verification status and details",
         "memorySize": 512,
         "timeout": 10,
@@ -4700,7 +4863,7 @@
               "authorizer": {
                 "type": "request",
                 "name": "apiKeyAuthorizer",
-                "arn": "arn:aws:lambda:af-south-1:979237821231:function:authbridge-auth-production-apiKeyAuthorizer",
+                "arn": "arn:aws:lambda:af-south-1:979237821231:function:authbridge-auth-staging-apiKeyAuthorizer",
                 "managedExternally": false,
                 "resultTtlInSeconds": 300,
                 "identitySource": "method.request.header.Authorization",
@@ -4710,15 +4873,17 @@
             }
           }
         ],
-        "name": "authbridge-verification-production-getVerificationStatus",
-        "package": {},
+        "name": "authbridge-verification-staging-getVerificationStatus",
+        "package": {
+          "artifact": ".serverless/getVerificationStatus.zip"
+        },
         "memory": 512,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "GetVerificationStatusLambdaVersionpcJYD8Q6QkTr3BlvfbjTEFjyOvAbuZ2otfrIJHOLcY"
+        "versionLogicalId": "GetVerificationStatusLambdaVersionPZAgUNyoBLUyyaEv1AQTXWhlVUkP2tJ8gWrV4tDSDE"
       },
       "uploadDocument": {
-        "handler": "dist/handlers/upload-document.handler",
+        "handler": "src/handlers/upload-document.handler",
         "description": "Upload document to verification case",
         "memorySize": 1024,
         "timeout": 30,
@@ -4752,7 +4917,7 @@
               "authorizer": {
                 "type": "request",
                 "name": "apiKeyAuthorizer",
-                "arn": "arn:aws:lambda:af-south-1:979237821231:function:authbridge-auth-production-apiKeyAuthorizer",
+                "arn": "arn:aws:lambda:af-south-1:979237821231:function:authbridge-auth-staging-apiKeyAuthorizer",
                 "managedExternally": false,
                 "resultTtlInSeconds": 300,
                 "identitySource": "method.request.header.Authorization",
@@ -4762,15 +4927,17 @@
             }
           }
         ],
-        "name": "authbridge-verification-production-uploadDocument",
-        "package": {},
+        "name": "authbridge-verification-staging-uploadDocument",
+        "package": {
+          "artifact": ".serverless/uploadDocument.zip"
+        },
         "memory": 1024,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "UploadDocumentLambdaVersionrheps03X2sssX2ucHC2lltYBAGUEVPZXZyWjNam7g"
+        "versionLogicalId": "UploadDocumentLambdaVersionjtX2WX4HoMXbjSbn408Y13vTloN4kNQThhJAaUhYc"
       },
       "refreshDocumentUrl": {
-        "handler": "dist/handlers/refresh-document-url.handler",
+        "handler": "src/handlers/refresh-document-url.handler",
         "description": "Refresh presigned URL for document access",
         "events": [
           {
@@ -4798,16 +4965,18 @@
             }
           }
         ],
-        "name": "authbridge-verification-production-refreshDocumentUrl",
-        "package": {},
+        "name": "authbridge-verification-staging-refreshDocumentUrl",
+        "package": {
+          "artifact": ".serverless/refreshDocumentUrl.zip"
+        },
         "memory": 512,
         "timeout": 30,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "RefreshDocumentUrlLambdaVersionMhScQcW3s1A49LXfqJpyFRW3t5hsf2jBd3vmNsA"
+        "versionLogicalId": "RefreshDocumentUrlLambdaVersionrCNxBUH1kCQpf9cmAvnkTtl6oLHW9hRfV5eJSrZRcEc"
       },
       "processOCR": {
-        "handler": "dist/handlers/process-ocr.handler",
+        "handler": "src/handlers/process-ocr.handler",
         "description": "Process OCR extraction from document images",
         "memorySize": 512,
         "timeout": 60,
@@ -4823,23 +4992,24 @@
           {
             "sqs": {
               "arn": {
-                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"IamRoleLambdaExecution\"][\"Properties\"][\"Policies\"][0][\"PolicyDocument\"][\"Statement\"][11][\"Resource\"][1]"
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"IamRoleLambdaExecution\"][\"Properties\"][\"Policies\"][0][\"PolicyDocument\"][\"Statement\"][14][\"Resource\"][1]"
               },
               "batchSize": 1,
-              "maximumBatchingWindowInSeconds": 0,
               "functionResponseType": "ReportBatchItemFailures"
             }
           }
         ],
-        "name": "authbridge-verification-production-processOCR",
-        "package": {},
+        "name": "authbridge-verification-staging-processOCR",
+        "package": {
+          "artifact": ".serverless/processOCR.zip"
+        },
         "memory": 512,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "ProcessOCRLambdaVersion8CrbsvxKNJS11xNwLgU2iLEJ7ERMn938UtmQQuQRks"
+        "versionLogicalId": "ProcessOCRLambdaVersionPwhByq9rWMpRovavE0A9KadPTWe64HBM4rkrMzrJlno"
       },
       "processBiometric": {
-        "handler": "dist/handlers/process-biometric.handler",
+        "handler": "src/handlers/process-biometric.handler",
         "description": "Process biometric face matching (liveness + comparison)",
         "memorySize": 1024,
         "timeout": 60,
@@ -4852,20 +5022,21 @@
           {
             "sqs": {
               "arn": {
-                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"IamRoleLambdaExecution\"][\"Properties\"][\"Policies\"][0][\"PolicyDocument\"][\"Statement\"][11][\"Resource\"][2]"
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"IamRoleLambdaExecution\"][\"Properties\"][\"Policies\"][0][\"PolicyDocument\"][\"Statement\"][14][\"Resource\"][2]"
               },
               "batchSize": 1,
-              "maximumBatchingWindowInSeconds": 0,
               "functionResponseType": "ReportBatchItemFailures"
             }
           }
         ],
-        "name": "authbridge-verification-production-processBiometric",
-        "package": {},
+        "name": "authbridge-verification-staging-processBiometric",
+        "package": {
+          "artifact": ".serverless/processBiometric.zip"
+        },
         "memory": 1024,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "ProcessBiometricLambdaVersion0TX2pl0aK1ywiZbtujNOnClPHyFUNZZdaSRBjus"
+        "versionLogicalId": "ProcessBiometricLambdaVersionYmsSuwHgABxsEexzNEWWKg1i41ya74QL2ZO4I2yszE"
       }
     },
     "resources": {
@@ -4873,13 +5044,13 @@
         "DocumentsBucket": {
           "Type": "AWS::S3::Bucket",
           "Properties": {
-            "BucketName": "authbridge-documents-production",
+            "BucketName": "authbridge-documents-staging",
             "BucketEncryption": {
               "ServerSideEncryptionConfiguration": [
                 {
                   "ServerSideEncryptionByDefault": {
                     "SSEAlgorithm": "aws:kms",
-                    "KMSMasterKeyID": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49"
+                    "KMSMasterKeyID": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
                   }
                 }
               ]
@@ -4924,7 +5095,7 @@
                   },
                   "Condition": {
                     "StringNotEqualsIfExists": {
-                      "s3:x-amz-server-side-encryption-aws-kms-key-id": "arn:aws:kms:af-south-1:979237821231:key/fd60e26f-69e2-4a05-a5c1-0bf22c2acf49"
+                      "s3:x-amz-server-side-encryption-aws-kms-key-id": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
                     }
                   }
                 }
@@ -4935,7 +5106,7 @@
         "OcrQueue": {
           "Type": "AWS::SQS::Queue",
           "Properties": {
-            "QueueName": "authbridge-ocr-queue-production",
+            "QueueName": "authbridge-ocr-queue-staging",
             "VisibilityTimeout": 360,
             "MessageRetentionPeriod": 345600,
             "ReceiveMessageWaitTimeSeconds": 0,
@@ -4953,7 +5124,7 @@
         "OcrDLQ": {
           "Type": "AWS::SQS::Queue",
           "Properties": {
-            "QueueName": "authbridge-ocr-dlq-production",
+            "QueueName": "authbridge-ocr-dlq-staging",
             "MessageRetentionPeriod": 1209600,
             "ReceiveMessageWaitTimeSeconds": 0
           }
@@ -4961,7 +5132,7 @@
         "BiometricQueue": {
           "Type": "AWS::SQS::Queue",
           "Properties": {
-            "QueueName": "authbridge-biometric-queue-production",
+            "QueueName": "authbridge-biometric-queue-staging",
             "VisibilityTimeout": 360,
             "MessageRetentionPeriod": 345600,
             "ReceiveMessageWaitTimeSeconds": 0,
@@ -4979,7 +5150,7 @@
         "BiometricDLQ": {
           "Type": "AWS::SQS::Queue",
           "Properties": {
-            "QueueName": "authbridge-biometric-dlq-production",
+            "QueueName": "authbridge-biometric-dlq-staging",
             "MessageRetentionPeriod": 1209600,
             "ReceiveMessageWaitTimeSeconds": 0
           }
@@ -4987,7 +5158,7 @@
         "WebhookQueue": {
           "Type": "AWS::SQS::Queue",
           "Properties": {
-            "QueueName": "authbridge-webhook-queue-production",
+            "QueueName": "authbridge-webhook-queue-staging",
             "VisibilityTimeout": 90,
             "MessageRetentionPeriod": 86400,
             "ReceiveMessageWaitTimeSeconds": 0,
@@ -5005,7 +5176,7 @@
         "WebhookDLQ": {
           "Type": "AWS::SQS::Queue",
           "Properties": {
-            "QueueName": "authbridge-webhook-dlq-production",
+            "QueueName": "authbridge-webhook-dlq-staging",
             "MessageRetentionPeriod": 1209600,
             "ReceiveMessageWaitTimeSeconds": 0
           }
@@ -5013,14 +5184,14 @@
         "OcrAlertTopic": {
           "Type": "AWS::SNS::Topic",
           "Properties": {
-            "TopicName": "authbridge-ocr-alerts-production",
+            "TopicName": "authbridge-ocr-alerts-staging",
             "DisplayName": "AuthBridge OCR Alerts"
           }
         },
         "OcrSuccessRateAlarm": {
           "Type": "AWS::CloudWatch::Alarm",
           "Properties": {
-            "AlarmName": "authbridge-ocr-success-rate-production",
+            "AlarmName": "authbridge-ocr-success-rate-staging",
             "AlarmDescription": "OCR success rate below 85%",
             "MetricName": "OcrSuccess",
             "Namespace": "AuthBridge/Verification",
@@ -5040,7 +5211,7 @@
         "OcrConfidenceAlarm": {
           "Type": "AWS::CloudWatch::Alarm",
           "Properties": {
-            "AlarmName": "authbridge-ocr-confidence-production",
+            "AlarmName": "authbridge-ocr-confidence-staging",
             "AlarmDescription": "Average OCR confidence below 90%",
             "MetricName": "OcrConfidenceScore",
             "Namespace": "AuthBridge/Verification",
@@ -5060,7 +5231,7 @@
         "OcrProcessingTimeAlarm": {
           "Type": "AWS::CloudWatch::Alarm",
           "Properties": {
-            "AlarmName": "authbridge-ocr-processing-time-production",
+            "AlarmName": "authbridge-ocr-processing-time-staging",
             "AlarmDescription": "OCR processing time exceeds 10 seconds (p95)",
             "MetricName": "OcrProcessingTime",
             "Namespace": "AuthBridge/Verification",
@@ -5077,30 +5248,10 @@
             ]
           }
         },
-        "OcrManualReviewRateAlarm": {
-          "Type": "AWS::CloudWatch::Alarm",
-          "Properties": {
-            "AlarmName": "authbridge-ocr-manual-review-rate-production",
-            "AlarmDescription": "Manual review rate exceeds 30%",
-            "MetricName": "OcrManualReviewRequired",
-            "Namespace": "AuthBridge/Verification",
-            "Statistic": "Sum",
-            "Period": 3600,
-            "EvaluationPeriods": 1,
-            "Threshold": 30,
-            "ComparisonOperator": "GreaterThanThreshold",
-            "TreatMissingData": "notBreaching",
-            "AlarmActions": [
-              {
-                "Ref": "OcrAlertTopic"
-              }
-            ]
-          }
-        },
         "OcrDLQAlarm": {
           "Type": "AWS::CloudWatch::Alarm",
           "Properties": {
-            "AlarmName": "authbridge-ocr-dlq-messages-production",
+            "AlarmName": "authbridge-ocr-dlq-messages-staging",
             "AlarmDescription": "Messages in OCR Dead Letter Queue",
             "MetricName": "ApproximateNumberOfMessagesVisible",
             "Namespace": "AWS/SQS",
@@ -5131,7 +5282,7 @@
         "BiometricPassRateAlarm": {
           "Type": "AWS::CloudWatch::Alarm",
           "Properties": {
-            "AlarmName": "authbridge-biometric-pass-rate-production",
+            "AlarmName": "authbridge-biometric-pass-rate-staging",
             "AlarmDescription": "Biometric pass rate below 70%",
             "MetricName": "BiometricPassed",
             "Namespace": "AuthBridge/Verification",
@@ -5148,90 +5299,10 @@
             ]
           }
         },
-        "BiometricSimilarityAlarm": {
-          "Type": "AWS::CloudWatch::Alarm",
-          "Properties": {
-            "AlarmName": "authbridge-biometric-similarity-production",
-            "AlarmDescription": "Average biometric similarity score below 85%",
-            "MetricName": "BiometricSimilarityScore",
-            "Namespace": "AuthBridge/Verification",
-            "Statistic": "Average",
-            "Period": 300,
-            "EvaluationPeriods": 3,
-            "Threshold": 85,
-            "ComparisonOperator": "LessThanThreshold",
-            "TreatMissingData": "notBreaching",
-            "AlarmActions": [
-              {
-                "Ref": "OcrAlertTopic"
-              }
-            ]
-          }
-        },
-        "BiometricProcessingTimeAlarm": {
-          "Type": "AWS::CloudWatch::Alarm",
-          "Properties": {
-            "AlarmName": "authbridge-biometric-processing-time-production",
-            "AlarmDescription": "Biometric processing time exceeds 5 seconds (p95)",
-            "MetricName": "BiometricProcessingTime",
-            "Namespace": "AuthBridge/Verification",
-            "ExtendedStatistic": "p95",
-            "Period": 300,
-            "EvaluationPeriods": 2,
-            "Threshold": 5000,
-            "ComparisonOperator": "GreaterThanThreshold",
-            "TreatMissingData": "notBreaching",
-            "AlarmActions": [
-              {
-                "Ref": "OcrAlertTopic"
-              }
-            ]
-          }
-        },
-        "BiometricManualReviewRateAlarm": {
-          "Type": "AWS::CloudWatch::Alarm",
-          "Properties": {
-            "AlarmName": "authbridge-biometric-manual-review-rate-production",
-            "AlarmDescription": "Biometric manual review rate exceeds 40%",
-            "MetricName": "BiometricManualReviewRequired",
-            "Namespace": "AuthBridge/Verification",
-            "Statistic": "Sum",
-            "Period": 3600,
-            "EvaluationPeriods": 1,
-            "Threshold": 40,
-            "ComparisonOperator": "GreaterThanThreshold",
-            "TreatMissingData": "notBreaching",
-            "AlarmActions": [
-              {
-                "Ref": "OcrAlertTopic"
-              }
-            ]
-          }
-        },
-        "BiometricFaceDetectionIssueAlarm": {
-          "Type": "AWS::CloudWatch::Alarm",
-          "Properties": {
-            "AlarmName": "authbridge-biometric-face-detection-issues-production",
-            "AlarmDescription": "Face detection issue rate exceeds 15%",
-            "MetricName": "FaceDetectionIssue",
-            "Namespace": "AuthBridge/Verification",
-            "Statistic": "Sum",
-            "Period": 3600,
-            "EvaluationPeriods": 1,
-            "Threshold": 15,
-            "ComparisonOperator": "GreaterThanThreshold",
-            "TreatMissingData": "notBreaching",
-            "AlarmActions": [
-              {
-                "Ref": "OcrAlertTopic"
-              }
-            ]
-          }
-        },
         "BiometricDLQAlarm": {
           "Type": "AWS::CloudWatch::Alarm",
           "Properties": {
-            "AlarmName": "authbridge-biometric-dlq-messages-production",
+            "AlarmName": "authbridge-biometric-dlq-messages-staging",
             "AlarmDescription": "Messages in Biometric Dead Letter Queue",
             "MetricName": "ApproximateNumberOfMessagesVisible",
             "Namespace": "AWS/SQS",
@@ -5258,75 +5329,6 @@
               }
             ]
           }
-        },
-        "DuplicateCrossClientRateAlarm": {
-          "Type": "AWS::CloudWatch::Alarm",
-          "Properties": {
-            "AlarmName": "authbridge-duplicate-cross-client-rate-production",
-            "AlarmDescription": "Cross-client duplicate rate exceeds 5% over 1 hour",
-            "MetricName": "Duplicate/CrossClientDuplicates",
-            "Namespace": "AuthBridge/Verification",
-            "Statistic": "Sum",
-            "Period": 3600,
-            "EvaluationPeriods": 1,
-            "Threshold": 5,
-            "ComparisonOperator": "GreaterThanThreshold",
-            "TreatMissingData": "notBreaching",
-            "AlarmActions": [
-              {
-                "Ref": "OcrAlertTopic"
-              }
-            ]
-          }
-        },
-        "DuplicateRiskScoreAlarm": {
-          "Type": "AWS::CloudWatch::Alarm",
-          "Properties": {
-            "AlarmName": "authbridge-duplicate-risk-score-production",
-            "AlarmDescription": "Average risk score exceeds 50 over 1 hour",
-            "MetricName": "Duplicate/RiskScore",
-            "Namespace": "AuthBridge/Verification",
-            "Statistic": "Average",
-            "Period": 3600,
-            "EvaluationPeriods": 1,
-            "Threshold": 50,
-            "ComparisonOperator": "GreaterThanThreshold",
-            "TreatMissingData": "notBreaching",
-            "AlarmActions": [
-              {
-                "Ref": "OcrAlertTopic"
-              }
-            ]
-          }
-        },
-        "DuplicateCheckFailureAlarm": {
-          "Type": "AWS::CloudWatch::Alarm",
-          "Properties": {
-            "AlarmName": "authbridge-duplicate-check-failures-production",
-            "AlarmDescription": "Duplicate check failure rate exceeds 10% over 5 minutes",
-            "MetricName": "Duplicate/CheckFailure",
-            "Namespace": "AuthBridge/Verification",
-            "Statistic": "Sum",
-            "Period": 300,
-            "EvaluationPeriods": 2,
-            "Threshold": 10,
-            "ComparisonOperator": "GreaterThanThreshold",
-            "TreatMissingData": "notBreaching",
-            "AlarmActions": [
-              {
-                "Ref": "OcrAlertTopic"
-              }
-            ]
-          }
-        },
-        "DuplicateDetectionDashboard": {
-          "Type": "AWS::CloudWatch::Dashboard",
-          "Properties": {
-            "DashboardName": "authbridge-duplicate-detection-production",
-            "DashboardBody": {
-              "Fn::Sub": "{\n  \"widgets\": [\n    {\n      \"type\": \"metric\",\n      \"properties\": {\n        \"metrics\": [\n          [\"AuthBridge/Verification\", \"Duplicate/ChecksPerformed\", {\"stat\": \"Sum\", \"label\": \"Total Checks\"}],\n          [\".\", \"Duplicate/DuplicatesFound\", {\"stat\": \"Sum\", \"label\": \"Duplicates Found\"}],\n          [\".\", \"Duplicate/CrossClientDuplicates\", {\"stat\": \"Sum\", \"label\": \"Cross-Client\"}]\n        ],\n        \"period\": 300,\n        \"stat\": \"Sum\",\n        \"region\": \"af-south-1\",\n        \"title\": \"Duplicate Detection Overview\",\n        \"yAxis\": {\n          \"left\": {\n            \"min\": 0\n          }\n        }\n      }\n    },\n    {\n      \"type\": \"metric\",\n      \"properties\": {\n        \"metrics\": [\n          [\"AuthBridge/Verification\", \"Duplicate/RiskLevel/low\", {\"stat\": \"Sum\", \"label\": \"Low Risk\"}],\n          [\".\", \"Duplicate/RiskLevel/medium\", {\"stat\": \"Sum\", \"label\": \"Medium Risk\"}],\n          [\".\", \"Duplicate/RiskLevel/high\", {\"stat\": \"Sum\", \"label\": \"High Risk\"}],\n          [\".\", \"Duplicate/RiskLevel/critical\", {\"stat\": \"Sum\", \"label\": \"Critical Risk\"}]\n        ],\n        \"period\": 300,\n        \"stat\": \"Sum\",\n        \"region\": \"af-south-1\",\n        \"title\": \"Risk Level Distribution\",\n        \"yAxis\": {\n          \"left\": {\n            \"min\": 0\n          }\n        }\n      }\n    },\n    {\n      \"type\": \"metric\",\n      \"properties\": {\n        \"metrics\": [\n          [\"AuthBridge/Verification\", \"Duplicate/RiskScore\", {\"stat\": \"Average\", \"label\": \"Average Risk Score\"}]\n        ],\n        \"period\": 300,\n        \"stat\": \"Average\",\n        \"region\": \"af-south-1\",\n        \"title\": \"Average Risk Score (0-100)\",\n        \"yAxis\": {\n          \"left\": {\n            \"min\": 0,\n            \"max\": 100\n          }\n        },\n        \"annotations\": {\n          \"horizontal\": [\n            {\n              \"value\": 25,\n              \"label\": \"Low/Medium Threshold\",\n              \"fill\": \"below\"\n            },\n            {\n              \"value\": 50,\n              \"label\": \"Medium/High Threshold\",\n              \"fill\": \"below\"\n            },\n            {\n              \"value\": 75,\n              \"label\": \"High/Critical Threshold\",\n              \"fill\": \"below\"\n            }\n          ]\n        }\n      }\n    },\n    {\n      \"type\": \"metric\",\n      \"properties\": {\n        \"metrics\": [\n          [\"AuthBridge/Verification\", \"Duplicate/ManualReviewTriggered\", {\"stat\": \"Sum\", \"label\": \"Manual Review Required\"}]\n        ],\n        \"period\": 300,\n        \"stat\": \"Sum\",\n        \"region\": \"af-south-1\",\n        \"title\": \"Manual Review Queue\",\n        \"yAxis\": {\n          \"left\": {\n            \"min\": 0\n          }\n        }\n      }\n    },\n    {\n      \"type\": \"metric\",\n      \"properties\": {\n        \"metrics\": [\n          [\"AuthBridge/Verification\", \"Duplicate/CheckTime\", {\"stat\": \"p50\", \"label\": \"p50\"}],\n          [\"...\", {\"stat\": \"p95\", \"label\": \"p95\"}],\n          [\"...\", {\"stat\": \"p99\", \"label\": \"p99\"}]\n        ],\n        \"period\": 300,\n        \"stat\": \"Average\",\n        \"region\": \"af-south-1\",\n        \"title\": \"Duplicate Check Latency (ms)\",\n        \"yAxis\": {\n          \"left\": {\n            \"min\": 0\n          }\n        },\n        \"annotations\": {\n          \"horizontal\": [\n            {\n              \"value\": 500,\n              \"label\": \"Target (p95 < 500ms)\",\n              \"fill\": \"above\"\n            }\n          ]\n        }\n      }\n    },\n    {\n      \"type\": \"metric\",\n      \"properties\": {\n        \"metrics\": [\n          [\"AuthBridge/Verification\", \"Duplicate/CheckSuccess\", {\"stat\": \"Sum\", \"label\": \"Success\"}],\n          [\".\", \"Duplicate/CheckFailure\", {\"stat\": \"Sum\", \"label\": \"Failure\"}]\n        ],\n        \"period\": 300,\n        \"stat\": \"Sum\",\n        \"region\": \"af-south-1\",\n        \"title\": \"Duplicate Check Success/Failure Rate\",\n        \"yAxis\": {\n          \"left\": {\n            \"min\": 0\n          }\n        }\n      }\n    }\n  ]\n}\n"
-            }
-          }
         }
       },
       "Outputs": {
@@ -5336,7 +5338,7 @@
             "Ref": "OcrAlertTopic"
           },
           "Export": {
-            "Name": "authbridge-ocr-alert-topic-production"
+            "Name": "authbridge-ocr-alert-topic-staging"
           }
         }
       }
@@ -5350,36 +5352,21 @@
         "$ref": "$[\"service\"][\"provider\"]"
       },
       "package": {
-        "individually": false,
-        "excludeDevDependencies": true,
+        "individually": true,
         "patterns": [
           "!**",
-          "dist/**",
-          "!../../node_modules/**",
-          "!../node_modules/**",
-          "node_modules/**",
-          "!node_modules/@types/**",
-          "!node_modules/**/*.md",
-          "!node_modules/**/*.txt",
-          "!node_modules/**/*.map",
-          "!node_modules/**/test/**",
-          "!node_modules/**/tests/**",
-          "!node_modules/**/*.d.ts",
-          "!**/*.test.js",
-          "!**/*.test.ts",
+          "!node_modules/**",
+          "!src/**",
           "!tests/**",
           "!test-data/**",
-          "!scripts/**",
           "!docs/**",
+          "!scripts/**",
           "!*.md",
-          "!src/**",
           "!*.config.ts",
           "!*.config.js",
           "!tsconfig*.json"
         ],
-        "artifactsS3KeyDirname": "serverless/authbridge-verification/production/code-artifacts",
-        "artifact": "/Users/edmond/02_BridgeArc_Projects/Internal/AuthBridge/services/verification/.serverless/authbridge-verification.zip",
-        "artifactDirectoryName": "serverless/authbridge-verification/production/1768665837931-2026-01-17T16:03:57.931Z"
+        "artifactsS3KeyDirname": "serverless/authbridge-verification/staging/code-artifacts"
       },
       "functions": {
         "$ref": "$[\"service\"][\"functions\"]"
@@ -5395,12 +5382,11 @@
       }
     },
     "layers": {},
-    "isDashboardMonitoringPreconfigured": false,
-    "artifact": "/Users/edmond/02_BridgeArc_Projects/Internal/AuthBridge/services/verification/.serverless/authbridge-verification.zip"
+    "isDashboardMonitoringPreconfigured": false
   },
   "package": {
-    "individually": false,
-    "artifactDirectoryName": "serverless/authbridge-verification/production/1768665837931-2026-01-17T16:03:57.931Z",
-    "artifact": "authbridge-verification.zip"
+    "individually": true,
+    "artifactDirectoryName": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z",
+    "artifact": ""
   }
 }

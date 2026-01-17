@@ -42,6 +42,21 @@ Resources:
           AttributeType: S
         - AttributeName: GSI4SK
           AttributeType: S
+        # GSI5: Audit logs by user
+        - AttributeName: GSI5PK
+          AttributeType: S
+        - AttributeName: GSI5SK
+          AttributeType: S
+        # GSI6: Audit logs by resource
+        - AttributeName: GSI6PK
+          AttributeType: S
+        - AttributeName: GSI6SK
+          AttributeType: S
+        # GSI7: Audit logs by action type
+        - AttributeName: GSI7PK
+          AttributeType: S
+        - AttributeName: GSI7SK
+          AttributeType: S
       KeySchema:
         - AttributeName: PK
           KeyType: HASH
@@ -79,6 +94,36 @@ Resources:
             - AttributeName: GSI4PK
               KeyType: HASH
             - AttributeName: GSI4SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        # GSI5: Audit logs by user (query all actions by specific user)
+        # PK: USER#{userId} - enables user-specific audit queries
+        - IndexName: GSI5-AuditByUser
+          KeySchema:
+            - AttributeName: GSI5PK
+              KeyType: HASH
+            - AttributeName: GSI5SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        # GSI6: Audit logs by resource (query all actions on specific resource)
+        # PK: {resourceType}#{resourceId} - enables resource-specific audit queries
+        - IndexName: GSI6-AuditByResource
+          KeySchema:
+            - AttributeName: GSI6PK
+              KeyType: HASH
+            - AttributeName: GSI6SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        # GSI7: Audit logs by action type (query all instances of specific action)
+        # PK: ACTION#{action} - enables action-type audit queries
+        - IndexName: GSI7-AuditByAction
+          KeySchema:
+            - AttributeName: GSI7PK
+              KeyType: HASH
+            - AttributeName: GSI7SK
               KeyType: RANGE
           Projection:
             ProjectionType: ALL

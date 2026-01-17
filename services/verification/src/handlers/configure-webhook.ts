@@ -1,9 +1,11 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import crypto from 'crypto';
 import { DynamoDBService } from '../services/dynamodb.js';
+import { AuditService } from '../services/audit';
 import type { ClientConfiguration, WebhookEventType } from '../types/webhook.js';
 
 const dynamoDBService = new DynamoDBService();
+const auditService = new AuditService();
 
 // Valid webhook event types
 const VALID_WEBHOOK_EVENTS: WebhookEventType[] = [
@@ -204,6 +206,15 @@ export async function handler(
 
     // Save updated configuration
     await dynamoDBService.putItem(updatedConfig);
+
+    // Audit log webhook configuration
+    const ipAddress = event.requestContext.identity?.sourceIp || 'unknown';
+    await auditService.logWebhookConfigured(
+      clientId,
+      clientId, // userId is clientId for API key auth
+      ipAddress,
+      updatedConfig.webhookUrl || ''
+    );
 
     // Return response (don't expose secret in response if it was provided)
     return {

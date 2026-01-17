@@ -4,6 +4,7 @@ import { S3Service } from '../services/s3';
 import { SqsService } from '../services/sqs';
 import { DocumentService } from '../services/document';
 import { VerificationService } from '../services/verification';
+import { AuditService } from '../services/audit';
 import {
   validateUploadDocumentRequest,
   parseBase64DataUri,
@@ -46,6 +47,7 @@ const s3 = new S3Service(process.env.BUCKET_NAME || '', process.env.AWS_REGION |
 const sqs = new SqsService();
 const documentService = new DocumentService(db, s3);
 const verificationService = new VerificationService(process.env.TABLE_NAME || '', process.env.AWS_REGION || '');
+const auditService = new AuditService();
 
 // Export for testing
 export function resetServices(): void {
@@ -421,8 +423,16 @@ export async function handler(
       await verificationService.updateStatus(verificationId, 'documents_uploading');
     }
 
-    // Audit log
-    logger.audit('document_uploaded', {
+    // Audit log using AuditService (writes to DynamoDB for queryable audit trail)
+    const ipAddress = event.requestContext.identity?.sourceIp || 'unknown';
+    await auditService.logDocumentUploaded(
+      response.documentId,
+      verificationId,
+      clientId,
+      ipAddress
+    );
+
+    logger.info('Document uploaded', {
       requestId,
       clientId,
       verificationId,

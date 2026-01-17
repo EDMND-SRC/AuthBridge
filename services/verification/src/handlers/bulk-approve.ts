@@ -1,12 +1,14 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
 import { addSecurityHeaders } from '../middleware/security-headers';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, UpdateCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import { v4 as uuidv4 } from 'uuid';
+import { AuditService } from '../services/audit';
 
 const sqsClient = new SQSClient({ region: process.env.AWS_REGION || 'af-south-1' });
 const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: process.env.AWS_REGION || 'af-south-1' }));
+const auditService = new AuditService();
 
 interface BulkApproveRequest {
   caseIds: string[];
@@ -109,26 +111,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         }
       })));
 
-      // Create audit log entry with unique SK (timestamp + auditId to prevent collisions)
-      const auditId = uuidv4();
-      await withRetry(() => ddbClient.send(new PutCommand({
-        TableName: process.env.TABLE_NAME,
-        Item: {
-          PK: `CASE#${caseId}`,
-          SK: `AUDIT#${timestamp}#${auditId}`,
-          action: 'CASE_BULK_APPROVED',
-          resourceType: 'CASE',
-          resourceId: caseId,
-          userId,
-          userName,
-          ipAddress,
-          timestamp,
-          details: {
-            bulkOperationId,
-            totalCasesInBulk: caseIds.length
-          }
-        }
-      })));
+      // Audit log using AuditService (consistent with single approve handler)
+      await auditService.logCaseApproved(caseId, userId, ipAddress, `Bulk approved (${bulkOperationId})`);
 
       // Trigger webhook notification (async via SQS) - no retry needed, SQS handles it
       if (process.env.WEBHOOK_QUEUE_URL) {

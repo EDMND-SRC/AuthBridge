@@ -1,9 +1,11 @@
 import { addSecurityHeaders } from '../middleware/security-headers';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, UpdateCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+import { AuditService } from '../services/audit';
 const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: process.env.AWS_REGION || 'af-south-1' }));
 const sqsClient = new SQSClient({ region: process.env.AWS_REGION || 'af-south-1' });
+const auditService = new AuditService();
 export const handler = async (event) => {
     const { id } = event.pathParameters || {};
     const userId = event.requestContext.authorizer?.claims?.sub;
@@ -38,25 +40,8 @@ export const handler = async (event) => {
             },
             ReturnValues: 'ALL_NEW'
         }));
-        // Create audit log entry
-        await ddbClient.send(new PutCommand({
-            TableName: process.env.TABLE_NAME,
-            Item: {
-                PK: `CASE#${id}`,
-                SK: `AUDIT#${timestamp}`,
-                action: 'CASE_APPROVED',
-                resourceType: 'CASE',
-                resourceId: id,
-                userId,
-                userName,
-                ipAddress,
-                timestamp,
-                details: {
-                    previousStatus: updateResult.Attributes?.status || 'pending',
-                    newStatus: 'approved'
-                }
-            }
-        }));
+        // Audit log using AuditService
+        await auditService.logCaseApproved(`CASE#${id}`, userId, ipAddress, 'Case approved by analyst');
         // Queue webhook notification
         await sqsClient.send(new SendMessageCommand({
             QueueUrl: process.env.WEBHOOK_QUEUE_URL,

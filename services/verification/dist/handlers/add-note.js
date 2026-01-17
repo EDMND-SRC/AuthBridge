@@ -2,7 +2,9 @@ import { addSecurityHeaders } from '../middleware/security-headers';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
+import { AuditService } from '../services/audit';
 const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: 'af-south-1' }));
+const auditService = new AuditService();
 export const handler = async (event) => {
     const { id: caseId } = event.pathParameters || {};
     const userId = event.requestContext.authorizer?.claims?.sub;
@@ -57,26 +59,8 @@ export const handler = async (event) => {
                 ttl
             }
         }));
-        // Create audit log entry
-        await ddbClient.send(new PutCommand({
-            TableName: process.env.TABLE_NAME,
-            Item: {
-                PK: `CASE#${caseId}`,
-                SK: `AUDIT#${timestamp}`,
-                action: 'CASE_NOTE_ADDED',
-                resourceType: 'CASE',
-                resourceId: caseId,
-                userId,
-                userName,
-                ipAddress,
-                timestamp,
-                details: {
-                    noteId,
-                    contentLength: content.length,
-                    contentPreview: content.substring(0, 100)
-                }
-            }
-        }));
+        // Audit log using AuditService
+        await auditService.logCaseNoteAdded(`CASE#${caseId}`, userId, ipAddress, noteId);
         return addSecurityHeaders({
             statusCode: 201,
             headers: { 'Content-Type': 'application/json' },

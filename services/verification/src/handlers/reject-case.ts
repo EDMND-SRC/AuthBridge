@@ -1,11 +1,15 @@
-import { APIGatewayProxyHandler } from 'aws-lambda';
+import middy from '@middy/core';
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { addSecurityHeaders } from '../middleware/security-headers';
+import { auditContextMiddleware, getAuditContext } from '../middleware/audit-context';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, UpdateCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+import { AuditService } from '../services/audit';
 
 const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: process.env.AWS_REGION || 'af-south-1' }));
 const sqsClient = new SQSClient({ region: process.env.AWS_REGION || 'af-south-1' });
+const auditService = new AuditService();
 const VALID_REASONS = [
   'blurry_image',
   'face_mismatch',
@@ -16,11 +20,11 @@ const VALID_REASONS = [
   'other'
 ];
 
-export const handler: APIGatewayProxyHandler = async (event) => {
+async function baseHandler(event: APIGatewayProxyEvent, context: any): Promise<APIGatewayProxyResult> {
   const { id } = event.pathParameters || {};
   const userId = event.requestContext.authorizer?.claims?.sub;
   const userName = event.requestContext.authorizer?.claims?.name || 'Unknown';
-  const ipAddress = event.requestContext.identity.sourceIp;
+  const auditContext = getAuditContext(context);
   const timestamp = new Date().toISOString();
 
   if (!id) {
@@ -82,27 +86,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       ReturnValues: 'ALL_NEW'
     }));
 
-    // Create audit log entry
-    await ddbClient.send(new PutCommand({
-      TableName: process.env.TABLE_NAME,
-      Item: {
-        PK: `CASE#${id}`,
-        SK: `AUDIT#${timestamp}`,
-        action: 'CASE_REJECTED',
-        resourceType: 'CASE',
-        resourceId: id,
-        userId,
-        userName,
-        ipAddress,
-        timestamp,
-        details: {
-          previousStatus: updateResult.Attributes?.status || 'pending',
-          newStatus: 'rejected',
-          reason,
-          notes: notes || ''
-        }
-      }
-    }));
+    // Audit log using AuditService
+    await auditService.logCaseRejected(id, userId, auditContext.ipAddress, reason);
 
     // Queue webhook notification
     await sqsClient.send(new SendMessageCommand({
@@ -137,6 +122,15 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     });
   } catch (error: any) {
     if (error.name === 'ConditionalCheckFailedException') {
+      // Audit failed rejection attempt
+      await auditService.logCaseStatusChanged(
+        id,
+        userId,
+        auditContext.ipAddress,
+        'unknown',
+        'rejected-failed'
+      ).catch(err => console.error('Failed to log audit event:', err));
+
       return addSecurityHeaders({
       statusCode: 409,
         headers: { 'Content-Type': 'application/json' },
@@ -145,10 +139,21 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     }
 
     console.error('Error rejecting case:', error);
+
+    // Audit system error
+    await auditService.logSystemError(
+      'CASE_REJECTION_ERROR',
+      error.message,
+      { caseId: id, userId, reason }
+    ).catch(err => console.error('Failed to log audit event:', err));
+
     return addSecurityHeaders({
       statusCode: 500,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Internal server error' })
     });
   }
-};
+}
+
+export const handler = middy(baseHandler)
+  .use(auditContextMiddleware());
