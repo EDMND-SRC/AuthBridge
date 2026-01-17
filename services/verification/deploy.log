@@ -1,0 +1,10 @@
+
+Warning: Invalid configuration encountered
+  at 'functions.sendWebhook.events.0.sqs': unrecognized property 'maximumBatchingWindowInSeconds'
+  at 'functions.processOCR.events.0.sqs': unrecognized property 'maximumBatchingWindowInSeconds'
+  at 'functions.processBiometric.events.0.sqs': unrecognized property 'maximumBatchingWindowInSeconds'
+  at 'package': unrecognized property 'iam'
+
+Learn more about configuration validation here: http://slss.io/configuration-validation
+
+Deploying authbridge-verification to stage production (af-south-1)

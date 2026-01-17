@@ -26,5 +26,18 @@ export class SqsService {
         });
         await this.client.send(command);
     }
+    /**
+     * Send a generic message to a specified queue
+     * @param queueUrl - The URL of the SQS queue
+     * @param message - The message object to send
+     * @throws Error if SQS send fails
+     */
+    async sendMessage(queueUrl, message) {
+        const command = new SendMessageCommand({
+            QueueUrl: queueUrl,
+            MessageBody: JSON.stringify(message),
+        });
+        await this.client.send(command);
+    }
 }
 //# sourceMappingURL=sqs.js.map

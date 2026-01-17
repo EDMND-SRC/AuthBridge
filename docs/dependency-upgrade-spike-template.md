@@ -2,117 +2,186 @@
 
 ## Overview
 
-Use this template when planning major dependency upgrades. Complete all sections before starting implementation.
+Use this template when planning major dependency upgrades that may have breaking changes or require significant testing.
 
 ## Spike Information
 
 | Field | Value |
 |-------|-------|
-| Dependency | [Package name and current version] |
-| Target Version | [Target version] |
-| Spike Duration | [Recommended: 2-4 hours] |
-| Owner | [Developer name] |
-| Date | [YYYY-MM-DD] |
+| Spike ID | SPIKE-XXX |
+| Created | YYYY-MM-DD |
+| Author | [Name] |
+| Time-box | [X hours/days] |
+| Status | Draft / In Progress / Complete |
+
+## Dependency Details
+
+| Current Version | Target Version | Package |
+|-----------------|----------------|---------|
+| X.Y.Z | A.B.C | package-name |
+
+### Why Upgrade?
+
+- [ ] Security vulnerability (CVE-XXXX-XXXXX)
+- [ ] New features required
+- [ ] Performance improvements
+- [ ] End of life / deprecation
+- [ ] Transitive dependency conflict
+- [ ] Other: _______________
+
+### Risk Assessment
+
+| Risk Factor | Level (Low/Med/High) | Notes |
+|-------------|----------------------|-------|
+| Breaking changes | | |
+| API surface changes | | |
+| Peer dependency conflicts | | |
+| Build system impact | | |
+| Runtime behavior changes | | |
+| Test suite impact | | |
 
 ## Pre-Upgrade Checklist
 
 - [ ] Read changelog for all versions between current and target
-- [ ] Review breaking changes documentation
-- [ ] Check GitHub issues for known migration problems
+- [ ] Review migration guide (if available)
+- [ ] Check GitHub issues for known upgrade problems
 - [ ] Verify peer dependency compatibility
-- [ ] Check if codemod/migration tools are available
+- [ ] Check if other packages in monorepo depend on this
+- [ ] Identify affected code paths
 
-## Impact Assessment
+## Affected Packages
 
-### Files Affected
+List all packages in the monorepo that use this dependency:
+
 ```
-[List files that import/use this dependency]
+packages/
+├── package-a/        # Direct dependency
+├── package-b/        # Transitive via package-a
+└── package-c/        # Not affected
 ```
 
-### Breaking Changes
-| Change | Impact | Migration Path |
-|--------|--------|----------------|
-| [API change] | [High/Medium/Low] | [How to migrate] |
+## Breaking Changes Analysis
 
-### Peer Dependencies
-| Dependency | Current | Required | Action |
-|------------|---------|----------|--------|
-| [dep name] | [version] | [version] | [upgrade/none] |
+### API Changes
 
-## Risk Assessment
+| Old API | New API | Files Affected |
+|---------|---------|----------------|
+| `oldMethod()` | `newMethod()` | `src/file.ts` |
 
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| Build failures | [H/M/L] | [H/M/L] | [Strategy] |
-| Runtime errors | [H/M/L] | [H/M/L] | [Strategy] |
-| Test failures | [H/M/L] | [H/M/L] | [Strategy] |
+### Removed Features
 
-## Test Plan
+| Feature | Replacement | Impact |
+|---------|-------------|--------|
+| | | |
 
-### Automated Tests
-- [ ] Unit tests pass
-- [ ] Integration tests pass
-- [ ] E2E tests pass
+### New Required Configuration
 
-### Manual Testing
-- [ ] [Critical flow 1]
-- [ ] [Critical flow 2]
-- [ ] [Critical flow 3]
+```typescript
+// Example new config required
+```
+
+## Testing Strategy
+
+### Unit Tests
+
+- [ ] Run existing test suite
+- [ ] Add tests for new API usage
+- [ ] Verify mocks still work
+
+### Integration Tests
+
+- [ ] Test with DynamoDB Local
+- [ ] Test with LocalStack (if AWS services)
+- [ ] Verify API contracts unchanged
+
+### E2E Tests
+
+- [ ] Run full E2E suite
+- [ ] Manual smoke test critical paths
+
+### Performance Testing
+
+- [ ] Benchmark before upgrade
+- [ ] Benchmark after upgrade
+- [ ] Compare cold start times (Lambda)
 
 ## Rollback Plan
 
 1. Revert package.json changes
 2. Run `pnpm install`
-3. Verify build succeeds
+3. Verify tests pass
 4. Deploy previous version
 
-## Spike Findings
+## Implementation Steps
 
-### Estimated Effort
-- [ ] Trivial (< 1 hour)
-- [ ] Small (1-4 hours)
-- [ ] Medium (1-2 days)
-- [ ] Large (3-5 days)
-- [ ] Epic (> 1 week)
+1. [ ] Create feature branch: `chore/upgrade-{package}-{version}`
+2. [ ] Update package.json
+3. [ ] Run `pnpm install`
+4. [ ] Fix TypeScript errors
+5. [ ] Update deprecated API usage
+6. [ ] Run unit tests
+7. [ ] Run integration tests
+8. [ ] Run E2E tests
+9. [ ] Update documentation
+10. [ ] Create PR with detailed notes
+
+## Time Tracking
+
+| Phase | Estimated | Actual |
+|-------|-----------|--------|
+| Research | | |
+| Implementation | | |
+| Testing | | |
+| Documentation | | |
+| **Total** | | |
+
+## Findings & Recommendations
+
+### Summary
+
+[Write summary after spike completion]
 
 ### Recommendation
+
 - [ ] Proceed with upgrade
 - [ ] Defer upgrade (reason: ___)
-- [ ] Skip upgrade (reason: ___)
+- [ ] Partial upgrade (details: ___)
+- [ ] Do not upgrade (reason: ___)
 
-### Notes
-```
-[Additional findings, gotchas, or recommendations]
-```
+### Follow-up Tasks
 
-## Approval
+- [ ] Task 1
+- [ ] Task 2
 
-| Role | Name | Date | Approved |
-|------|------|------|----------|
-| Tech Lead | | | [ ] |
-| QA | | | [ ] |
+## References
+
+- [Package Changelog](URL)
+- [Migration Guide](URL)
+- [Related Issues](URL)
 
 ---
 
-## Example: React 18 → 19 Upgrade
+## Example: AWS SDK v3 Upgrade
 
-| Field | Value |
-|-------|-------|
-| Dependency | react@18.2.0 |
-| Target Version | 19.2.0 |
-| Spike Duration | 4 hours |
-| Owner | Charlie |
-| Date | 2026-01-20 |
+```markdown
+## Dependency Details
 
-### Breaking Changes
-| Change | Impact | Migration Path |
-|--------|--------|----------------|
-| Concurrent features default | Medium | Test async boundaries |
-| Strict mode double-render | Low | Already enabled |
-| New JSX transform | Low | Already using |
+| Current Version | Target Version | Package |
+|-----------------|----------------|---------|
+| 3.450.0 | 3.500.0 | @aws-sdk/* |
 
-### Peer Dependencies
-| Dependency | Current | Required | Action |
-|------------|---------|----------|--------|
-| react-dom | 18.2.0 | 19.2.0 | Upgrade together |
-| @types/react | 18.x | 19.x | Upgrade |
+### Breaking Changes Analysis
+
+#### API Changes
+
+| Old API | New API | Files Affected |
+|---------|---------|----------------|
+| `client.send(cmd)` | Same | N/A |
+| Middleware stack v1 | Middleware stack v2 | `src/middleware/` |
+
+### Testing Strategy
+
+- Run with DynamoDB Local: `pnpm test:integration`
+- Verify Lambda cold starts < 500ms
+- Check bundle size delta
+```

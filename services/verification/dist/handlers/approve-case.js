@@ -1,3 +1,4 @@
+import { addSecurityHeaders } from '../middleware/security-headers';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, UpdateCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
@@ -10,11 +11,11 @@ export const handler = async (event) => {
     const ipAddress = event.requestContext.identity.sourceIp;
     const timestamp = new Date().toISOString();
     if (!id) {
-        return {
+        return addSecurityHeaders({
             statusCode: 400,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ error: 'Case ID required' })
-        };
+        });
     }
     try {
         // Update case status with conditional check
@@ -66,7 +67,7 @@ export const handler = async (event) => {
                 userId
             })
         }));
-        return {
+        return addSecurityHeaders({
             statusCode: 200,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -81,22 +82,22 @@ export const handler = async (event) => {
                     timestamp
                 }
             })
-        };
+        });
     }
     catch (error) {
         if (error.name === 'ConditionalCheckFailedException') {
-            return {
+            return addSecurityHeaders({
                 statusCode: 409,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ error: 'Case already decided or invalid status' })
-            };
+            });
         }
         console.error('Error approving case:', error);
-        return {
+        return addSecurityHeaders({
             statusCode: 500,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ error: 'Internal server error' })
-        };
+        });
     }
 };
 //# sourceMappingURL=approve-case.js.map

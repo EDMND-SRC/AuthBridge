@@ -143,12 +143,13 @@ describe('file-validation', () => {
     });
 
     it('should calculate correct size', () => {
-      // "Hello" in base64 is "SGVsbG8="
-      const dataUri = 'data:image/jpeg;base64,SGVsbG8=';
+      // Minimal valid JPEG (1x1 pixel red square) - 287 bytes when decoded
+      const jpegBase64 = '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA8A/9k=';
+      const dataUri = `data:image/jpeg;base64,${jpegBase64}`;
       const result = parseBase64DataUri(dataUri);
 
       expect(result).not.toBeNull();
-      expect(result?.size).toBe(5); // "Hello" is 5 bytes
+      expect(result?.size).toBe(287); // Actual decoded size
     });
   });
 

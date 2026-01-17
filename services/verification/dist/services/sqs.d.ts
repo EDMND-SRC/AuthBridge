@@ -18,5 +18,12 @@ export declare class SqsService {
         s3Key: string;
         documentType: string;
     }): Promise<void>;
+    /**
+     * Send a generic message to a specified queue
+     * @param queueUrl - The URL of the SQS queue
+     * @param message - The message object to send
+     * @throws Error if SQS send fails
+     */
+    sendMessage(queueUrl: string, message: Record<string, unknown>): Promise<void>;
 }
 //# sourceMappingURL=sqs.d.ts.map

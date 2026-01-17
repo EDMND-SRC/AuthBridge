@@ -26,7 +26,7 @@ export async function handler(event, context) {
             };
         }
         // Extract verification ID from path parameters
-        const verificationId = event.pathParameters?.id;
+        const verificationId = event.pathParameters?.verificationId;
         if (!verificationId) {
             return {
                 statusCode: 400,

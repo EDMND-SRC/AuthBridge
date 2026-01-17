@@ -37,6 +37,11 @@ Resources:
           AttributeType: S
         - AttributeName: GSI3SK
           AttributeType: S
+        # GSI4: API Key lookup by hashed key
+        - AttributeName: GSI4PK
+          AttributeType: S
+        - AttributeName: GSI4SK
+          AttributeType: S
       KeySchema:
         - AttributeName: PK
           KeyType: HASH
@@ -64,6 +69,16 @@ Resources:
             - AttributeName: GSI3PK
               KeyType: HASH
             - AttributeName: GSI3SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        # GSI4: API Key lookup by hashed key (O(1) lookup instead of Scan)
+        # PK: APIKEY_HASH#{hashedKey} - enables direct lookup by API key
+        - IndexName: GSI4-ApiKeyLookup
+          KeySchema:
+            - AttributeName: GSI4PK
+              KeyType: HASH
+            - AttributeName: GSI4SK
               KeyType: RANGE
           Projection:
             ProjectionType: ALL

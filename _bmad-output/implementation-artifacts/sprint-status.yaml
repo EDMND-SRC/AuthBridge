@@ -104,19 +104,32 @@ development_status:
   # ═══════════════════════════════════════════════════════════════════════════
   # EPIC 4: REST API & Webhooks (MVP)
   # ═══════════════════════════════════════════════════════════════════════════
-  epic-4: in-progress
+  epic-4: done
   4-1-api-authentication: done
   4-2-create-verification-endpoint: done
   4-3-document-upload-endpoint: done  # Code review completed 2026-01-16
   4-4-verification-status-endpoint: done  # Code review completed 2026-01-16
   4-5-webhook-notifications: done  # Code review completed 2026-01-16
-  epic-4-retrospective: optional
+  epic-4-retrospective: done  # Retrospective completed 2026-01-16, all action items executed
+
+  # Epic 4 Retrospective Action Items (Completed 2026-01-16):
+  # - KMS key creation and IAM policies: services/shared/cloudformation/kms-keys.yml
+  # - Data export/deletion workflow design: docs/data-export-deletion-workflow.md
+  # - Casbin RBAC policy definitions: docs/casbin-rbac-policies.md
+  # - Penetration testing vendor selection: docs/penetration-testing-vendors.md
+  # - GSI4 for API key lookup: services/shared/cloudformation/dynamodb-table.yml
+  # - Deployment runbook: docs/deployment-runbook.md
+  # - Dependency upgrade spike template: docs/dependency-upgrade-spike-template.md
+  # - SDK session expiry documentation: sdks/web-sdk/docs/getting-started.md
+  # - Webhook signature verification guide: docs/webhook-signature-verification.md
+  # - Auth service updated to use GSI4: services/auth/src/services/dynamodb.ts, api-key.ts
+  # - DynamoDB Local GSI4 added and integration tests passing
 
   # ═══════════════════════════════════════════════════════════════════════════
   # EPIC 5: Security & Compliance Foundation (MVP)
   # ═══════════════════════════════════════════════════════════════════════════
-  epic-5: backlog
-  5-1-data-encryption-implementation: backlog
+  epic-5: in-progress
+  5-1-data-encryption-implementation: done  # Code review completed 2026-01-17, all 9 issues fixed
   5-2-comprehensive-audit-logging: backlog
   5-3-data-export-deletion: backlog
   5-4-iam-access-control: backlog

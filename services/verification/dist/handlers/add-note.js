@@ -1,3 +1,4 @@
+import { addSecurityHeaders } from '../middleware/security-headers';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
@@ -10,29 +11,29 @@ export const handler = async (event) => {
     const ipAddress = event.requestContext.identity.sourceIp;
     const timestamp = new Date().toISOString();
     if (!caseId) {
-        return {
+        return addSecurityHeaders({
             statusCode: 400,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ error: 'Case ID required' })
-        };
+        });
     }
     // Parse request body
     const body = JSON.parse(event.body || '{}');
     const { content } = body;
     // Validate content
     if (!content || !content.trim()) {
-        return {
+        return addSecurityHeaders({
             statusCode: 400,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ error: 'Note content is required' })
-        };
+        });
     }
     if (content.length > 2000) {
-        return {
+        return addSecurityHeaders({
             statusCode: 400,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ error: 'Note content must be 2000 characters or less' })
-        };
+        });
     }
     const noteId = uuidv4();
     const ttl = Math.floor(Date.now() / 1000) + (90 * 24 * 60 * 60); // 90 days
@@ -76,7 +77,7 @@ export const handler = async (event) => {
                 }
             }
         }));
-        return {
+        return addSecurityHeaders({
             statusCode: 201,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -96,15 +97,15 @@ export const handler = async (event) => {
                     timestamp
                 }
             })
-        };
+        });
     }
     catch (error) {
         console.error('Error adding note:', error);
-        return {
+        return addSecurityHeaders({
             statusCode: 500,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ error: 'Internal server error' })
-        };
+        });
     }
 };
 //# sourceMappingURL=add-note.js.map

@@ -1,3 +1,4 @@
+import { addSecurityHeaders } from '../middleware/security-headers';
 import { VerificationService } from '../services/verification';
 import { logger } from '../utils/logger';
 import { createErrorResponse } from '../utils/errors';
@@ -34,14 +35,14 @@ export async function handler(event, context) {
         const clientId = event.requestContext.authorizer?.clientId;
         if (!clientId) {
             logger.warn('Missing clientId in authorizer context', { requestId });
-            return {
+            return addSecurityHeaders({
                 statusCode: 401,
                 headers: {
                     'Content-Type': 'application/json',
                     'Access-Control-Allow-Origin': '*',
                 },
                 body: JSON.stringify(createErrorResponse('UNAUTHORIZED', 'Missing client authentication', requestId)),
-            };
+            });
         }
         // Parse query parameters
         const queryParams = event.queryStringParameters || {};
@@ -138,7 +139,7 @@ export async function handler(event, context) {
             resultCount: cases.length,
             totalCount: verifications.length,
         });
-        return {
+        return addSecurityHeaders({
             statusCode: 200,
             headers: {
                 'Content-Type': 'application/json',
@@ -157,21 +158,21 @@ export async function handler(event, context) {
                     },
                 },
             }),
-        };
+        });
     }
     catch (error) {
         logger.error('Failed to list cases', {
             requestId,
             error: error instanceof Error ? error.message : 'Unknown error',
         });
-        return {
+        return addSecurityHeaders({
             statusCode: 500,
             headers: {
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*',
             },
             body: JSON.stringify(createErrorResponse('INTERNAL_ERROR', 'Failed to list cases', requestId)),
-        };
+        });
     }
 }
 /**

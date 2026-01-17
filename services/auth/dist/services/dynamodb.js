@@ -3,9 +3,12 @@ import { DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand, UpdateCom
 export class DynamoDBService {
     client;
     tableName;
-    constructor(tableName, region) {
+    constructor(tableName, region, endpoint) {
         const dynamoClient = new DynamoDBClient({
             region: region || process.env.AWS_REGION || 'af-south-1',
+            ...(endpoint || process.env.DYNAMODB_ENDPOINT
+                ? { endpoint: endpoint || process.env.DYNAMODB_ENDPOINT }
+                : {}),
         });
         this.client = DynamoDBDocumentClient.from(dynamoClient, {
             marshallOptions: {
@@ -97,6 +100,9 @@ export class DynamoDBService {
             SK: `KEY#${apiKey.keyId}`,
             GSI2PK: `CLIENT#${apiKey.clientId}`,
             GSI2SK: `${apiKey.createdAt}#${apiKey.keyId}`,
+            // GSI4 for O(1) API key lookup by hash
+            GSI4PK: `KEYHASH#${apiKey.keyHash}`,
+            GSI4SK: `KEY#${apiKey.keyId}`,
             ...apiKey,
         };
         const command = new PutCommand({
@@ -116,7 +122,27 @@ export class DynamoDBService {
         const result = await this.client.send(command);
         if (!result.Item)
             return null;
-        const { PK, SK, GSI2PK, GSI2SK, ...apiKey } = result.Item;
+        const { PK, SK, GSI2PK, GSI2SK, GSI4PK, GSI4SK, ...apiKey } = result.Item;
+        return apiKey;
+    }
+    /**
+     * Query API key by hash using GSI4 - O(1) lookup
+     * This replaces the expensive scanAllApiKeys() for API key validation
+     */
+    async queryByApiKeyHash(keyHash) {
+        const command = new QueryCommand({
+            TableName: this.tableName,
+            IndexName: 'GSI4-ApiKeyLookup',
+            KeyConditionExpression: 'GSI4PK = :pk',
+            ExpressionAttributeValues: {
+                ':pk': `KEYHASH#${keyHash}`,
+            },
+            Limit: 1,
+        });
+        const result = await this.client.send(command);
+        if (!result.Items || result.Items.length === 0)
+            return null;
+        const { PK, SK, GSI2PK, GSI2SK, GSI4PK, GSI4SK, ...apiKey } = result.Items[0];
         return apiKey;
     }
     async queryClientApiKeys(clientId) {
@@ -132,7 +158,7 @@ export class DynamoDBService {
         if (!result.Items)
             return [];
         return result.Items.map((item) => {
-            const { PK, SK, GSI2PK, GSI2SK, ...apiKey } = item;
+            const { PK, SK, GSI2PK, GSI2SK, GSI4PK, GSI4SK, ...apiKey } = item;
             return apiKey;
         });
     }
@@ -143,7 +169,7 @@ export class DynamoDBService {
                 PK: `APIKEY#${apiKey.clientId}`,
                 SK: `KEY#${apiKey.keyId}`,
             },
-            UpdateExpression: 'SET #status = :status, lastUsed = :lastUsed, keyHash = :keyHash',
+            UpdateExpression: 'SET #status = :status, lastUsed = :lastUsed, keyHash = :keyHash, GSI4PK = :gsi4pk, GSI4SK = :gsi4sk',
             ExpressionAttributeNames: {
                 '#status': 'status',
             },
@@ -151,15 +177,16 @@ export class DynamoDBService {
                 ':status': apiKey.status,
                 ':lastUsed': apiKey.lastUsed,
                 ':keyHash': apiKey.keyHash,
+                ':gsi4pk': `KEYHASH#${apiKey.keyHash}`,
+                ':gsi4sk': `KEY#${apiKey.keyId}`,
             },
         });
         await this.client.send(command);
     }
     /**
      * Scan all API keys across all clients
-     * NOTE: This is a temporary MVP solution for API key authorizer
-     * TODO: Add GSI on keyHash for efficient lookup in production
-     * API Gateway caches authorizer results for 5 minutes, so scan impact is minimal
+     * @deprecated Use queryByApiKeyHash() instead for O(1) lookup via GSI4
+     * Kept for backward compatibility during migration
      */
     async scanAllApiKeys() {
         const command = new ScanCommand({
@@ -174,7 +201,7 @@ export class DynamoDBService {
         if (!result.Items)
             return [];
         return result.Items.map((item) => {
-            const { PK, SK, GSI2PK, GSI2SK, ...apiKey } = item;
+            const { PK, SK, GSI2PK, GSI2SK, GSI4PK, GSI4SK, ...apiKey } = item;
             return apiKey;
         });
     }

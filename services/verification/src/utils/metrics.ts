@@ -79,7 +79,7 @@ export async function recordPresignedUrlMetrics(durationMs: number): Promise<voi
  * Record validation failure metrics
  */
 export async function recordValidationFailure(
-  errorType: 'FILE_TOO_LARGE' | 'INVALID_FILE_TYPE' | 'IMAGE_TOO_SMALL' | 'VALIDATION_ERROR'
+  errorType: 'FILE_TOO_LARGE' | 'INVALID_FILE_TYPE' | 'IMAGE_TOO_SMALL' | 'VALIDATION_ERROR' | 'NOT_FOUND' | 'FORBIDDEN' | 'INVALID_STATE' | 'DOCUMENT_LIMIT_EXCEEDED'
 ): Promise<void> {
   await recordMetric('ValidationFailure', 1, 'Count', [
     { Name: 'ErrorType', Value: errorType },

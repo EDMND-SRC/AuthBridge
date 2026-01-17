@@ -2,17 +2,25 @@ import { WebhookService } from '../services/webhook.js';
 import { DynamoDBService } from '../services/dynamodb.js';
 const webhookService = new WebhookService();
 const dynamoDBService = new DynamoDBService();
+// Rate limit headers (per project-context.md)
+const getRateLimitHeaders = () => ({
+    'X-RateLimit-Limit': '100',
+    'X-RateLimit-Remaining': '99',
+    'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + 60),
+});
 export async function handler(event) {
+    const baseHeaders = {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        ...getRateLimitHeaders(),
+    };
     try {
         // Extract client ID from authorizer context
         const clientId = event.requestContext.authorizer?.clientId;
         if (!clientId) {
             return {
                 statusCode: 401,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                },
+                headers: baseHeaders,
                 body: JSON.stringify({
                     error: {
                         code: 'UNAUTHORIZED',
@@ -36,10 +44,7 @@ export async function handler(event) {
         if (!clientConfig?.webhookUrl) {
             return {
                 statusCode: 400,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                },
+                headers: baseHeaders,
                 body: JSON.stringify({
                     error: {
                         code: 'WEBHOOK_NOT_CONFIGURED',
@@ -94,10 +99,7 @@ export async function handler(event) {
         await webhookService.sendWebhook(testCase, 'verification.approved');
         return {
             statusCode: 200,
-            headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-            },
+            headers: baseHeaders,
             body: JSON.stringify({
                 message: 'Test webhook sent successfully',
                 webhookUrl: clientConfig.webhookUrl,
@@ -112,10 +114,7 @@ export async function handler(event) {
         console.error('Error sending test webhook:', error);
         return {
             statusCode: 500,
-            headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-            },
+            headers: baseHeaders,
             body: JSON.stringify({
                 error: {
                     code: 'INTERNAL_SERVER_ERROR',

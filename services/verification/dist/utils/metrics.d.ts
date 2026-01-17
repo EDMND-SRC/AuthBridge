@@ -17,7 +17,7 @@ export declare function recordPresignedUrlMetrics(durationMs: number): Promise<v
 /**
  * Record validation failure metrics
  */
-export declare function recordValidationFailure(errorType: 'FILE_TOO_LARGE' | 'INVALID_FILE_TYPE' | 'IMAGE_TOO_SMALL' | 'VALIDATION_ERROR'): Promise<void>;
+export declare function recordValidationFailure(errorType: 'FILE_TOO_LARGE' | 'INVALID_FILE_TYPE' | 'IMAGE_TOO_SMALL' | 'VALIDATION_ERROR' | 'NOT_FOUND' | 'FORBIDDEN' | 'INVALID_STATE' | 'DOCUMENT_LIMIT_EXCEEDED'): Promise<void>;
 /**
  * Record OCR processing metrics
  */

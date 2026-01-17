@@ -1,3 +1,4 @@
+import { addSecurityHeaders } from '../middleware/security-headers';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, UpdateCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
@@ -19,33 +20,33 @@ export const handler = async (event) => {
     const ipAddress = event.requestContext.identity.sourceIp;
     const timestamp = new Date().toISOString();
     if (!id) {
-        return {
+        return addSecurityHeaders({
             statusCode: 400,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ error: 'Case ID required' })
-        };
+        });
     }
     // Parse request body
     const body = JSON.parse(event.body || '{}');
     const { reason, notes } = body;
     // Validate reason code
     if (!reason || !VALID_REASONS.includes(reason)) {
-        return {
+        return addSecurityHeaders({
             statusCode: 400,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 error: 'Invalid reason code',
                 validReasons: VALID_REASONS
             })
-        };
+        });
     }
     // Validate notes length
     if (notes && notes.length > 500) {
-        return {
+        return addSecurityHeaders({
             statusCode: 400,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ error: 'Notes must be 500 characters or less' })
-        };
+        });
     }
     try {
         // Update case status with conditional check
@@ -105,7 +106,7 @@ export const handler = async (event) => {
                 notes
             })
         }));
-        return {
+        return addSecurityHeaders({
             statusCode: 200,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -122,22 +123,22 @@ export const handler = async (event) => {
                     timestamp
                 }
             })
-        };
+        });
     }
     catch (error) {
         if (error.name === 'ConditionalCheckFailedException') {
-            return {
+            return addSecurityHeaders({
                 statusCode: 409,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ error: 'Case already decided or invalid status' })
-            };
+            });
         }
         console.error('Error rejecting case:', error);
-        return {
+        return addSecurityHeaders({
             statusCode: 500,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ error: 'Internal server error' })
-        };
+        });
     }
 };
 //# sourceMappingURL=reject-case.js.map

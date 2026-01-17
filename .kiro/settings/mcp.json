@@ -5,7 +5,8 @@
       "url": "https://knowledge-mcp.global.api.aws",
       "disabled": false,
       "autoApprove": [
-        "aws___list_regions"
+        "aws___list_regions",
+        "aws___search_documentation"
       ]
     },
     "awslabs.dynamodb-mcp-server": {

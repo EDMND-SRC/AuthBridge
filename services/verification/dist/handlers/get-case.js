@@ -2,6 +2,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, QueryCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { addSecurityHeaders } from '../middleware/security-headers';
 const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: process.env.AWS_REGION || 'af-south-1' }));
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'af-south-1' });
 export const handler = async (event) => {
@@ -11,11 +12,11 @@ export const handler = async (event) => {
     const requestId = event.requestContext?.requestId || 'unknown';
     const startTime = Date.now();
     if (!id) {
-        return {
+        return addSecurityHeaders({
             statusCode: 400,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ error: 'Case ID required' }),
-        };
+        });
     }
     try {
         // Get case data
@@ -24,11 +25,11 @@ export const handler = async (event) => {
             Key: { PK: `CASE#${id}`, SK: `CASE#${id}` },
         }));
         if (!caseResult.Item) {
-            return {
+            return addSecurityHeaders({
                 statusCode: 404,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ error: 'Case not found' }),
-            };
+            });
         }
         const caseData = caseResult.Item;
         // Generate presigned URLs for documents
@@ -47,7 +48,7 @@ export const handler = async (event) => {
         // Audit log the case view
         await logCaseView(id, userId, ipAddress);
         const queryTimeMs = Date.now() - startTime;
-        return {
+        return addSecurityHeaders({
             statusCode: 200,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -67,27 +68,27 @@ export const handler = async (event) => {
                     queryTimeMs,
                 },
             }),
-        };
+        });
     }
     catch (error) {
         console.error('Error fetching case:', error);
-        return {
+        return addSecurityHeaders({
             statusCode: 500,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ error: 'Internal server error' }),
-        };
+        });
     }
 };
 async function generateDocumentUrls(docs) {
     const result = {};
     for (const [key, doc] of Object.entries(docs || {})) {
-        if (doc && typeof doc === 'object' && 's3Key' in doc) {
+        if (doc && typeof doc === 'object' && 's3Key' in doc && typeof doc.s3Key === 'string') {
             result[key] = {
                 url: await getSignedUrl(s3Client, new GetObjectCommand({
                     Bucket: process.env.BUCKET_NAME,
                     Key: doc.s3Key,
                 }), { expiresIn: 900 }),
-                uploadedAt: doc.uploadedAt,
+                uploadedAt: 'uploadedAt' in doc ? doc.uploadedAt : undefined,
             };
         }
     }

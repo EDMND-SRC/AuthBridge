@@ -3,10 +3,11 @@
 ## Table of contents
 1. [What will be done in these steps?](#what-will-be-done-in-these-steps)
 2. [Setup](#setup)
-3. [Overview](#overview)
-4. [Adding a step](#adding-a-step)
-5. [Collect a document](#collect-a-document)
-6. [Where to go from here](#where-to-go-from-here)
+3. [Session Management](#session-management)
+4. [Overview](#overview)
+5. [Adding a step](#adding-a-step)
+6. [Collect a document](#collect-a-document)
+7. [Where to go from here](#where-to-go-from-here)
 
 ### What will be done in these steps?
 These steps will take you through the process of recreating your KYC flow using Ballerine.
@@ -25,6 +26,54 @@ cd ballerine && pnpm install
 pnpm dev
 ```
 4. Open the page in your [browser](http://localhost:3000/)
+
+### Session Management
+
+**Important**: Verification sessions expire after **30 minutes** of inactivity. This timeout is enforced server-side for security compliance with the Botswana Data Protection Act 2024.
+
+#### Session Expiry Behavior
+
+- Sessions automatically expire 30 minutes after the last API interaction
+- Expired sessions cannot be resumed - users must start a new verification flow
+- The SDK will emit a `session.expired` event when expiry is detected
+
+#### Handling Session Expiry
+
+```typescript
+import { flows } from './main';
+
+flows.init({
+  // ... your config
+}).then(() => {
+  flows.openModal('my-kyc-flow', {
+    onSessionExpired: () => {
+      // Handle session expiry - show user-friendly message
+      alert('Your session has expired. Please start again.');
+      // Optionally restart the flow
+      flows.openModal('my-kyc-flow', {});
+    },
+  });
+});
+```
+
+#### Best Practices
+
+1. **Inform users upfront**: Display a message that the session will expire after 30 minutes of inactivity
+2. **Show progress indicators**: Let users know how far along they are in the verification process
+3. **Save partial progress**: If your flow allows, save completed steps so users don't have to restart entirely
+4. **Handle expiry gracefully**: Provide clear messaging and an easy way to restart
+
+```typescript
+// Example: Show remaining time warning
+flows.init({
+  uiConfig: {
+    sessionWarningMinutes: 5, // Warn user 5 minutes before expiry
+    onSessionWarning: (remainingMinutes) => {
+      console.log(`Session expires in ${remainingMinutes} minutes`);
+    },
+  },
+});
+```
 
 ### Overview
 ```typescript
@@ -51,7 +100,7 @@ import { flows } from './main';
 // init is used for configurations
 flows.init({
   uiConfig: {
-      // On the flows object we add a flow with its name as a property. 
+      // On the flows object we add a flow with its name as a property.
        flows: {
          // Matches the name passed into openModal
          ['my-kyc-flow']: {
@@ -79,7 +128,7 @@ import { DocumentType } from './lib/contexts/app-state';
 // init is used for configurations
 flows.init({
   uiConfig: {
-      // On the flows object we add a flow with its name as a property. 
+      // On the flows object we add a flow with its name as a property.
        flows: {
          // Matches the name passed into openModal
          ['my-kyc-flow']: {
@@ -116,7 +165,7 @@ import { DocumentType } from './lib/contexts/app-state';
 // init is used for configurations
 flows.init({
   uiConfig: {
-      // On the flows object we add a flow with its name as a property. 
+      // On the flows object we add a flow with its name as a property.
        flows: {
          // Matches the name passed into openModal
          ['my-kyc-flow']: {
@@ -158,7 +207,7 @@ import { DocumentType } from './lib/contexts/app-state';
 // init is used for configurations
 flows.init({
   uiConfig: {
-      // On the flows object we add a flow with its name as a property. 
+      // On the flows object we add a flow with its name as a property.
        flows: {
          // Matches the name passed into openModal
          ['my-kyc-flow']: {
@@ -185,7 +234,7 @@ flows.init({
 });
 ```
 ### Where to go from here
-* [Examples]() 
+* [Examples]()
 * [Documentation]()
 * [Discord]()
-* [Contribution guidelines]() 
+* [Contribution guidelines]()

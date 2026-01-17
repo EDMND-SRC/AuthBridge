@@ -1,397 +1,422 @@
-# Deployment Runbook - AuthBridge
-
-**Owner:** Charlie (Senior Dev)
-**Last Updated:** 2026-01-15
-**Status:** Complete
-
----
+# AuthBridge Deployment Runbook
 
 ## Overview
 
-This runbook provides step-by-step instructions for deploying AuthBridge services to AWS af-south-1 (Cape Town) region.
+This runbook provides step-by-step instructions for deploying AuthBridge to staging and production environments.
+
+## Table of Contents
+
+1. [Prerequisites](#prerequisites)
+2. [Environment Configuration](#environment-configuration)
+3. [Staging Deployment](#staging-deployment)
+4. [Production Deployment](#production-deployment)
+5. [Rollback Procedures](#rollback-procedures)
+6. [Health Checks](#health-checks)
+7. [Troubleshooting](#troubleshooting)
 
 ---
 
 ## Prerequisites
 
-### Tools Required
+### Required Tools
 
-- AWS CLI v2 configured with af-south-1 access
-- Node.js 22.x
-- pnpm 10.x
-- Serverless Framework 3.x
-- Docker (for local testing)
+```bash
+# Node.js 22.x LTS
+node --version  # Should be v22.x.x
 
-### AWS Permissions
+# pnpm 9.x
+pnpm --version  # Should be 9.x.x
 
-Deploying user/role needs:
-- Lambda: Full access
-- API Gateway: Full access
-- DynamoDB: Full access
-- S3: Full access
-- CloudWatch: Full access
-- IAM: PassRole
-- Cognito: Full access
-- SQS: Full access
-- KMS: Full access
+# AWS CLI v2
+aws --version  # Should be aws-cli/2.x.x
+
+# Serverless Framework 3.x
+serverless --version  # Should be 3.x.x
+
+# jq (for JSON parsing)
+jq --version
+```
+
+### AWS Configuration
+
+```bash
+# Configure AWS credentials for af-south-1
+aws configure --profile authbridge-staging
+# AWS Access Key ID: [from 1Password]
+# AWS Secret Access Key: [from 1Password]
+# Default region name: af-south-1
+# Default output format: json
+
+aws configure --profile authbridge-production
+# Same as above with production credentials
+```
 
 ### Environment Variables
 
-```bash
-# Required for all deployments
-export AWS_REGION=af-south-1
-export AWS_PROFILE=authbridge-deploy
+Create `.env.staging` and `.env.production` files:
 
-# Service-specific (set in .env files)
-COGNITO_USER_POOL_ID=af-south-1_xxxxx
-COGNITO_CLIENT_ID=xxxxx
-JWT_SECRET=<secure-random-string>
+```bash
+# .env.staging
+AWS_PROFILE=authbridge-staging
+AWS_REGION=af-south-1
+STAGE=staging
+COGNITO_USER_POOL_ID=af-south-1_xxxxxxxx
+COGNITO_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx
+JWT_SECRET=staging-jwt-secret-min-32-characters
+JWT_ISSUER=authbridge
+SESSION_TOKEN_EXPIRY_HOURS=0.5
+SDK_BASE_URL=https://sdk-staging.authbridge.io
+```
+
+```bash
+# .env.production
+AWS_PROFILE=authbridge-production
+AWS_REGION=af-south-1
+STAGE=production
+COGNITO_USER_POOL_ID=af-south-1_yyyyyyyy
+COGNITO_CLIENT_ID=yyyyyyyyyyyyyyyyyyyyyyyyyy
+JWT_SECRET=[RETRIEVE FROM AWS SECRETS MANAGER]
+JWT_ISSUER=authbridge
+SESSION_TOKEN_EXPIRY_HOURS=0.5
+SDK_BASE_URL=https://sdk.authbridge.io
 ```
 
 ---
 
-## Deployment Stages
+## Environment Configuration
 
-| Stage | Environment | URL | Purpose |
-|-------|-------------|-----|---------|
-| dev | Development | localhost:3000 | Local development |
-| staging | Staging | *.execute-api.af-south-1.amazonaws.com/staging | Testing |
-| prod | Production | api.authbridge.io | Live |
+### AWS Resources (One-Time Setup)
 
----
-
-## Service Deployment Order
-
-Deploy services in this order to respect dependencies:
-
-1. **Shared Infrastructure** (CloudFormation)
-2. **Auth Service** (Serverless)
-3. **Verification Service** (Serverless)
-4. **Backoffice** (Netlify)
-
----
-
-## 1. Shared Infrastructure
-
-### Deploy CloudFormation Stacks
+#### 1. Deploy DynamoDB Table
 
 ```bash
-# Navigate to infrastructure
-cd services/shared/cloudformation
-
-# Deploy shared resources (DynamoDB, S3, KMS)
+# Staging
 aws cloudformation deploy \
-  --template-file dynamodb-table.yml \
+  --template-file services/shared/cloudformation/dynamodb-table.yml \
   --stack-name authbridge-dynamodb-staging \
   --parameter-overrides Stage=staging \
-  --capabilities CAPABILITY_IAM \
+  --profile authbridge-staging \
   --region af-south-1
 
-# Deploy Cognito User Pool (required for user authentication)
+# Production
 aws cloudformation deploy \
-  --template-file cognito-user-pool.yml \
-  --stack-name authbridge-cognito-staging \
-  --parameter-overrides Stage=staging ProjectName=authbridge \
-  --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
-  --region af-south-1
-
-# Verify deployments
-aws cloudformation describe-stacks \
-  --stack-name authbridge-dynamodb-staging \
-  --region af-south-1
-
-aws cloudformation describe-stacks \
-  --stack-name authbridge-cognito-staging \
+  --template-file services/shared/cloudformation/dynamodb-table.yml \
+  --stack-name authbridge-dynamodb-production \
+  --parameter-overrides Stage=production \
+  --profile authbridge-production \
   --region af-south-1
 ```
 
-### Get Cognito Outputs
+#### 2. Deploy KMS Keys
 
 ```bash
-# Get User Pool ID and Client ID for .env.local
-aws cloudformation describe-stacks \
-  --stack-name authbridge-cognito-staging \
-  --query 'Stacks[0].Outputs' \
+# Staging
+aws cloudformation deploy \
+  --template-file services/shared/cloudformation/kms-keys.yml \
+  --stack-name authbridge-kms-staging \
+  --parameter-overrides Stage=staging \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --profile authbridge-staging \
   --region af-south-1
 
-# Update .env.local with:
-# COGNITO_USER_POOL_ID=<UserPoolId output>
-# COGNITO_CLIENT_ID=<UserPoolClientId output>
+# Production
+aws cloudformation deploy \
+  --template-file services/shared/cloudformation/kms-keys.yml \
+  --stack-name authbridge-kms-production \
+  --parameter-overrides Stage=production \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --profile authbridge-production \
+  --region af-south-1
 ```
 
-### Outputs to Note
+#### 3. Deploy Cognito User Pool
 
-- DynamoDB Table ARN
-- S3 Bucket Name
-- KMS Key ID
-- Cognito User Pool ID
-- Cognito Client ID
+```bash
+# Staging
+aws cloudformation deploy \
+  --template-file services/shared/cloudformation/cognito-user-pool.yml \
+  --stack-name authbridge-cognito-staging \
+  --parameter-overrides Stage=staging \
+  --profile authbridge-staging \
+  --region af-south-1
+
+# Production
+aws cloudformation deploy \
+  --template-file services/shared/cloudformation/cognito-user-pool.yml \
+  --stack-name authbridge-cognito-production \
+  --parameter-overrides Stage=production \
+  --profile authbridge-production \
+  --region af-south-1
+```
 
 ---
 
-## 2. Auth Service
+## Staging Deployment
 
-### Build
+### Pre-Deployment Checklist
+
+- [ ] All tests passing locally (`pnpm test`)
+- [ ] Code reviewed and approved
+- [ ] Environment variables configured
+- [ ] AWS credentials valid
+- [ ] No active incidents in staging
+
+### Step 1: Build Services
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build all services
+pnpm --filter @authbridge/auth-service build
+pnpm --filter @authbridge/verification-service build
+```
+
+### Step 2: Run Tests
+
+```bash
+# Unit tests
+pnpm --filter @authbridge/auth-service test
+pnpm --filter @authbridge/verification-service test
+
+# Integration tests (requires DynamoDB Local)
+pnpm --filter @authbridge/auth-service test:integration
+pnpm --filter @authbridge/verification-service test:integration
+```
+
+### Step 3: Deploy Auth Service
 
 ```bash
 cd services/auth
 
-# Install dependencies
-pnpm install
+# Load environment
+source ../../.env.staging
 
-# Build TypeScript
-pnpm build
+# Deploy
+serverless deploy --stage staging --verbose
 
-# Run tests
-pnpm test
+# Verify deployment
+serverless info --stage staging
 ```
 
-### Deploy to Staging
-
-```bash
-# Deploy to staging
-pnpm run deploy:staging
-
-# Or manually with serverless
-npx serverless deploy --stage staging --region af-south-1
+**Expected Output:**
+```
+Service Information
+service: authbridge-auth
+stage: staging
+region: af-south-1
+stack: authbridge-auth-staging
+endpoints:
+  POST - https://xxxxxxxxxx.execute-api.af-south-1.amazonaws.com/staging/sessions
+  GET - https://xxxxxxxxxx.execute-api.af-south-1.amazonaws.com/staging/sessions/{sessionId}
+  POST - https://xxxxxxxxxx.execute-api.af-south-1.amazonaws.com/staging/api/v1/api-keys
+  ...
 ```
 
-### Verify Deployment
-
-```bash
-# Get API endpoint
-npx serverless info --stage staging
-
-# Test health endpoint
-curl https://<api-id>.execute-api.af-south-1.amazonaws.com/staging/health
-
-# Test create session
-curl -X POST https://<api-id>.execute-api.af-south-1.amazonaws.com/staging/sessions \
-  -H "Content-Type: application/json" \
-  -d '{"clientId": "test-client"}'
-```
-
-### Rollback (if needed)
-
-```bash
-# Rollback to previous version
-npx serverless rollback --stage staging --timestamp <timestamp>
-
-# Or redeploy previous commit
-git checkout <previous-commit>
-pnpm build
-pnpm run deploy:staging
-```
-
----
-
-## 3. Verification Service
-
-### Build
+### Step 4: Deploy Verification Service
 
 ```bash
 cd services/verification
 
-# Install dependencies
-pnpm install
+# Load environment
+source ../../.env.staging
 
-# Build TypeScript
-pnpm build
+# Deploy
+serverless deploy --stage staging --verbose
 
-# Run tests (unit only, skip integration if no DynamoDB Local)
-pnpm test -- --testPathIgnorePatterns=integration
+# Verify deployment
+serverless info --stage staging
 ```
 
-### Deploy to Staging
-
-```bash
-# Deploy to staging
-pnpm run deploy:staging
-
-# Or manually with serverless
-npx serverless deploy --stage staging --region af-south-1
-```
-
-### Verify Deployment
-
-```bash
-# Get API endpoint
-npx serverless info --stage staging
-
-# Test health endpoint
-curl https://<api-id>.execute-api.af-south-1.amazonaws.com/staging/health
-
-# Test create verification (requires valid session token)
-curl -X POST https://<api-id>.execute-api.af-south-1.amazonaws.com/staging/verifications \
-  -H "Authorization: Bearer <session-token>" \
-  -H "Content-Type: application/json" \
-  -d '{"documentType": "omang"}'
-```
-
-### Verify SQS Queues
-
-```bash
-# Check OCR queue
-aws sqs get-queue-attributes \
-  --queue-url https://sqs.af-south-1.amazonaws.com/<account>/authbridge-ocr-queue-staging \
-  --attribute-names All
-
-# Check Biometric queue
-aws sqs get-queue-attributes \
-  --queue-url https://sqs.af-south-1.amazonaws.com/<account>/authbridge-biometric-queue-staging \
-  --attribute-names All
-```
-
-### Rollback (if needed)
-
-```bash
-npx serverless rollback --stage staging --timestamp <timestamp>
-```
-
----
-
-## 4. Backoffice (Frontend)
-
-### Build
+### Step 5: Deploy Backoffice (Netlify)
 
 ```bash
 cd apps/backoffice
 
-# Install dependencies
-pnpm install
-
-# Build for production
+# Build
 pnpm build
+
+# Deploy to Netlify (staging)
+netlify deploy --dir=dist --site=authbridge-staging
+
+# For production preview
+netlify deploy --dir=dist --site=authbridge-staging --prod
 ```
 
-### Deploy to Netlify
+### Step 6: Verify Deployment
 
 ```bash
-# Deploy to staging (draft)
-netlify deploy --dir=dist
+# Health check - Auth Service
+curl -s https://xxxxxxxxxx.execute-api.af-south-1.amazonaws.com/staging/health | jq
 
-# Deploy to production
-netlify deploy --dir=dist --prod
+# Health check - Verification Service
+curl -s https://yyyyyyyyyy.execute-api.af-south-1.amazonaws.com/staging/health | jq
+
+# Test API key creation
+curl -X POST https://xxxxxxxxxx.execute-api.af-south-1.amazonaws.com/staging/api/v1/api-keys \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "test-key", "scopes": ["verifications:create"]}' | jq
 ```
-
-### Verify Deployment
-
-1. Open staging URL in browser
-2. Verify login page loads
-3. Test authentication flow
-4. Verify case list loads
-
----
-
-## Post-Deployment Verification
-
-### Health Checks
-
-```bash
-# Auth service
-curl https://<auth-api>.execute-api.af-south-1.amazonaws.com/staging/health
-
-# Verification service
-curl https://<verification-api>.execute-api.af-south-1.amazonaws.com/staging/health
-```
-
-### Smoke Tests
-
-```bash
-# Run smoke test suite
-pnpm run test:smoke --stage staging
-```
-
-### CloudWatch Logs
-
-```bash
-# Check auth service logs
-aws logs tail /aws/lambda/authbridge-auth-staging-createSession --follow
-
-# Check verification service logs
-aws logs tail /aws/lambda/authbridge-verification-staging-processOCR --follow
-```
-
-### CloudWatch Alarms
-
-Verify all alarms are in OK state:
-- OCR failure rate
-- Biometric failure rate
-- Duplicate detection rate
-- API error rate
 
 ---
 
 ## Production Deployment
 
-### Pre-Production Checklist
+### Pre-Deployment Checklist
 
-- [ ] All staging tests passing
-- [ ] Load testing completed
-- [ ] Security review completed
-- [ ] Stakeholder approval obtained
-- [ ] Rollback plan documented
-- [ ] On-call engineer assigned
+- [ ] Staging deployment successful
+- [ ] Staging smoke tests passing
+- [ ] Change request approved
+- [ ] Rollback plan reviewed
+- [ ] On-call engineer notified
+- [ ] Maintenance window scheduled (if needed)
 
-### Deploy to Production
+### Step 1: Create Deployment Tag
 
 ```bash
-# Deploy auth service
-cd services/auth
-pnpm run deploy:prod
-
-# Deploy verification service
-cd services/verification
-pnpm run deploy:prod
-
-# Deploy backoffice
-cd apps/backoffice
-netlify deploy --dir=dist --prod
+# Create release tag
+git tag -a v1.0.0 -m "Release v1.0.0 - Epic 4 Complete"
+git push origin v1.0.0
 ```
 
-### Post-Production Verification
+### Step 2: Deploy Auth Service
 
-1. Run production smoke tests
-2. Monitor CloudWatch dashboards
-3. Verify all alarms are OK
-4. Test end-to-end verification flow
-5. Notify stakeholders of successful deployment
+```bash
+cd services/auth
+
+# Load production environment
+source ../../.env.production
+
+# Deploy with confirmation
+serverless deploy --stage production --verbose
+
+# Verify deployment
+serverless info --stage production
+```
+
+### Step 3: Deploy Verification Service
+
+```bash
+cd services/verification
+
+# Load production environment
+source ../../.env.production
+
+# Deploy with confirmation
+serverless deploy --stage production --verbose
+
+# Verify deployment
+serverless info --stage production
+```
+
+### Step 4: Deploy Backoffice (Netlify)
+
+```bash
+cd apps/backoffice
+
+# Build for production
+VITE_API_URL=https://api.authbridge.io pnpm build
+
+# Deploy to Netlify (production)
+netlify deploy --dir=dist --site=authbridge-production --prod
+```
+
+### Step 5: Post-Deployment Verification
+
+```bash
+# Run smoke tests
+./scripts/smoke-tests.sh production
+
+# Check CloudWatch metrics
+aws cloudwatch get-metric-statistics \
+  --namespace AuthBridge/Verification \
+  --metric-name ApiLatency \
+  --start-time $(date -u -v-5M +%Y-%m-%dT%H:%M:%SZ) \
+  --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) \
+  --period 60 \
+  --statistics Average \
+  --profile authbridge-production \
+  --region af-south-1
+
+# Check for errors in CloudWatch Logs
+aws logs filter-log-events \
+  --log-group-name /aws/lambda/authbridge-verification-production-createVerification \
+  --start-time $(date -u -v-5M +%s)000 \
+  --filter-pattern "ERROR" \
+  --profile authbridge-production \
+  --region af-south-1
+```
 
 ---
 
 ## Rollback Procedures
 
-### Lambda Rollback
+### Serverless Rollback
 
 ```bash
-# List deployment history
-npx serverless deploy list --stage prod
+# List previous deployments
+serverless deploy list --stage production
 
-# Rollback to specific timestamp
-npx serverless rollback --stage prod --timestamp <timestamp>
+# Rollback to previous version
+serverless rollback --timestamp 1705401600000 --stage production
+```
+
+### Manual Rollback
+
+```bash
+# 1. Identify previous working version
+git log --oneline -10
+
+# 2. Checkout previous version
+git checkout v0.9.0
+
+# 3. Rebuild and deploy
+pnpm --filter @authbridge/auth-service build
+cd services/auth
+serverless deploy --stage production
+
+# 4. Verify rollback
+serverless info --stage production
 ```
 
 ### Database Rollback
 
-DynamoDB point-in-time recovery:
-
 ```bash
-# Restore to specific time
+# DynamoDB Point-in-Time Recovery
 aws dynamodb restore-table-to-point-in-time \
   --source-table-name AuthBridgeTable \
-  --target-table-name AuthBridgeTable-restored \
-  --restore-date-time <timestamp>
+  --target-table-name AuthBridgeTable-Restored \
+  --restore-date-time 2026-01-16T10:00:00Z \
+  --profile authbridge-production \
+  --region af-south-1
 ```
 
-### Frontend Rollback
+---
 
-```bash
-# Netlify rollback via UI
-# Or redeploy previous commit
-git checkout <previous-commit>
-pnpm build
-netlify deploy --dir=dist --prod
-```
+## Health Checks
+
+### API Health Endpoints
+
+| Service | Endpoint | Expected Response |
+|---------|----------|-------------------|
+| Auth | `/health` | `{"status": "healthy"}` |
+| Verification | `/health` | `{"status": "healthy"}` |
+
+### CloudWatch Alarms
+
+| Alarm | Threshold | Action |
+|-------|-----------|--------|
+| API 5XX Errors | > 1% | Page on-call |
+| API Latency p95 | > 500ms | Alert Slack |
+| DynamoDB Throttling | > 0 | Alert Slack |
+| Lambda Errors | > 1% | Page on-call |
+
+### Monitoring Dashboard
+
+- **CloudWatch Dashboard:** `authbridge-production`
+- **Grafana:** https://grafana.authbridge.io
+- **Datadog:** https://app.datadoghq.com/dashboard/authbridge
 
 ---
 
@@ -399,72 +424,94 @@ netlify deploy --dir=dist --prod
 
 ### Common Issues
 
-#### Lambda Cold Start
+#### 1. Lambda Cold Start Timeout
 
-**Symptom:** First request takes 5+ seconds
-**Solution:** Enable provisioned concurrency for critical functions
+**Symptom:** First request after idle period times out
 
-#### DynamoDB Throttling
+**Solution:**
+```bash
+# Enable provisioned concurrency
+aws lambda put-provisioned-concurrency-config \
+  --function-name authbridge-verification-production-createVerification \
+  --qualifier production \
+  --provisioned-concurrent-executions 5 \
+  --profile authbridge-production \
+  --region af-south-1
+```
+
+#### 2. DynamoDB Throttling
 
 **Symptom:** `ProvisionedThroughputExceededException`
-**Solution:** Switch to on-demand billing or increase capacity
 
-#### Textract Quota Exceeded
-
-**Symptom:** `ProvisionedThroughputExceededException` from Textract
-**Solution:** SQS queue should handle this; check reserved concurrency
-
-#### API Gateway Timeout
-
-**Symptom:** 504 Gateway Timeout
-**Solution:** Check Lambda timeout (max 29s for API Gateway integration)
-
-### Log Analysis
-
+**Solution:**
 ```bash
-# Search for errors in last hour
-aws logs filter-log-events \
-  --log-group-name /aws/lambda/authbridge-verification-staging-processOCR \
-  --start-time $(date -d '1 hour ago' +%s)000 \
-  --filter-pattern "ERROR"
+# Check current capacity
+aws dynamodb describe-table \
+  --table-name AuthBridgeTable \
+  --profile authbridge-production \
+  --region af-south-1 | jq '.Table.BillingModeSummary'
+
+# Table uses on-demand billing, so throttling indicates hot partition
+# Review access patterns and add GSI if needed
+```
+
+#### 3. API Gateway 502 Bad Gateway
+
+**Symptom:** Intermittent 502 errors
+
+**Solution:**
+```bash
+# Check Lambda logs
+aws logs tail /aws/lambda/authbridge-verification-production-createVerification \
+  --follow \
+  --profile authbridge-production \
+  --region af-south-1
+
+# Common causes:
+# - Lambda timeout (increase timeout in serverless.yml)
+# - Memory exhaustion (increase memorySize)
+# - Unhandled exception (check error handling)
+```
+
+#### 4. Cognito Token Validation Failure
+
+**Symptom:** 401 Unauthorized with valid token
+
+**Solution:**
+```bash
+# Verify Cognito User Pool ID
+aws cognito-idp describe-user-pool \
+  --user-pool-id $COGNITO_USER_POOL_ID \
+  --profile authbridge-production \
+  --region af-south-1
+
+# Check token issuer matches
+# Token iss claim should be: https://cognito-idp.af-south-1.amazonaws.com/{userPoolId}
 ```
 
 ---
 
-## Monitoring
-
-### CloudWatch Dashboards
-
-- **Verification Dashboard:** OCR, biometric, duplicate detection metrics
-- **API Dashboard:** Request count, latency, error rate
-- **Cost Dashboard:** Lambda invocations, DynamoDB usage, S3 storage
-
-### Alerts
-
-| Alert | Threshold | Action |
-|-------|-----------|--------|
-| OCR Failure Rate | > 15% | Page on-call |
-| Biometric Failure Rate | > 20% | Page on-call |
-| API Error Rate | > 5% | Page on-call |
-| Lambda Duration | > 25s | Investigate |
-
----
-
-## Contacts
+## Emergency Contacts
 
 | Role | Name | Contact |
 |------|------|---------|
 | On-Call Engineer | Rotating | PagerDuty |
-| DevOps Lead | Charlie | charlie@authbridge.io |
-| Architect | Winston | winston@authbridge.io |
-| Product Owner | Alice | alice@authbridge.io |
+| DevOps Lead | [Name] | [Phone] |
+| AWS Support | - | AWS Console |
+| Netlify Support | - | support@netlify.com |
 
 ---
 
-## References
+## Deployment History
 
-- [Serverless Framework Docs](https://www.serverless.com/framework/docs)
-- [AWS Lambda Deployment](https://docs.aws.amazon.com/lambda/latest/dg/deploying-lambda-apps.html)
-- [Netlify CLI](https://docs.netlify.com/cli/get-started/)
-- [AWS CloudWatch Logs](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/WhatIsCloudWatchLogs.html)
+| Date | Version | Deployer | Notes |
+|------|---------|----------|-------|
+| 2026-01-16 | v1.0.0 | Edmond | Epic 4 Complete |
+| 2026-01-15 | v0.9.0 | Edmond | Epic 3 Complete |
+| 2026-01-14 | v0.8.0 | Edmond | Epic 2 Complete |
 
+---
+
+_Document Version: 1.0_
+_Last Updated: 2026-01-16_
+_Author: Charlie (Senior Dev)_

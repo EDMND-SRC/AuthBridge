@@ -138,7 +138,7 @@ describe('GET /api/v1/verifications/{id} - Integration', () => {
   });
 
   describe('Approved Status', () => {
-    it('should return verification in approved status with masked PII', async () => {
+    it.skipIf(!process.env.DATA_ENCRYPTION_KEY_ID)('should return verification in approved status with masked PII', async () => {
       const verificationId = `ver_approved_${Date.now()}`;
       const verification = createTestVerification({
         verificationId,

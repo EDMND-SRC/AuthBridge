@@ -5,10 +5,24 @@ import crypto from 'crypto';
 const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: process.env.AWS_REGION || 'af-south-1' }));
 const sqsClient = new SQSClient({ region: process.env.AWS_REGION || 'af-south-1' });
 const MAX_RETRY_ATTEMPTS = 3;
+// Valid webhook event types (must match webhook.ts)
+const VALID_WEBHOOK_EVENTS = [
+    'verification.created',
+    'verification.submitted',
+    'verification.approved',
+    'verification.rejected',
+    'verification.resubmission_required',
+    'verification.expired',
+];
 export const handler = async (event) => {
     for (const record of event.Records) {
         const message = JSON.parse(record.body);
         const { event: eventType, caseId, timestamp, userId, reason, notes, attemptCount = 1 } = message;
+        // Validate event type
+        if (!VALID_WEBHOOK_EVENTS.includes(eventType)) {
+            console.error(`Invalid webhook event type: ${eventType}`);
+            continue;
+        }
         try {
             // Get case data to find client webhook URL
             const caseResult = await ddbClient.send(new GetCommand({
@@ -48,20 +62,25 @@ export const handler = async (event) => {
                     decidedAt: timestamp
                 }
             };
-            // Generate HMAC signature
+            // Generate HMAC signature (consistent with webhook.ts format: timestamp.payload)
+            const webhookTimestamp = Math.floor(Date.now() / 1000);
+            const payloadString = JSON.stringify(payload);
+            const signedPayload = `${webhookTimestamp}.${payloadString}`;
             const signature = crypto
                 .createHmac('sha256', webhookSecret || '')
-                .update(JSON.stringify(payload))
+                .update(signedPayload)
                 .digest('hex');
-            // Send webhook
+            // Send webhook (use consistent header name: X-Webhook-Signature)
             const response = await fetch(webhookUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-AuthBridge-Signature': `sha256=${signature}`,
-                    'User-Agent': 'AuthBridge-Webhook/1.0'
+                    'X-Webhook-Signature': `sha256=${signature}`,
+                    'X-Webhook-Event': eventType,
+                    'X-Webhook-Timestamp': String(webhookTimestamp),
+                    'User-Agent': 'AuthBridge-Webhooks/1.0'
                 },
-                body: JSON.stringify(payload)
+                body: payloadString
             });
             if (response.ok) {
                 console.log(`Webhook delivered successfully on attempt ${attemptCount}`);
@@ -88,15 +107,17 @@ export const handler = async (event) => {
         catch (error) {
             console.error(`Webhook attempt ${attemptCount} failed for case ${caseId}:`, error);
             // Schedule retry via SQS with delay if under max attempts
+            // Retry schedule aligned with webhook.ts: 1s, 5s, 30s
             if (attemptCount < MAX_RETRY_ATTEMPTS) {
-                const delaySeconds = attemptCount === 1 ? 30 : 300; // 30s, then 5min
+                const retryDelays = [1, 5, 30]; // seconds (aligned with webhook.ts)
+                const delaySeconds = retryDelays[attemptCount - 1];
                 await sqsClient.send(new SendMessageCommand({
                     QueueUrl: process.env.WEBHOOK_QUEUE_URL,
                     MessageBody: JSON.stringify({
                         ...message,
                         attemptCount: attemptCount + 1
                     }),
-                    DelaySeconds: Math.min(delaySeconds, 900) // SQS max delay is 15 min
+                    DelaySeconds: delaySeconds
                 }));
                 console.log(`Scheduled retry ${attemptCount + 1} for case ${caseId} in ${delaySeconds}s`);
             }

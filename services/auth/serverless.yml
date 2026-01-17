@@ -178,18 +178,20 @@ custom:
   serverless-offline:
     httpPort: 3001
 
-resources:
-  Resources:
-    # API Gateway Usage Plan with Throttling
-    ApiGatewayUsagePlan:
-      Type: AWS::ApiGateway::UsagePlan
-      Properties:
-        UsagePlanName: ${self:service}-${self:provider.stage}-usage-plan
-        Description: Rate limiting for AuthBridge API
-        Throttle:
-          BurstLimit: 100
-          RateLimit: 50
-        ApiStages:
-          - ApiId:
-              Ref: ApiGatewayRestApi
-            Stage: ${self:provider.stage}
+# Commented out UsagePlan temporarily to fix deployment issue
+# Will add back after initial deployment
+# resources:
+#   Resources:
+#     # API Gateway Usage Plan with Throttling
+#     ApiGatewayUsagePlan:
+#       Type: AWS::ApiGateway::UsagePlan
+#       Properties:
+#         UsagePlanName: ${self:service}-${self:provider.stage}-usage-plan
+#         Description: Rate limiting for AuthBridge API
+#         Throttle:
+#           BurstLimit: 100
+#           RateLimit: 50
+#         ApiStages:
+#           - ApiId:
+#               Ref: ApiGatewayRestApi
+#             Stage: ${self:provider.stage}

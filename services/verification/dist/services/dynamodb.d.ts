@@ -1,19 +1,24 @@
 import type { VerificationEntity, VerificationStatus } from '../types/verification';
 import type { DocumentEntity } from '../types/document';
+import { EncryptionService } from './encryption';
 export declare class DynamoDBService {
     private client;
     private tableName;
-    constructor(tableName?: string, region?: string, endpoint?: string);
+    private encryptionService;
+    constructor(tableName?: string, region?: string, endpoint?: string, encryptionService?: EncryptionService);
     /**
      * Put verification entity with conditional write to prevent duplicates
+     * Encrypts sensitive fields before storage
      */
     putVerification(verification: VerificationEntity): Promise<void>;
     /**
      * Get verification by ID
+     * Decrypts sensitive fields after retrieval
      */
     getVerification(verificationId: string): Promise<VerificationEntity | null>;
     /**
      * Query verifications by client ID and status (GSI1)
+     * Decrypts sensitive fields for all results
      */
     queryByClientAndStatus(clientId: string, status?: VerificationStatus): Promise<VerificationEntity[]>;
     /**

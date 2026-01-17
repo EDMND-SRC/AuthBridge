@@ -56,10 +56,9 @@ export class ApiKeyService {
                 logger.warn('API key validation failed: invalid format');
                 return { valid: false, error: 'Invalid API key format' };
             }
-            // For now, we need to scan - in production, consider adding a GSI on keyHash
-            // This is acceptable for MVP since API keys are cached by API Gateway authorizer
-            const allKeys = await this.dynamodb.scanAllApiKeys();
-            apiKey = allKeys.find(k => k.keyHash === keyHash);
+            // Use GSI4 for O(1) lookup by key hash
+            const result = await this.dynamodb.queryByApiKeyHash(keyHash);
+            apiKey = result ?? undefined;
         }
         else {
             // Query all keys for the specific client
