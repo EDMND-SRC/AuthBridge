@@ -33,6 +33,7 @@ provider:
             - dynamodb:GetItem
             - dynamodb:PutItem
             - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
             - dynamodb:Query
           Resource:
             - 'arn:aws:dynamodb:${self:provider.region}:*:table/AuthBridgeTable'
@@ -64,6 +65,7 @@ provider:
             - s3:DeleteObject
           Resource:
             - 'arn:aws:s3:::authbridge-documents-${self:provider.stage}/*'
+            - 'arn:aws:s3:::authbridge-data-exports-${self:provider.stage}/*'
         - Effect: Allow
           Action:
             - textract:DetectDocumentText
@@ -113,6 +115,13 @@ provider:
             - kms:GenerateDataKey
           Resource:
             - ${cf:authbridge-kms-${self:provider.stage}.AuditLogEncryptionKeyArn}
+        # Lambda invocation for async data request workers
+        - Effect: Allow
+          Action:
+            - lambda:InvokeFunction
+          Resource:
+            - 'arn:aws:lambda:${self:provider.region}:*:function:authbridge-verification-${self:provider.stage}-processExport'
+            - 'arn:aws:lambda:${self:provider.region}:*:function:authbridge-verification-${self:provider.stage}-processDeletion'
 
 # esbuild handles packaging - minimal exclusions needed
 package:
@@ -362,6 +371,74 @@ functions:
           batchSize: 1
           functionResponseType: ReportBatchItemFailures
 
+  # Data Request Functions (Story 5.3)
+  createDataRequest:
+    handler: src/handlers/create-data-request.handler
+    description: Create data export or deletion request
+    memorySize: 256
+    timeout: 30
+    environment:
+      EXPORT_BUCKET: !Ref DataExportBucket
+      STAGE: ${self:provider.stage}
+    events:
+      - http:
+          path: /api/v1/data-requests/{type}
+          method: post
+          cors: true
+          authorizer:
+            name: apiKeyAuthorizer
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authbridge-auth-${self:provider.stage}-apiKeyAuthorizer
+            type: request
+            identitySource: method.request.header.Authorization
+            resultTtlInSeconds: 300
+
+  getDataRequestStatus:
+    handler: src/handlers/get-data-request-status.handler
+    description: Get status of data export or deletion request
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: /api/v1/data-requests/{requestId}
+          method: get
+          cors: true
+          authorizer:
+            name: apiKeyAuthorizer
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authbridge-auth-${self:provider.stage}-apiKeyAuthorizer
+            type: request
+            identitySource: method.request.header.Authorization
+            resultTtlInSeconds: 300
+
+  processExport:
+    handler: src/handlers/process-export.handler
+    description: Background worker to generate data export
+    memorySize: 512
+    timeout: 300
+    environment:
+      EXPORT_BUCKET: !Ref DataExportBucket
+      DOCUMENTS_BUCKET: authbridge-documents-${self:provider.stage}
+
+  processDeletion:
+    handler: src/handlers/process-deletion.handler
+    description: Background worker to process data deletion (soft delete)
+    memorySize: 512
+    timeout: 300
+    environment:
+      DOCUMENTS_BUCKET: authbridge-documents-${self:provider.stage}
+
+  scheduledHardDelete:
+    handler: src/handlers/scheduled-hard-delete.handler
+    description: Scheduled job to perform hard deletion of data
+    memorySize: 512
+    timeout: 900
+    environment:
+      DOCUMENTS_BUCKET: authbridge-documents-${self:provider.stage}
+    events:
+      - schedule:
+          rate: cron(0 2 * * ? *)
+          enabled: true
+          description: Daily hard delete job at 2 AM UTC
+
 resources:
   Resources:
     DocumentsBucket:
@@ -401,6 +478,38 @@ resources:
               Condition:
                 StringNotEqualsIfExists:
                   's3:x-amz-server-side-encryption-aws-kms-key-id': ${cf:authbridge-kms-${self:provider.stage}.DataEncryptionKeyArn}
+
+    # Data Export Bucket (Story 5.3)
+    DataExportBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: authbridge-data-exports-${self:provider.stage}
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: aws:kms
+                KMSMasterKeyID: ${cf:authbridge-kms-${self:provider.stage}.DataEncryptionKeyId}
+        VersioningConfiguration:
+          Status: Enabled
+        LifecycleConfiguration:
+          Rules:
+            - Id: DeleteExportsAfter7Days
+              Status: Enabled
+              ExpirationInDays: 7
+        CorsConfiguration:
+          CorsRules:
+            - AllowedOrigins:
+                - 'https://app.authbridge.io'
+                - 'https://backoffice.authbridge.io'
+                - 'https://*.authbridge.io'
+              AllowedMethods: [GET]
+              AllowedHeaders: ['*']
+              MaxAge: 3600
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
 
     OcrQueue:
       Type: AWS::SQS::Queue
