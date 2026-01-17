@@ -18,8 +18,8 @@ provider:
     NODE_OPTIONS: '--enable-source-maps'
     TABLE_NAME: AuthBridgeTable
     BUCKET_NAME: authbridge-documents-${self:provider.stage}
-    DATA_ENCRYPTION_KEY_ID: ${cf:authbridge-kms-${self:provider.stage}.DataEncryptionKeyId}
-    DATA_ENCRYPTION_KEY_ARN: ${cf:authbridge-kms-${self:provider.stage}.DataEncryptionKeyArn}
+    DATA_ENCRYPTION_KEY_ID: ${cf:authbridge-kms-${self:provider.stage}-DataKeyId}
+    DATA_ENCRYPTION_KEY_ARN: ${cf:authbridge-kms-${self:provider.stage}-DataKeyArn}
 
   iam:
     role:
@@ -81,7 +81,7 @@ provider:
             - kms:GenerateDataKeyWithoutPlaintext
             - kms:DescribeKey
           Resource:
-            - ${cf:authbridge-kms-${self:provider.stage}.DataEncryptionKeyArn}
+            - ${cf:authbridge-kms-${self:provider.stage}-DataKeyArn}
 
 package:
   individually: false
@@ -356,7 +356,7 @@ resources:
           ServerSideEncryptionConfiguration:
             - ServerSideEncryptionByDefault:
                 SSEAlgorithm: aws:kms
-                KMSMasterKeyID: ${cf:authbridge-kms-${self:provider.stage}.DataEncryptionKeyArn}
+                KMSMasterKeyID: ${cf:authbridge-kms-${self:provider.stage}-DataKeyArn}
         PublicAccessBlockConfiguration:
           BlockPublicAcls: true
           BlockPublicPolicy: true
@@ -384,7 +384,7 @@ resources:
               Resource: !Sub '${DocumentsBucket.Arn}/*'
               Condition:
                 StringNotEqualsIfExists:
-                  's3:x-amz-server-side-encryption-aws-kms-key-id': ${cf:authbridge-kms-${self:provider.stage}.DataEncryptionKeyArn}
+                  's3:x-amz-server-side-encryption-aws-kms-key-id': ${cf:authbridge-kms-${self:provider.stage}-DataKeyArn}
 
     OcrQueue:
       Type: AWS::SQS::Queue

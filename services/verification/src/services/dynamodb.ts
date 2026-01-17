@@ -311,6 +311,7 @@ export class DynamoDBService {
 
   /**
    * Query verifications by creation date (GSI2)
+   * Decrypts sensitive fields for all results
    */
   async queryByDate(date: string): Promise<VerificationEntity[]> {
     const command = new QueryCommand({
@@ -323,7 +324,75 @@ export class DynamoDBService {
     });
 
     const result = await this.client.send(command);
-    return (result.Items as VerificationEntity[]) || [];
+    const verifications = (result.Items as VerificationEntity[]) || [];
+
+    // Decrypt sensitive fields for all results
+    return await Promise.all(
+      verifications.map(async (verification) => {
+        if (verification.extractedData) {
+          const extractedData = { ...verification.extractedData };
+
+          if (extractedData.address && typeof extractedData.address === 'string') {
+            try {
+              extractedData.address = await this.encryptionService.decryptField(
+                extractedData.address,
+                3,
+                verification.verificationId,
+                'address'
+              );
+            } catch (error) {
+              console.error('Failed to decrypt address:', error);
+              extractedData.address = '[DECRYPTION_ERROR]';
+            }
+          }
+
+          if (extractedData.idNumber) {
+            try {
+              extractedData.idNumber = await this.encryptionService.decryptField(
+                extractedData.idNumber,
+                3,
+                verification.verificationId,
+                'idNumber'
+              );
+            } catch (error) {
+              console.error('Failed to decrypt idNumber:', error);
+              extractedData.idNumber = '[DECRYPTION_ERROR]';
+            }
+          }
+
+          if (extractedData.dateOfBirth && typeof extractedData.dateOfBirth === 'string') {
+            try {
+              extractedData.dateOfBirth = await this.encryptionService.decryptField(
+                extractedData.dateOfBirth,
+                3,
+                verification.verificationId,
+                'dateOfBirth'
+              );
+            } catch (error) {
+              console.error('Failed to decrypt dateOfBirth:', error);
+              extractedData.dateOfBirth = '[DECRYPTION_ERROR]';
+            }
+          }
+
+          if (extractedData.phoneNumber && typeof extractedData.phoneNumber === 'string') {
+            try {
+              extractedData.phoneNumber = await this.encryptionService.decryptField(
+                extractedData.phoneNumber,
+                3,
+                verification.verificationId,
+                'phoneNumber'
+              );
+            } catch (error) {
+              console.error('Failed to decrypt phoneNumber:', error);
+              extractedData.phoneNumber = '[DECRYPTION_ERROR]';
+            }
+          }
+
+          verification.extractedData = extractedData;
+        }
+        return verification;
+      })
+    );
   }
 
   /**
