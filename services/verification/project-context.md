@@ -87,6 +87,16 @@ Run tests with:
 pnpm --filter @authbridge/verification-service test
 ```
 
+**🚨 CRITICAL: Docker Prohibited**
+
+This project prohibits Docker usage for local development and testing. Use Java-based alternatives:
+
+- **DynamoDB Local**: Install via Homebrew (`brew install dynamodb-local`)
+- **LocalStack**: Not used - use AWS SDK mocks for unit tests
+- **Containers**: Prohibited - use native tools and Homebrew packages
+
+**Rationale**: Standardized development environment using Homebrew for consistency across team.
+
 ## AWS Region
 
 **CRITICAL**: All AWS resources must be deployed to `af-south-1` (Cape Town) for Data Protection Act 2024 compliance.

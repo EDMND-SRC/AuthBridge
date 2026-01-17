@@ -130,7 +130,7 @@ development_status:
   # ═══════════════════════════════════════════════════════════════════════════
   epic-5: in-progress
   5-1-data-encryption-implementation: done  # Code review completed 2026-01-17, all 9 issues fixed
-  5-2-comprehensive-audit-logging: backlog
+  5-2-comprehensive-audit-logging: ready-for-dev  # Story created 2026-01-17
   5-3-data-export-deletion: backlog
   5-4-iam-access-control: backlog
   epic-5-retrospective: optional
