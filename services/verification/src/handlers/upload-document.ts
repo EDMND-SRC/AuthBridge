@@ -512,6 +512,13 @@ export async function handler(
       error: error instanceof Error ? error.message : 'Unknown error',
     });
 
+    // Audit log system error for compliance
+    await auditService.logSystemError(
+      'DOCUMENT_UPLOAD_ERROR',
+      error instanceof Error ? error.message : 'Unknown error',
+      { requestId }
+    ).catch(err => console.error('Failed to log audit event:', err));
+
     // Record failure metrics
     const durationMs = Date.now() - startTime;
     await recordUploadMetrics(false, durationMs, metricsFileSize, metricsDocumentType);

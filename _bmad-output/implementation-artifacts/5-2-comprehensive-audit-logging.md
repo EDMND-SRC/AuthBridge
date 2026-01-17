@@ -1648,32 +1648,47 @@ No critical issues encountered during implementation.
 - ✅ Issue #10: Fixed hardcoded region in add-note.ts (now uses process.env.AWS_REGION)
 - ✅ Issue #11: Added JSDoc comments to logCaseCreated, logCaseApproved, logCaseRejected, logCaseAssigned, logCaseNoteAdded
 
+**Code Review Round 3 Fixes Applied (2026-01-17):**
+- ✅ Issue #1: bulk-approve.ts now uses auditContextMiddleware() instead of manual IP extraction
+- ✅ Issue #2: bulk-reject.ts now uses auditContextMiddleware() instead of manual IP extraction
+- ✅ Issue #1/#2: Added audit logging for failed bulk operations (ConditionalCheckFailedException)
+- ✅ Issue #3: Added authorization check to getAuditLogs (admin, compliance_officer, auditor roles only)
+- ✅ Issue #4: Fixed configure-webhook.ts to use proper webhookId (WEBHOOK#clientId) instead of clientId
+- ✅ Issue #6: Added error audit logging to upload-document.ts catch block
+- ✅ Issue #7: Added error audit logging to configure-webhook.ts catch block
+- ✅ Issue #8: Added CloudWatch metrics emission to AuditService (AuditLogEntries, AuditWriteFailures)
+- ✅ Issue #10: Standardized handler export pattern (handler + getAuditLogs alias)
+- ✅ Issue #11: Added JSDoc to logWebhookRetry, logWebhookFailed, logWebhookDeleted
+- ✅ Issue #12: Removed hardcoded 'af-south-1' fallback from all handlers (now uses process.env.AWS_REGION)
+- ✅ Added 5 authorization tests to get-audit-logs.test.ts (total: 18 tests)
+
 ### File List
 
 **New Files:**
 - services/verification/src/middleware/audit-context.ts
 - services/verification/src/middleware/audit-context.test.ts (10 tests)
 - services/verification/src/handlers/get-audit-logs.ts
-- services/verification/src/handlers/get-audit-logs.test.ts (13 tests)
+- services/verification/src/handlers/get-audit-logs.test.ts (18 tests - updated with authorization tests)
 - docs/deployment-architecture.md (deployment documentation)
 - scripts/deploy-services.sh (deployment script with correct order)
 
 **Modified Files:**
 - services/verification/src/types/audit.ts (expanded AuditAction enum, updated interfaces)
-- services/verification/src/services/audit.ts (added DynamoDB support, 38 audit methods with JSDoc)
+- services/verification/src/services/audit.ts (added DynamoDB support, CloudWatch metrics, 38 audit methods with JSDoc)
 - services/verification/src/services/audit.test.ts (31 tests)
 - services/verification/src/handlers/approve-case.ts (integrated AuditService with middleware, error audit logging)
 - services/verification/src/handlers/reject-case.ts (integrated AuditService with middleware, error audit logging)
-- services/verification/src/handlers/add-note.ts (integrated AuditService with middleware, error audit logging, fixed hardcoded region)
-- services/verification/src/handlers/bulk-approve.ts (integrated AuditService - code review fix)
-- services/verification/src/handlers/bulk-reject.ts (integrated AuditService - code review fix)
-- services/verification/src/handlers/upload-document.ts (integrated AuditService - code review fix)
-- services/verification/src/handlers/configure-webhook.ts (integrated AuditService - code review fix)
+- services/verification/src/handlers/add-note.ts (integrated AuditService with middleware, error audit logging)
+- services/verification/src/handlers/bulk-approve.ts (integrated AuditService with middleware, error audit logging for failures)
+- services/verification/src/handlers/bulk-reject.ts (integrated AuditService with middleware, error audit logging for failures)
+- services/verification/src/handlers/upload-document.ts (integrated AuditService, error audit logging)
+- services/verification/src/handlers/configure-webhook.ts (integrated AuditService with proper webhookId, error audit logging)
+- services/verification/src/handlers/get-audit-logs.ts (added authorization check for admin/compliance_officer/auditor roles)
 - services/verification/src/middleware/security-headers.ts (added securityHeadersMiddleware for middy)
 - services/verification/serverless.yml (IAM policies, AuditLogGroup, audit alarms, getAuditLogs function)
 - services/shared/cloudformation/dynamodb-table.yml (GSI5, GSI6, GSI7)
 - services/shared/cloudformation/kms-keys.yml (CloudWatch Logs permission)
-- services/verification/package.json (added @middy/core, @aws-sdk/util-dynamodb, serverless-esbuild, esbuild)
+- services/verification/package.json (added @middy/core, @aws-sdk/util-dynamodb, @aws-sdk/client-cloudwatch, serverless-esbuild, esbuild)
 
 ---
 
@@ -1685,7 +1700,7 @@ No critical issues encountered during implementation.
 **Estimated Effort**: 3-5 days
 **Priority**: HIGH (MVP requirement)
 **Completed**: 2026-01-17
-**Code Review**: 2026-01-17 (11 issues fixed)
+**Code Review**: 2026-01-17 (Round 3: 12 issues fixed)
 
 
 

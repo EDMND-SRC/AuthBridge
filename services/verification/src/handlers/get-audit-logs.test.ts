@@ -22,6 +22,12 @@ vi.mock('../middleware/security-headers', () => ({
   }),
 }));
 
+vi.mock('../services/audit', () => ({
+  AuditService: vi.fn().mockImplementation(() => ({
+    logPermissionDenied: vi.fn().mockResolvedValue(undefined),
+  })),
+}));
+
 const dynamodbMock = mockClient(DynamoDBClient);
 
 // Import after mocks are set up
@@ -32,7 +38,7 @@ describe('get-audit-logs handler', () => {
     dynamodbMock.reset();
   });
 
-  const createMockEvent = (queryParams: Record<string, string> = {}) => ({
+  const createMockEvent = (queryParams: Record<string, string> = {}, role: string = 'admin') => ({
     body: null,
     headers: {},
     multiValueHeaders: {},
@@ -46,7 +52,7 @@ describe('get-audit-logs handler', () => {
     requestContext: {
       accountId: '123456789',
       apiId: 'test-api',
-      authorizer: { claims: { sub: 'test-user' } },
+      authorizer: { claims: { sub: 'test-user', 'custom:role': role } },
       protocol: 'HTTP/1.1',
       httpMethod: 'GET',
       identity: { sourceIp: '192.168.1.1' } as any,
@@ -59,6 +65,52 @@ describe('get-audit-logs handler', () => {
     },
     resource: '/api/v1/audit',
   } as any);
+
+  describe('authorization', () => {
+    it('returns 403 when user has no role', async () => {
+      const event = createMockEvent({ startDate: '2026-01-17', endDate: '2026-01-17' }, '');
+
+      const response = await getAuditLogs(event, {} as any, () => {});
+
+      expect(response.statusCode).toBe(403);
+      expect(JSON.parse(response.body).error).toContain('Access denied');
+    });
+
+    it('returns 403 when user has analyst role', async () => {
+      const event = createMockEvent({ startDate: '2026-01-17', endDate: '2026-01-17' }, 'analyst');
+
+      const response = await getAuditLogs(event, {} as any, () => {});
+
+      expect(response.statusCode).toBe(403);
+    });
+
+    it('allows admin role to access audit logs', async () => {
+      dynamodbMock.on(QueryCommand).resolves({ Items: [] });
+      const event = createMockEvent({ startDate: '2026-01-17', endDate: '2026-01-17' }, 'admin');
+
+      const response = await getAuditLogs(event, {} as any, () => {});
+
+      expect(response.statusCode).toBe(200);
+    });
+
+    it('allows compliance_officer role to access audit logs', async () => {
+      dynamodbMock.on(QueryCommand).resolves({ Items: [] });
+      const event = createMockEvent({ startDate: '2026-01-17', endDate: '2026-01-17' }, 'compliance_officer');
+
+      const response = await getAuditLogs(event, {} as any, () => {});
+
+      expect(response.statusCode).toBe(200);
+    });
+
+    it('allows auditor role to access audit logs', async () => {
+      dynamodbMock.on(QueryCommand).resolves({ Items: [] });
+      const event = createMockEvent({ startDate: '2026-01-17', endDate: '2026-01-17' }, 'auditor');
+
+      const response = await getAuditLogs(event, {} as any, () => {});
+
+      expect(response.statusCode).toBe(200);
+    });
+  });
 
   describe('validation', () => {
     it('returns 400 when startDate is missing', async () => {

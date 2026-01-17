@@ -1,13 +1,15 @@
-import { APIGatewayProxyHandler } from 'aws-lambda';
+import middy from '@middy/core';
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { addSecurityHeaders } from '../middleware/security-headers';
+import { auditContextMiddleware, getAuditContext } from '../middleware/audit-context';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import { v4 as uuidv4 } from 'uuid';
 import { AuditService } from '../services/audit';
 
-const sqsClient = new SQSClient({ region: process.env.AWS_REGION || 'af-south-1' });
-const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: process.env.AWS_REGION || 'af-south-1' }));
+const sqsClient = new SQSClient({ region: process.env.AWS_REGION });
+const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: process.env.AWS_REGION }));
 const auditService = new AuditService();
 
 interface BulkRejectRequest {
@@ -59,10 +61,10 @@ async function withRetry<T>(
   throw lastError;
 }
 
-export const handler: APIGatewayProxyHandler = async (event) => {
+async function baseHandler(event: APIGatewayProxyEvent, context: any): Promise<APIGatewayProxyResult> {
   const userId = event.requestContext.authorizer?.claims?.sub;
   const userName = event.requestContext.authorizer?.claims?.name || 'Unknown';
-  const ipAddress = event.requestContext.identity.sourceIp;
+  const auditContext = getAuditContext(context);
   const timestamp = new Date().toISOString();
 
   // Parse request body
@@ -124,7 +126,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       })));
 
       // Audit log using AuditService (consistent with single reject handler)
-      await auditService.logCaseRejected(caseId, userId, ipAddress, `${reason} (bulk: ${bulkOperationId})`);
+      await auditService.logCaseRejected(caseId, userId, auditContext.ipAddress, `${reason} (bulk: ${bulkOperationId})`);
 
       // Trigger webhook notification (async via SQS) - no retry needed, SQS handles it
       if (process.env.WEBHOOK_QUEUE_URL) {
@@ -149,6 +151,15 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       const errorMessage = error.name === 'ConditionalCheckFailedException'
         ? 'Case is not in a valid status for rejection'
         : 'Failed to reject case';
+
+      // Audit log failed operation for compliance
+      await auditService.logCaseStatusChanged(
+        caseId,
+        userId,
+        auditContext.ipAddress,
+        'unknown',
+        'rejected-failed'
+      ).catch(err => console.error('Failed to log audit event:', err));
 
       results.push({
         caseId,
@@ -181,4 +192,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       }
     })
   });
-};
+}
+
+export const handler = middy(baseHandler)
+  .use(auditContextMiddleware());

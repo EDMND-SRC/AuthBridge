@@ -6,20 +6,24 @@
 
 import { randomUUID } from 'crypto';
 import { CloudWatchLogsClient, PutLogEventsCommand, CreateLogStreamCommand } from '@aws-sdk/client-cloudwatch-logs';
+import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
 import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall } from '@aws-sdk/util-dynamodb';
 import type { AuditLogEntry, AuditAction, CreateAuditEntryInput } from '../types/audit';
 
 export class AuditService {
   private cloudwatchLogs: CloudWatchLogsClient;
+  private cloudwatch: CloudWatchClient;
   private dynamodb: DynamoDBClient;
   private logGroupName: string;
   private logStreamName: string;
   private tableName: string;
 
   constructor() {
-    this.cloudwatchLogs = new CloudWatchLogsClient({ region: process.env.AWS_REGION || 'af-south-1' });
-    this.dynamodb = new DynamoDBClient({ region: process.env.AWS_REGION || 'af-south-1' });
+    const region = process.env.AWS_REGION;
+    this.cloudwatchLogs = new CloudWatchLogsClient({ region });
+    this.cloudwatch = new CloudWatchClient({ region });
+    this.dynamodb = new DynamoDBClient({ region });
     this.logGroupName = `/aws/lambda/authbridge-verification-${process.env.STAGE || 'staging'}/audit`;
     this.logStreamName = `audit-${new Date().toISOString().split('T')[0]}`;
     this.tableName = process.env.TABLE_NAME || 'AuthBridgeTable';
@@ -60,9 +64,45 @@ export class AuditService {
     await Promise.all([
       this.writeToDynamoDB(entry),
       this.logToCloudWatch(entry),
+      this.emitMetrics(true), // Emit success metric
     ]);
 
     return entry;
+  }
+
+  /**
+   * Emit CloudWatch metrics for audit monitoring
+   * @param success - Whether the audit log write was successful
+   */
+  private async emitMetrics(success: boolean): Promise<void> {
+    try {
+      await this.cloudwatch.send(
+        new PutMetricDataCommand({
+          Namespace: 'AuthBridge/Audit',
+          MetricData: [
+            {
+              MetricName: 'AuditLogEntries',
+              Value: 1,
+              Unit: 'Count',
+              Dimensions: [
+                { Name: 'Stage', Value: process.env.STAGE || 'staging' },
+              ],
+            },
+            ...(success ? [] : [{
+              MetricName: 'AuditWriteFailures',
+              Value: 1,
+              Unit: 'Count',
+              Dimensions: [
+                { Name: 'Stage', Value: process.env.STAGE || 'staging' },
+              ],
+            }]),
+          ],
+        })
+      );
+    } catch (error) {
+      // Don't fail if metrics emission fails
+      console.error('Failed to emit audit metrics:', error);
+    }
   }
 
   private async writeToDynamoDB(entry: AuditLogEntry): Promise<void> {
@@ -77,6 +117,8 @@ export class AuditService {
       );
     } catch (error) {
       console.error('Failed to write audit log to DynamoDB:', error);
+      // Emit failure metric
+      await this.emitMetrics(false);
       // Don't fail the operation if audit logging fails
     }
   }
@@ -639,6 +681,12 @@ export class AuditService {
    * @param caseId - Associated case identifier
    * @param attemptNumber - Retry attempt number
    */
+  /**
+   * Log webhook retry attempt
+   * @param webhookId - Webhook identifier
+   * @param caseId - Associated case identifier
+   * @param attemptNumber - Retry attempt number
+   */
   async logWebhookRetry(webhookId: string, caseId: string, attemptNumber: number): Promise<void> {
     await this.logEvent({
       action: 'WEBHOOK_RETRY',
@@ -649,6 +697,13 @@ export class AuditService {
     });
   }
 
+  /**
+   * Log webhook failure (all retries exhausted)
+   * @param webhookId - Webhook identifier
+   * @param caseId - Associated case identifier
+   * @param errorCode - Error code
+   * @param errorMessage - Error message
+   */
   /**
    * Log webhook failure (all retries exhausted)
    * @param webhookId - Webhook identifier
@@ -667,6 +722,12 @@ export class AuditService {
     });
   }
 
+  /**
+   * Log webhook deletion
+   * @param webhookId - Webhook identifier
+   * @param userId - User who deleted the webhook
+   * @param ipAddress - IP address of the request
+   */
   /**
    * Log webhook deletion
    * @param webhookId - Webhook identifier

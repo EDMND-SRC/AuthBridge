@@ -207,10 +207,11 @@ export async function handler(
     // Save updated configuration
     await dynamoDBService.putItem(updatedConfig);
 
-    // Audit log webhook configuration
+    // Audit log webhook configuration (use clientId as webhookId since webhooks are per-client)
     const ipAddress = event.requestContext.identity?.sourceIp || 'unknown';
+    const webhookId = `WEBHOOK#${clientId}`; // Webhook ID is derived from client
     await auditService.logWebhookConfigured(
-      clientId,
+      webhookId,
       clientId, // userId is clientId for API key auth
       ipAddress,
       updatedConfig.webhookUrl || ''
@@ -233,6 +234,14 @@ export async function handler(
     };
   } catch (error) {
     console.error('Error configuring webhook:', error);
+
+    // Audit log system error for compliance
+    await auditService.logSystemError(
+      'WEBHOOK_CONFIG_ERROR',
+      error instanceof Error ? error.message : 'Unknown error',
+      { requestId: event.requestContext.requestId }
+    ).catch(err => console.error('Failed to log audit event:', err));
+
     return {
       statusCode: 500,
       headers: baseHeaders,
