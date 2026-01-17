@@ -1,4 +1,5 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
+import { addSecurityHeaders } from '../middleware/security-headers';
 import { VerificationService } from '../services/verification';
 import { logger } from '../utils/logger';
 import { createErrorResponse } from '../utils/errors';
@@ -45,8 +46,8 @@ export async function handler(
 
     if (!clientId) {
       logger.warn('Missing clientId in authorizer context', { requestId });
-      return {
-        statusCode: 401,
+      return addSecurityHeaders({
+      statusCode: 401,
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
@@ -58,7 +59,7 @@ export async function handler(
             requestId
           )
         ),
-      };
+      });
     }
 
     // Parse query parameters
@@ -78,7 +79,6 @@ export async function handler(
       filters: { status, dateFrom, dateTo, documentType, assignee, search },
       pagination: { limit, cursor: cursor ? 'provided' : 'none' },
     });
-
     const queryStartTime = Date.now();
 
     // Get verifications from database
@@ -166,7 +166,6 @@ export async function handler(
       totalCount: verifications.length,
       hasMore,
     });
-
     // Log performance metrics for monitoring
     const totalTimeMs = Date.now() - startTime;
     logPerformanceMetrics(requestId, clientId, {
@@ -176,8 +175,7 @@ export async function handler(
       resultCount: cases.length,
       totalCount: verifications.length,
     });
-
-    return {
+    return addSecurityHeaders({
       statusCode: 200,
       headers: {
         'Content-Type': 'application/json',
@@ -196,14 +194,13 @@ export async function handler(
           },
         },
       }),
-    };
+    });
   } catch (error) {
     logger.error('Failed to list cases', {
       requestId,
       error: error instanceof Error ? error.message : 'Unknown error',
     });
-
-    return {
+    return addSecurityHeaders({
       statusCode: 500,
       headers: {
         'Content-Type': 'application/json',
@@ -216,7 +213,7 @@ export async function handler(
           requestId
         )
       ),
-    };
+    });
   }
 }
 

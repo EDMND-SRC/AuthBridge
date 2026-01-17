@@ -9,11 +9,18 @@ provider:
   stage: ${opt:stage, 'staging'}
   memorySize: 512
   timeout: 30
+  apiGateway:
+    minimumCompressionSize: 1024
+    shouldStartNameWithService: true
+  endpointType: REGIONAL
   environment:
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
     NODE_OPTIONS: '--enable-source-maps'
     TABLE_NAME: AuthBridgeTable
     BUCKET_NAME: authbridge-documents-${self:provider.stage}
+    DATA_ENCRYPTION_KEY_ID: ${cf:authbridge-kms-${self:provider.stage}.DataEncryptionKeyId}
+    DATA_ENCRYPTION_KEY_ARN: ${cf:authbridge-kms-${self:provider.stage}.DataEncryptionKeyArn}
+
   iam:
     role:
       statements:
@@ -66,6 +73,48 @@ provider:
             - logs:CreateLogStream
             - logs:PutLogEvents
           Resource: 'arn:aws:logs:${self:provider.region}:*:*'
+        - Effect: Allow
+          Action:
+            - kms:Encrypt
+            - kms:Decrypt
+            - kms:GenerateDataKey
+            - kms:GenerateDataKeyWithoutPlaintext
+            - kms:DescribeKey
+          Resource:
+            - ${cf:authbridge-kms-${self:provider.stage}.DataEncryptionKeyArn}
+
+package:
+  individually: false
+  excludeDevDependencies: true
+  patterns:
+    # Start by excluding everything
+    - '!**'
+    # Include only compiled code
+    - 'dist/**'
+    # Explicitly exclude root monorepo node_modules (1.9GB)
+    - '!../../node_modules/**'
+    - '!../node_modules/**'
+    # Include only service-level node_modules (production deps)
+    - 'node_modules/**'
+    - '!node_modules/@types/**'
+    - '!node_modules/**/*.md'
+    - '!node_modules/**/*.txt'
+    - '!node_modules/**/*.map'
+    - '!node_modules/**/test/**'
+    - '!node_modules/**/tests/**'
+    - '!node_modules/**/*.d.ts'
+    # Exclude test and dev files
+    - '!**/*.test.js'
+    - '!**/*.test.ts'
+    - '!tests/**'
+    - '!test-data/**'
+    - '!scripts/**'
+    - '!docs/**'
+    - '!*.md'
+    - '!src/**'
+    - '!*.config.ts'
+    - '!*.config.js'
+    - '!tsconfig*.json'
 
 functions:
   listCases:
@@ -226,7 +275,7 @@ functions:
     timeout: 10
     events:
       - http:
-          path: /api/v1/verifications/{id}
+          path: /api/v1/verifications/{verificationId}
           method: get
           cors: true
           authorizer:
@@ -269,7 +318,8 @@ functions:
     description: Process OCR extraction from document images
     memorySize: 512
     timeout: 60
-    reservedConcurrency: 1  # Respect 1 TPS Textract quota in af-south-1
+    # Note: reservedConcurrency removed due to af-south-1 account limit (10 total)
+    # Textract 1 TPS limit is enforced via SQS batchSize: 1
     environment:
       OCR_ALERT_TOPIC_ARN: !Ref OcrAlertTopic
       BIOMETRIC_QUEUE_URL: !Ref BiometricQueue
@@ -285,7 +335,8 @@ functions:
     description: Process biometric face matching (liveness + comparison)
     memorySize: 1024
     timeout: 60
-    reservedConcurrency: 5  # Respect 5 TPS Rekognition quota in af-south-1
+    # Note: reservedConcurrency removed due to af-south-1 account limit (10 total)
+    # Rekognition 5 TPS limit is enforced via SQS batchSize: 1
     environment:
       BIOMETRIC_QUEUE_URL: !Ref BiometricQueue
     events:
@@ -304,12 +355,36 @@ resources:
         BucketEncryption:
           ServerSideEncryptionConfiguration:
             - ServerSideEncryptionByDefault:
-                SSEAlgorithm: AES256
+                SSEAlgorithm: aws:kms
+                KMSMasterKeyID: ${cf:authbridge-kms-${self:provider.stage}.DataEncryptionKeyArn}
         PublicAccessBlockConfiguration:
           BlockPublicAcls: true
           BlockPublicPolicy: true
           IgnorePublicAcls: true
           RestrictPublicBuckets: true
+
+    DocumentsBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref DocumentsBucket
+        PolicyDocument:
+          Statement:
+            - Sid: DenyUnencryptedObjectUploads
+              Effect: Deny
+              Principal: '*'
+              Action: s3:PutObject
+              Resource: !Sub '${DocumentsBucket.Arn}/*'
+              Condition:
+                StringNotEquals:
+                  's3:x-amz-server-side-encryption': 'aws:kms'
+            - Sid: DenyIncorrectEncryptionHeader
+              Effect: Deny
+              Principal: '*'
+              Action: s3:PutObject
+              Resource: !Sub '${DocumentsBucket.Arn}/*'
+              Condition:
+                StringNotEqualsIfExists:
+                  's3:x-amz-server-side-encryption-aws-kms-key-id': ${cf:authbridge-kms-${self:provider.stage}.DataEncryptionKeyArn}
 
     OcrQueue:
       Type: AWS::SQS::Queue

@@ -1,11 +1,11 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
+import { addSecurityHeaders } from '../middleware/security-headers';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, UpdateCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import { v4 as uuidv4 } from 'uuid';
 
 const sqsClient = new SQSClient({ region: process.env.AWS_REGION || 'af-south-1' });
-
 const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: process.env.AWS_REGION || 'af-south-1' }));
 
 interface BulkRejectRequest {
@@ -69,27 +69,27 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
   // Validate request
   if (!caseIds || !Array.isArray(caseIds) || caseIds.length === 0) {
-    return {
+    return addSecurityHeaders({
       statusCode: 400,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       body: JSON.stringify({ error: 'caseIds array is required' })
-    };
+    });
   }
 
   if (!reason || !reason.trim()) {
-    return {
+    return addSecurityHeaders({
       statusCode: 400,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       body: JSON.stringify({ error: 'Rejection reason is required' })
-    };
+    });
   }
 
   if (caseIds.length > 50) {
-    return {
+    return addSecurityHeaders({
       statusCode: 400,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       body: JSON.stringify({ error: 'Maximum 50 cases per bulk operation' })
-    };
+    });
   }
 
   const bulkOperationId = uuidv4();
@@ -180,8 +180,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   const succeeded = results.filter(r => r.success).length;
   const failed = results.filter(r => !r.success).length;
 
-  return {
-    statusCode: 200,
+  return addSecurityHeaders({
+      statusCode: 200,
     headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     body: JSON.stringify({
       data: {
@@ -198,5 +198,5 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         bulkOperationId
       }
     })
-  };
+  });
 };

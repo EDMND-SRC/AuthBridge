@@ -1,4 +1,5 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
+import { addSecurityHeaders } from '../middleware/security-headers';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, QueryCommand } from '@aws-sdk/lib-dynamodb';
 
@@ -8,11 +9,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   const { id: caseId } = event.pathParameters || {};
 
   if (!caseId) {
-    return {
+    return addSecurityHeaders({
       statusCode: 400,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Case ID required' })
-    };
+    });
   }
 
   try {
@@ -35,7 +36,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       timestamp: item.timestamp
     }));
 
-    return {
+    return addSecurityHeaders({
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -46,13 +47,13 @@ export const handler: APIGatewayProxyHandler = async (event) => {
           count: notes.length
         }
       })
-    };
+    });
   } catch (error) {
     console.error('Error fetching notes:', error);
-    return {
+    return addSecurityHeaders({
       statusCode: 500,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Internal server error' })
-    };
+    });
   }
 };

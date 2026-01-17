@@ -1,11 +1,11 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
+import { addSecurityHeaders } from '../middleware/security-headers';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, UpdateCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 
 const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: process.env.AWS_REGION || 'af-south-1' }));
 const sqsClient = new SQSClient({ region: process.env.AWS_REGION || 'af-south-1' });
-
 const VALID_REASONS = [
   'blurry_image',
   'face_mismatch',
@@ -24,11 +24,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   const timestamp = new Date().toISOString();
 
   if (!id) {
-    return {
+    return addSecurityHeaders({
       statusCode: 400,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Case ID required' })
-    };
+    });
   }
 
   // Parse request body
@@ -37,23 +37,23 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
   // Validate reason code
   if (!reason || !VALID_REASONS.includes(reason)) {
-    return {
+    return addSecurityHeaders({
       statusCode: 400,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         error: 'Invalid reason code',
         validReasons: VALID_REASONS
       })
-    };
+    });
   }
 
   // Validate notes length
   if (notes && notes.length > 500) {
-    return {
+    return addSecurityHeaders({
       statusCode: 400,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Notes must be 500 characters or less' })
-    };
+    });
   }
 
   try {
@@ -117,7 +117,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       })
     }));
 
-    return {
+    return addSecurityHeaders({
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -134,21 +134,21 @@ export const handler: APIGatewayProxyHandler = async (event) => {
           timestamp
         }
       })
-    };
+    });
   } catch (error: any) {
     if (error.name === 'ConditionalCheckFailedException') {
-      return {
-        statusCode: 409,
+      return addSecurityHeaders({
+      statusCode: 409,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ error: 'Case already decided or invalid status' })
-      };
+      });
     }
 
     console.error('Error rejecting case:', error);
-    return {
+    return addSecurityHeaders({
       statusCode: 500,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Internal server error' })
-    };
+    });
   }
 };

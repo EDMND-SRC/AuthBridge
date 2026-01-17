@@ -8,12 +8,14 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import type { VerificationEntity, VerificationStatus } from '../types/verification';
 import type { DocumentEntity } from '../types/document';
+import { EncryptionService } from './encryption';
 
 export class DynamoDBService {
   private client: DynamoDBDocumentClient;
   private tableName: string;
+  private encryptionService: EncryptionService;
 
-  constructor(tableName?: string, region?: string, endpoint?: string) {
+  constructor(tableName?: string, region?: string, endpoint?: string, encryptionService?: EncryptionService) {
     // Only use test credentials for local DynamoDB (when endpoint is explicitly set)
     const isLocalDynamoDB = !!(endpoint || process.env.DYNAMODB_ENDPOINT);
 
@@ -37,15 +39,73 @@ export class DynamoDBService {
       },
     });
     this.tableName = tableName || process.env.TABLE_NAME || 'AuthBridgeTable';
+    this.encryptionService = encryptionService || new EncryptionService();
   }
 
   /**
    * Put verification entity with conditional write to prevent duplicates
+   * Encrypts sensitive fields before storage
    */
   async putVerification(verification: VerificationEntity): Promise<void> {
+    // Clone to avoid mutating original
+    const encryptedVerification = { ...verification };
+
+    // Encrypt sensitive fields if present
+    if (encryptedVerification.extractedData) {
+      const extractedData = { ...encryptedVerification.extractedData };
+
+      // Encrypt address if present
+      if (extractedData.address && typeof extractedData.address === 'string') {
+        extractedData.address = await this.encryptionService.encryptField(
+          extractedData.address,
+          3,
+          verification.verificationId,
+          'address'
+        );
+      }
+
+      // Encrypt ID number if present (Omang number)
+      if (extractedData.idNumber) {
+        // CRITICAL: Hash plaintext FIRST for duplicate detection (GSI2PK)
+        if (!encryptedVerification.GSI2PK) {
+          encryptedVerification.GSI2PK = `OMANG#${this.encryptionService.hashField(extractedData.idNumber)}`;
+        }
+
+        // Then encrypt for storage
+        extractedData.idNumber = await this.encryptionService.encryptField(
+          extractedData.idNumber,
+          3,
+          verification.verificationId,
+          'idNumber'
+        );
+      }
+
+      // Encrypt date of birth if present
+      if (extractedData.dateOfBirth && typeof extractedData.dateOfBirth === 'string') {
+        extractedData.dateOfBirth = await this.encryptionService.encryptField(
+          extractedData.dateOfBirth,
+          3,
+          verification.verificationId,
+          'dateOfBirth'
+        );
+      }
+
+      // Encrypt phone number if present
+      if (extractedData.phoneNumber && typeof extractedData.phoneNumber === 'string') {
+        extractedData.phoneNumber = await this.encryptionService.encryptField(
+          extractedData.phoneNumber,
+          3,
+          verification.verificationId,
+          'phoneNumber'
+        );
+      }
+
+      encryptedVerification.extractedData = extractedData;
+    }
+
     const command = new PutCommand({
       TableName: this.tableName,
-      Item: verification,
+      Item: encryptedVerification,
       ConditionExpression: 'attribute_not_exists(PK)',
     });
 
@@ -61,6 +121,7 @@ export class DynamoDBService {
 
   /**
    * Get verification by ID
+   * Decrypts sensitive fields after retrieval
    */
   async getVerification(verificationId: string): Promise<VerificationEntity | null> {
     const command = new GetCommand({
@@ -72,11 +133,86 @@ export class DynamoDBService {
     });
 
     const result = await this.client.send(command);
-    return (result.Item as VerificationEntity) || null;
+    if (!result.Item) {
+      return null;
+    }
+
+    const verification = result.Item as VerificationEntity;
+
+    // Decrypt sensitive fields if present
+    if (verification.extractedData) {
+      const extractedData = { ...verification.extractedData };
+
+      // Decrypt address if present
+      if (extractedData.address && typeof extractedData.address === 'string') {
+        try {
+          extractedData.address = await this.encryptionService.decryptField(
+            extractedData.address,
+            3,
+            verificationId,
+            'address'
+          );
+        } catch (error) {
+          console.error('Failed to decrypt address:', error);
+          // Mark as decryption error instead of keeping encrypted value
+          extractedData.address = '[DECRYPTION_ERROR]';
+        }
+      }
+
+      // Decrypt ID number if present
+      if (extractedData.idNumber) {
+        try {
+          extractedData.idNumber = await this.encryptionService.decryptField(
+            extractedData.idNumber,
+            3,
+            verificationId,
+            'idNumber'
+          );
+        } catch (error) {
+          console.error('Failed to decrypt idNumber:', error);
+          extractedData.idNumber = '[DECRYPTION_ERROR]';
+        }
+      }
+
+      // Decrypt date of birth if present
+      if (extractedData.dateOfBirth && typeof extractedData.dateOfBirth === 'string') {
+        try {
+          extractedData.dateOfBirth = await this.encryptionService.decryptField(
+            extractedData.dateOfBirth,
+            3,
+            verificationId,
+            'dateOfBirth'
+          );
+        } catch (error) {
+          console.error('Failed to decrypt dateOfBirth:', error);
+          extractedData.dateOfBirth = '[DECRYPTION_ERROR]';
+        }
+      }
+
+      // Decrypt phone number if present
+      if (extractedData.phoneNumber && typeof extractedData.phoneNumber === 'string') {
+        try {
+          extractedData.phoneNumber = await this.encryptionService.decryptField(
+            extractedData.phoneNumber,
+            3,
+            verificationId,
+            'phoneNumber'
+          );
+        } catch (error) {
+          console.error('Failed to decrypt phoneNumber:', error);
+          extractedData.phoneNumber = '[DECRYPTION_ERROR]';
+        }
+      }
+
+      verification.extractedData = extractedData;
+    }
+
+    return verification;
   }
 
   /**
    * Query verifications by client ID and status (GSI1)
+   * Decrypts sensitive fields for all results
    */
   async queryByClientAndStatus(
     clientId: string,
@@ -102,7 +238,75 @@ export class DynamoDBService {
     });
 
     const result = await this.client.send(command);
-    return (result.Items as VerificationEntity[]) || [];
+    const verifications = (result.Items as VerificationEntity[]) || [];
+
+    // Decrypt sensitive fields for all results
+    return await Promise.all(
+      verifications.map(async (verification) => {
+        if (verification.extractedData) {
+          const extractedData = { ...verification.extractedData };
+
+          if (extractedData.address && typeof extractedData.address === 'string') {
+            try {
+              extractedData.address = await this.encryptionService.decryptField(
+                extractedData.address,
+                3,
+                verification.verificationId,
+                'address'
+              );
+            } catch (error) {
+              console.error('Failed to decrypt address:', error);
+              extractedData.address = '[DECRYPTION_ERROR]';
+            }
+          }
+
+          if (extractedData.idNumber) {
+            try {
+              extractedData.idNumber = await this.encryptionService.decryptField(
+                extractedData.idNumber,
+                3,
+                verification.verificationId,
+                'idNumber'
+              );
+            } catch (error) {
+              console.error('Failed to decrypt idNumber:', error);
+              extractedData.idNumber = '[DECRYPTION_ERROR]';
+            }
+          }
+
+          if (extractedData.dateOfBirth && typeof extractedData.dateOfBirth === 'string') {
+            try {
+              extractedData.dateOfBirth = await this.encryptionService.decryptField(
+                extractedData.dateOfBirth,
+                3,
+                verification.verificationId,
+                'dateOfBirth'
+              );
+            } catch (error) {
+              console.error('Failed to decrypt dateOfBirth:', error);
+              extractedData.dateOfBirth = '[DECRYPTION_ERROR]';
+            }
+          }
+
+          if (extractedData.phoneNumber && typeof extractedData.phoneNumber === 'string') {
+            try {
+              extractedData.phoneNumber = await this.encryptionService.decryptField(
+                extractedData.phoneNumber,
+                3,
+                verification.verificationId,
+                'phoneNumber'
+              );
+            } catch (error) {
+              console.error('Failed to decrypt phoneNumber:', error);
+              extractedData.phoneNumber = '[DECRYPTION_ERROR]';
+            }
+          }
+
+          verification.extractedData = extractedData;
+        }
+        return verification;
+      })
+    );
   }
 
   /**

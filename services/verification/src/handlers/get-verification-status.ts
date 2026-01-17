@@ -40,7 +40,7 @@ export async function handler(
     }
 
     // Extract verification ID from path parameters
-    const verificationId = event.pathParameters?.id;
+    const verificationId = event.pathParameters?.verificationId;
 
     if (!verificationId) {
       return {

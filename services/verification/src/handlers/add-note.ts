@@ -1,4 +1,5 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
+import { addSecurityHeaders } from '../middleware/security-headers';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
@@ -14,11 +15,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   const timestamp = new Date().toISOString();
 
   if (!caseId) {
-    return {
+    return addSecurityHeaders({
       statusCode: 400,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Case ID required' })
-    };
+    });
   }
 
   // Parse request body
@@ -27,19 +28,19 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
   // Validate content
   if (!content || !content.trim()) {
-    return {
+    return addSecurityHeaders({
       statusCode: 400,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Note content is required' })
-    };
+    });
   }
 
   if (content.length > 2000) {
-    return {
+    return addSecurityHeaders({
       statusCode: 400,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Note content must be 2000 characters or less' })
-    };
+    });
   }
 
   const noteId = uuidv4();
@@ -87,7 +88,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       }
     }));
 
-    return {
+    return addSecurityHeaders({
       statusCode: 201,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -107,13 +108,13 @@ export const handler: APIGatewayProxyHandler = async (event) => {
           timestamp
         }
       })
-    };
+    });
   } catch (error) {
     console.error('Error adding note:', error);
-    return {
+    return addSecurityHeaders({
       statusCode: 500,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Internal server error' })
-    };
+    });
   }
 };

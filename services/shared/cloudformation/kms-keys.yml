@@ -1,0 +1,326 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AuthBridge KMS Keys for Data Encryption (Data Protection Act 2024 Compliance)
+
+Parameters:
+  Stage:
+    Type: String
+    Default: staging
+    AllowedValues:
+      - staging
+      - production
+    Description: Deployment stage
+
+Resources:
+  # =============================================================================
+  # Primary Data Encryption Key
+  # Used for: DynamoDB attribute-level encryption, S3 object encryption
+  # =============================================================================
+  DataEncryptionKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: AuthBridge primary data encryption key for PII protection
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Id: authbridge-data-key-policy
+        Statement:
+          # Allow root account full access (required)
+          - Sid: AllowRootAccess
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+
+          # Allow Lambda functions to encrypt/decrypt
+          - Sid: AllowLambdaEncryptDecrypt
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:GenerateDataKey
+              - kms:GenerateDataKeyWithoutPlaintext
+              - kms:DescribeKey
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'kms:CallerAccount': !Ref AWS::AccountId
+
+          # Allow DynamoDB to use the key
+          - Sid: AllowDynamoDBEncryption
+            Effect: Allow
+            Principal:
+              Service: dynamodb.amazonaws.com
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:GenerateDataKey
+              - kms:DescribeKey
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'kms:CallerAccount': !Ref AWS::AccountId
+
+          # Allow S3 to use the key
+          - Sid: AllowS3Encryption
+            Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:GenerateDataKey
+              - kms:DescribeKey
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'kms:CallerAccount': !Ref AWS::AccountId
+
+          # Allow CloudWatch Logs encryption
+          - Sid: AllowCloudWatchLogsEncryption
+            Effect: Allow
+            Principal:
+              Service: !Sub 'logs.${AWS::Region}.amazonaws.com'
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:GenerateDataKey
+              - kms:DescribeKey
+            Resource: '*'
+            Condition:
+              ArnLike:
+                'kms:EncryptionContext:aws:logs:arn': !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*'
+      Tags:
+        - Key: Project
+          Value: AuthBridge
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: Purpose
+          Value: DataEncryption
+        - Key: Compliance
+          Value: DataProtectionAct2024
+
+  DataEncryptionKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub 'alias/authbridge-data-encryption-${Stage}'
+      TargetKeyId: !Ref DataEncryptionKey
+
+  # =============================================================================
+  # Audit Log Encryption Key
+  # Used for: Audit log encryption (5-year retention requirement)
+  # =============================================================================
+  AuditLogEncryptionKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: AuthBridge audit log encryption key (5-year retention)
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Id: authbridge-audit-key-policy
+        Statement:
+          - Sid: AllowRootAccess
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+
+          - Sid: AllowLambdaAuditLogging
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action:
+              - kms:Encrypt
+              - kms:GenerateDataKey
+              - kms:DescribeKey
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'kms:CallerAccount': !Ref AWS::AccountId
+      Tags:
+        - Key: Project
+          Value: AuthBridge
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: Purpose
+          Value: AuditLogEncryption
+        - Key: RetentionYears
+          Value: '5'
+
+  AuditLogEncryptionKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub 'alias/authbridge-audit-${Stage}'
+      TargetKeyId: !Ref AuditLogEncryptionKey
+
+  # =============================================================================
+  # Webhook Secret Encryption Key
+  # Used for: Encrypting webhook secrets at rest
+  # =============================================================================
+  WebhookSecretKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: AuthBridge webhook secret encryption key
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Id: authbridge-webhook-key-policy
+        Statement:
+          - Sid: AllowRootAccess
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+
+          - Sid: AllowLambdaWebhookOperations
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:GenerateDataKey
+              - kms:DescribeKey
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'kms:CallerAccount': !Ref AWS::AccountId
+      Tags:
+        - Key: Project
+          Value: AuthBridge
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: Purpose
+          Value: WebhookSecretEncryption
+
+  WebhookSecretKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub 'alias/authbridge-webhook-${Stage}'
+      TargetKeyId: !Ref WebhookSecretKey
+
+  # =============================================================================
+  # IAM Roles for KMS Access
+  # =============================================================================
+
+  # Lambda execution role with KMS permissions
+  LambdaKMSRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'AuthBridgeLambdaKMS-${Stage}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: KMSDataEncryption
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - kms:Encrypt
+                  - kms:Decrypt
+                  - kms:GenerateDataKey
+                  - kms:GenerateDataKeyWithoutPlaintext
+                  - kms:DescribeKey
+                Resource:
+                  - !GetAtt DataEncryptionKey.Arn
+                  - !GetAtt WebhookSecretKey.Arn
+              - Effect: Allow
+                Action:
+                  - kms:Encrypt
+                  - kms:GenerateDataKey
+                  - kms:DescribeKey
+                Resource:
+                  - !GetAtt AuditLogEncryptionKey.Arn
+      Tags:
+        - Key: Project
+          Value: AuthBridge
+        - Key: Stage
+          Value: !Ref Stage
+
+  # Compliance officer role for audit log access
+  ComplianceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'AuthBridgeComplianceRole-${Stage}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: sts:AssumeRole
+            Condition:
+              Bool:
+                'aws:MultiFactorAuthPresent': 'true'
+      Policies:
+        - PolicyName: AuditLogAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                  - dynamodb:GetItem
+                Resource:
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/AuthBridgeTable'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/AuthBridgeTable/index/*'
+                Condition:
+                  ForAllValues:StringLike:
+                    'dynamodb:LeadingKeys':
+                      - 'AUDIT#*'
+      Tags:
+        - Key: Project
+          Value: AuthBridge
+        - Key: Stage
+          Value: !Ref Stage
+        - Key: Purpose
+          Value: ComplianceAccess
+
+Outputs:
+  DataEncryptionKeyArn:
+    Description: ARN of the data encryption KMS key
+    Value: !GetAtt DataEncryptionKey.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-DataKeyArn'
+
+  DataEncryptionKeyId:
+    Description: ID of the data encryption KMS key
+    Value: !Ref DataEncryptionKey
+    Export:
+      Name: !Sub '${AWS::StackName}-DataKeyId'
+
+  AuditLogEncryptionKeyArn:
+    Description: ARN of the audit log encryption KMS key
+    Value: !GetAtt AuditLogEncryptionKey.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-AuditKeyArn'
+
+  WebhookSecretKeyArn:
+    Description: ARN of the webhook secret encryption KMS key
+    Value: !GetAtt WebhookSecretKey.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-WebhookKeyArn'
+
+  LambdaKMSRoleArn:
+    Description: ARN of the Lambda KMS execution role
+    Value: !GetAtt LambdaKMSRole.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-LambdaKMSRoleArn'
+
+  ComplianceRoleArn:
+    Description: ARN of the compliance officer role
+    Value: !GetAtt ComplianceRole.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-ComplianceRoleArn'

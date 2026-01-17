@@ -75,8 +75,15 @@ async function processBiometricWithRetry(
       throw new Error('Document not found in DynamoDB');
     }
 
-    const selfieS3Key = selfieDoc.Item.s3Key as string;
-    const omangS3Key = omangDoc.Item.s3Key as string;
+    if (typeof selfieDoc.Item !== 'object' || !('s3Key' in selfieDoc.Item) || typeof selfieDoc.Item.s3Key !== 'string') {
+      throw new Error('Selfie document missing s3Key');
+    }
+    if (typeof omangDoc.Item !== 'object' || !('s3Key' in omangDoc.Item) || typeof omangDoc.Item.s3Key !== 'string') {
+      throw new Error('Omang document missing s3Key');
+    }
+
+    const selfieS3Key = selfieDoc.Item.s3Key;
+    const omangS3Key = omangDoc.Item.s3Key;
 
     // Process biometric verification
     const startTime = Date.now();
