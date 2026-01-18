@@ -40,6 +40,6 @@
     "serverless-esbuild": "^1.57.0",
     "serverless-offline": "^13.3.0",
     "typescript": "^5.8.3",
-    "vitest": "0.24.5"
+    "vitest": "^4.0.17"
   }
 }

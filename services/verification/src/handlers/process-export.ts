@@ -4,7 +4,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { AuditService } from '../services/audit';
 import { updateRequestStatus } from '../utils/data-request-utils';
-import type { ExportData, SubjectIdentifierType } from '../types/data-request';
+import type { ExportData, SubjectIdentifierType, SubjectIdentifier, DataRequestEntity } from '../types/data-request';
 
 /** Supported subject identifier types for data export */
 const SUPPORTED_IDENTIFIER_TYPES: SubjectIdentifierType[] = ['email', 'omangNumber', 'verificationId'];
@@ -25,11 +25,18 @@ export async function processExport(event: { requestId: string }): Promise<void>
   const { requestId } = event;
 
   try {
+    // Get data request details and check status for idempotency
+    const dataRequest = await getDataRequest(requestId);
+
+    // Idempotency check: skip if already processed
+    if (dataRequest.status !== 'pending') {
+      console.log(`Export request ${requestId} already ${dataRequest.status}, skipping`);
+      return;
+    }
+
     // Update status to processing
     await updateRequestStatus(dynamodb, tableName, requestId, 'processing');
 
-    // Get data request details
-    const dataRequest = await getDataRequest(requestId);
     const { subjectIdentifier } = dataRequest;
 
     // Query all data for subject
@@ -134,7 +141,7 @@ export async function processExport(event: { requestId: string }): Promise<void>
  * @returns The data request entity
  * @throws Error if request not found
  */
-async function getDataRequest(requestId: string): Promise<any> {
+async function getDataRequest(requestId: string): Promise<DataRequestEntity> {
   const response = await dynamodb.send(
     new GetItemCommand({
       TableName: tableName,
@@ -149,7 +156,7 @@ async function getDataRequest(requestId: string): Promise<any> {
     throw new Error(`Data request ${requestId} not found`);
   }
 
-  return unmarshall(response.Item);
+  return unmarshall(response.Item) as DataRequestEntity;
 }
 
 /**
@@ -158,7 +165,7 @@ async function getDataRequest(requestId: string): Promise<any> {
  * @returns Array of verification records
  * @throws Error if subject identifier type is not supported
  */
-async function queryVerifications(subjectIdentifier: any): Promise<any[]> {
+async function queryVerifications(subjectIdentifier: SubjectIdentifier): Promise<Record<string, any>[]> {
   // Validate subject identifier type
   if (!SUPPORTED_IDENTIFIER_TYPES.includes(subjectIdentifier.type)) {
     throw new Error(`Unsupported subject identifier type: ${subjectIdentifier.type}. Supported types: ${SUPPORTED_IDENTIFIER_TYPES.join(', ')}`);
@@ -199,7 +206,7 @@ async function queryVerifications(subjectIdentifier: any): Promise<any[]> {
   return verifications;
 }
 
-async function queryAuditLogs(subjectIdentifier: any): Promise<any[]> {
+async function queryAuditLogs(subjectIdentifier: SubjectIdentifier): Promise<Record<string, any>[]> {
   const auditLogs: any[] = [];
   let lastEvaluatedKey: any = undefined;
 
@@ -210,7 +217,6 @@ async function queryAuditLogs(subjectIdentifier: any): Promise<any[]> {
     ExpressionAttributeValues: marshall({
       ':userId': `USER#${subjectIdentifier.value}`,
     }),
-    Limit: 1000,
   };
 
   do {
@@ -223,12 +229,17 @@ async function queryAuditLogs(subjectIdentifier: any): Promise<any[]> {
       auditLogs.push(...response.Items.map(item => unmarshall(item)));
     }
     lastEvaluatedKey = response.LastEvaluatedKey;
-  } while (lastEvaluatedKey && auditLogs.length < 1000);
+  } while (lastEvaluatedKey);
 
   return auditLogs;
 }
 
-function extractPersonalData(verifications: any[]): any {
+/**
+ * Extracts personal data from verification records.
+ * @param verifications - Array of verification records
+ * @returns Object containing email, name, and phone
+ */
+function extractPersonalData(verifications: Record<string, any>[]): Record<string, any> {
   if (verifications.length === 0) return {};
 
   const firstCase = verifications[0];
@@ -239,7 +250,12 @@ function extractPersonalData(verifications: any[]): any {
   };
 }
 
-async function enrichVerificationsWithDocuments(verifications: any[]): Promise<any[]> {
+/**
+ * Enriches verification records with document details and presigned URLs.
+ * @param verifications - Array of verification records
+ * @returns Array of enriched verification records with document URLs
+ */
+async function enrichVerificationsWithDocuments(verifications: Record<string, any>[]): Promise<any[]> {
   return Promise.all(
     verifications.map(async (verification) => {
       const documents = await queryDocuments(verification.verificationId);
@@ -267,7 +283,12 @@ async function enrichVerificationsWithDocuments(verifications: any[]): Promise<a
   );
 }
 
-async function queryDocuments(verificationId: string): Promise<any[]> {
+/**
+ * Queries all documents for a verification case.
+ * @param verificationId - The verification case ID
+ * @returns Array of document records
+ */
+async function queryDocuments(verificationId: string): Promise<Record<string, any>[]> {
   const response = await dynamodb.send(
     new QueryCommand({
       TableName: tableName,
@@ -282,6 +303,11 @@ async function queryDocuments(verificationId: string): Promise<any[]> {
   return response.Items?.map(item => unmarshall(item)) || [];
 }
 
+/**
+ * Generates a presigned URL for S3 object download.
+ * @param s3Key - S3 object key
+ * @returns Presigned URL valid for 1 hour
+ */
 async function generatePresignedUrl(s3Key: string): Promise<string> {
   return getSignedUrl(
     s3,
@@ -293,7 +319,12 @@ async function generatePresignedUrl(s3Key: string): Promise<string> {
   );
 }
 
-function formatAuditLogs(auditLogs: any[]): any[] {
+/**
+ * Formats audit logs for export.
+ * @param auditLogs - Array of audit log records
+ * @returns Array of formatted audit log entries
+ */
+function formatAuditLogs(auditLogs: Record<string, any>[]): any[] {
   return auditLogs.map(log => ({
     timestamp: log.timestamp,
     action: log.action,

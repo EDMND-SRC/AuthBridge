@@ -3,7 +3,6 @@ import type {
   DataRequestType,
   DataRequestStatus,
   SubjectIdentifierType,
-  DeletionReason,
   SubjectIdentifier,
   DataRequestEntity,
   CreateDataRequestInput,

@@ -3,6 +3,7 @@ import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { unmarshall, marshall } from '@aws-sdk/util-dynamodb';
 import { createHash } from 'crypto';
 import { AuditService } from '../services/audit';
+import type { SubjectIdentifier } from '../types/data-request';
 
 /** Number of days to look back for missed deletions in the queue */
 const DELETION_QUEUE_LOOKBACK_DAYS = 60;
@@ -20,28 +21,49 @@ const tableName = process.env.TABLE_NAME || 'AuthBridgeTable';
 export async function scheduledHardDelete(): Promise<void> {
   console.log('Starting scheduled hard delete job');
 
+  const results = {
+    total: 0,
+    succeeded: 0,
+    failed: 0,
+    errors: [] as string[],
+  };
+
   try {
     const today = new Date().toISOString().split('T')[0];
     const deletionItems = await queryDeletionQueue(today);
 
     console.log(`Found ${deletionItems.length} deletion items to process`);
+    results.total = deletionItems.length;
 
     for (const item of deletionItems) {
       try {
         await processHardDelete(item);
+        results.succeeded++;
       } catch (error) {
-        console.error(`Failed to process deletion item ${item.requestId}:`, error);
+        results.failed++;
+        const errorMsg = `Failed to process deletion item ${item.requestId}: ${(error as Error).message}`;
+        results.errors.push(errorMsg);
+        console.error(errorMsg, error);
       }
     }
 
-    console.log('Scheduled hard delete job completed');
+    console.log(`Scheduled hard delete job completed: ${results.succeeded}/${results.total} succeeded, ${results.failed} failed`);
+
+    if (results.failed > 0) {
+      console.error('Failed deletions:', results.errors);
+    }
   } catch (error) {
     console.error('Scheduled hard delete job failed:', error);
     throw error;
   }
 }
 
-async function queryDeletionQueue(maxDate: string): Promise<any[]> {
+/**
+ * Queries the deletion queue for pending items up to the specified date.
+ * @param maxDate - Maximum date to query (YYYY-MM-DD format)
+ * @returns Array of deletion queue items with status 'pending'
+ */
+async function queryDeletionQueue(maxDate: string): Promise<Record<string, any>[]> {
   const items: any[] = [];
   const dates = generateDateRange(maxDate);
 
@@ -96,7 +118,12 @@ function generateDateRange(maxDate: string): string[] {
   return dates;
 }
 
-async function processHardDelete(deletionItem: any): Promise<void> {
+/**
+ * Processes a single hard deletion item.
+ * Deletes S3 objects, DynamoDB items, and anonymizes audit logs.
+ * @param deletionItem - Deletion queue item to process
+ */
+async function processHardDelete(deletionItem: Record<string, any>): Promise<void> {
   console.log(`Processing hard delete for request ${deletionItem.requestId}`);
 
   const { requestId, itemsToDelete, subjectIdentifier } = deletionItem;
@@ -201,7 +228,11 @@ async function processHardDelete(deletionItem: any): Promise<void> {
   }
 }
 
-async function anonymizeAuditLogs(subjectIdentifier: any): Promise<void> {
+/**
+ * Anonymizes audit logs by replacing user identifiers with SHA-256 hashes.
+ * @param subjectIdentifier - Subject identifier to anonymize
+ */
+async function anonymizeAuditLogs(subjectIdentifier: SubjectIdentifier): Promise<void> {
   const auditLogs = await queryAuditLogsBySubject(subjectIdentifier);
   const hash = createHash('sha256').update(subjectIdentifier.value).digest('hex');
 
@@ -226,7 +257,12 @@ async function anonymizeAuditLogs(subjectIdentifier: any): Promise<void> {
   console.log(`Anonymized ${auditLogs.length} audit log entries`);
 }
 
-async function queryAuditLogsBySubject(subjectIdentifier: any): Promise<any[]> {
+/**
+ * Queries audit logs for a specific subject identifier.
+ * @param subjectIdentifier - Subject identifier to query
+ * @returns Array of audit log records
+ */
+async function queryAuditLogsBySubject(subjectIdentifier: SubjectIdentifier): Promise<Record<string, any>[]> {
   const auditLogs: any[] = [];
   let lastEvaluatedKey: any = undefined;
 

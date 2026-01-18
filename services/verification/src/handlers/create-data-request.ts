@@ -43,6 +43,17 @@ async function baseHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
       };
     }
 
+    // Validate subject identifier type
+    const validTypes = ['email', 'omangNumber', 'verificationId'];
+    if (!validTypes.includes(body.subjectIdentifier.type)) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({
+          error: `Invalid subject identifier type. Must be one of: ${validTypes.join(', ')}`
+        }),
+      };
+    }
+
     // For deletion, require confirmation
     if (type === 'deletion' && !body.confirmDeletion) {
       return {
@@ -54,7 +65,8 @@ async function baseHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
     // Create data request entity
     const requestId = `dsr_${randomUUID()}`;
     const now = new Date().toISOString();
-    const ttl = Math.floor(Date.now() / 1000) + (90 * 24 * 60 * 60); // 90 days
+    const TTL_DAYS = 90;
+    const ttl = Math.floor(Date.now() / 1000) + (TTL_DAYS * 24 * 60 * 60);
 
     const dataRequest: DataRequestEntity = {
       PK: `DSR#${requestId}`,
@@ -89,9 +101,12 @@ async function baseHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
 
     // Invoke background worker asynchronously
     const workerFunction = type === 'export' ? 'processExport' : 'processDeletion';
+    const functionName = process.env[`${workerFunction.toUpperCase()}_FUNCTION_NAME`] ||
+      `authbridge-verification-${process.env.STAGE}-${workerFunction}`;
+
     await lambda.send(
       new InvokeCommand({
-        FunctionName: `authbridge-verification-${process.env.STAGE}-${workerFunction}`,
+        FunctionName: functionName,
         InvocationType: 'Event', // Async invoke
         Payload: JSON.stringify({ requestId }),
       })

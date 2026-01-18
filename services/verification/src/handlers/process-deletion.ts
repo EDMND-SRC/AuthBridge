@@ -2,7 +2,7 @@ import { DynamoDBClient, QueryCommand, UpdateItemCommand, PutItemCommand, GetIte
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { AuditService } from '../services/audit';
 import { updateRequestStatus } from '../utils/data-request-utils';
-import type { DeletionQueueItem, SubjectIdentifierType } from '../types/data-request';
+import type { DeletionQueueItem, SubjectIdentifierType, SubjectIdentifier, DataRequestEntity } from '../types/data-request';
 
 /** Supported subject identifier types for data deletion */
 const SUPPORTED_IDENTIFIER_TYPES: SubjectIdentifierType[] = ['email', 'omangNumber', 'verificationId'];
@@ -20,11 +20,18 @@ export async function processDeletion(event: { requestId: string }): Promise<voi
   const { requestId } = event;
 
   try {
+    // Get data request details and check status for idempotency
+    const dataRequest = await getDataRequest(requestId);
+
+    // Idempotency check: skip if already processed
+    if (dataRequest.status !== 'pending') {
+      console.log(`Deletion request ${requestId} already ${dataRequest.status}, skipping`);
+      return;
+    }
+
     // Update status to processing
     await updateRequestStatus(dynamodb, tableName, requestId, 'processing');
 
-    // Get data request details
-    const dataRequest = await getDataRequest(requestId);
     const { subjectIdentifier } = dataRequest;
 
     // Query all items to delete
@@ -141,7 +148,7 @@ export async function processDeletion(event: { requestId: string }): Promise<voi
  * @returns The data request entity
  * @throws Error if request not found
  */
-async function getDataRequest(requestId: string): Promise<any> {
+async function getDataRequest(requestId: string): Promise<DataRequestEntity> {
   const response = await dynamodb.send(
     new GetItemCommand({
       TableName: tableName,
@@ -156,7 +163,7 @@ async function getDataRequest(requestId: string): Promise<any> {
     throw new Error(`Data request ${requestId} not found`);
   }
 
-  return unmarshall(response.Item);
+  return unmarshall(response.Item) as DataRequestEntity;
 }
 
 /**
@@ -165,7 +172,7 @@ async function getDataRequest(requestId: string): Promise<any> {
  * @returns Array of verification records
  * @throws Error if subject identifier type is not supported
  */
-async function queryVerifications(subjectIdentifier: any): Promise<any[]> {
+async function queryVerifications(subjectIdentifier: SubjectIdentifier): Promise<Record<string, any>[]> {
   // Validate subject identifier type
   if (!SUPPORTED_IDENTIFIER_TYPES.includes(subjectIdentifier.type)) {
     throw new Error(`Unsupported subject identifier type: ${subjectIdentifier.type}. Supported types: ${SUPPORTED_IDENTIFIER_TYPES.join(', ')}`);
@@ -206,7 +213,12 @@ async function queryVerifications(subjectIdentifier: any): Promise<any[]> {
   return verifications;
 }
 
-async function queryAllDocuments(verifications: any[]): Promise<any[]> {
+/**
+ * Queries all documents for multiple verification cases.
+ * @param verifications - Array of verification records
+ * @returns Array of all document records
+ */
+async function queryAllDocuments(verifications: Record<string, any>[]): Promise<Record<string, any>[]> {
   const allDocuments: any[] = [];
 
   for (const verification of verifications) {
@@ -229,7 +241,12 @@ async function queryAllDocuments(verifications: any[]): Promise<any[]> {
   return allDocuments;
 }
 
-async function softDeleteVerifications(verifications: any[]): Promise<void> {
+/**
+ * Performs soft delete by anonymizing PII fields in verification records.
+ * Replaces personal data with [DELETED] placeholder.
+ * @param verifications - Array of verification records to anonymize
+ */
+async function softDeleteVerifications(verifications: Record<string, any>[]): Promise<void> {
   const updatePromises = verifications.map(verification =>
     dynamodb.send(
       new UpdateItemCommand({

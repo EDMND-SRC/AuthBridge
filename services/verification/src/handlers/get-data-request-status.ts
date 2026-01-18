@@ -25,6 +25,14 @@ async function baseHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
       };
     }
 
+    // Validate requestId format
+    if (!requestId.startsWith('dsr_')) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Invalid requestId format. Must start with dsr_' }),
+      };
+    }
+
     // Get data request from DynamoDB
     const response = await dynamodb.send(
       new GetItemCommand({

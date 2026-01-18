@@ -1,156 +1,131 @@
-/**
- * Rate Limiting Middleware for Data Requests
- * Implements per-client rate limiting for data export/deletion requests
- * Story 5.3 - Task 1, Subtask 1.5
- */
-
-import middy from '@middy/core';
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { DynamoDBClient, GetItemCommand, PutItemCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, GetItemCommand, PutItemCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { getAuditContext } from './audit-context';
 
 const dynamodb = new DynamoDBClient({ region: process.env.AWS_REGION });
 const tableName = process.env.TABLE_NAME || 'AuthBridgeTable';
 
-/** Default: 10 requests per hour per client for data requests */
-const DEFAULT_MAX_REQUESTS = 10;
-const DEFAULT_WINDOW_HOURS = 1;
-
-export interface RateLimitConfig {
-  maxRequests?: number;
-  windowHours?: number;
-}
-
-interface RateLimitEntry {
-  PK: string;
-  SK: string;
-  requestCount: number;
-  windowStart: string;
-  ttl: number;
+interface RateLimitOptions {
+  maxRequests: number;
+  windowHours: number;
 }
 
 /**
- * Rate limit middleware for data request endpoints
- * Uses DynamoDB for distributed rate limiting across Lambda instances
+ * Rate limiting middleware using DynamoDB for distributed rate limiting.
+ * Tracks requests per client within a sliding time window.
+ * @param options - Rate limit configuration (maxRequests per windowHours)
  */
-export function rateLimitMiddleware(config?: RateLimitConfig): middy.MiddlewareObj<APIGatewayProxyEvent, APIGatewayProxyResult> {
-  const maxRequests = config?.maxRequests ?? DEFAULT_MAX_REQUESTS;
-  const windowHours = config?.windowHours ?? DEFAULT_WINDOW_HOURS;
-  const windowMs = windowHours * 60 * 60 * 1000;
+export const rateLimitMiddleware = (options: RateLimitOptions) => {
+  const { maxRequests, windowHours } = options;
 
   return {
-    before: async (request) => {
-      const auditContext = getAuditContext(request.event);
-      const clientId = auditContext.clientId || auditContext.userId || 'anonymous';
+    before: async (request: any) => {
+      const event = request.event;
+
+      // Extract client identifier from request context
+      const clientId =
+        event.requestContext?.authorizer?.claims?.sub ||
+        event.requestContext?.identity?.sourceIp ||
+        'anonymous';
 
       const now = Date.now();
-      const rateLimitKey = `RATE_LIMIT#DATA_REQUEST#${clientId}`;
+      const windowStart = now - (windowHours * 60 * 60 * 1000);
+      const rateLimitKey = `RATE_LIMIT#${clientId}#data-request`;
 
       try {
-        // Get current rate limit entry
+        // Get current rate limit record
         const response = await dynamodb.send(
           new GetItemCommand({
             TableName: tableName,
-            Key: {
-              PK: { S: rateLimitKey },
-              SK: { S: 'COUNTER' },
-            },
+            Key: marshall({
+              PK: rateLimitKey,
+              SK: 'COUNTER',
+            }),
           })
         );
 
-        let entry: RateLimitEntry | null = null;
         if (response.Item) {
-          entry = unmarshall(response.Item) as RateLimitEntry;
-        }
+          const record = unmarshall(response.Item);
+          const requestCount = record.requestCount || 0;
+          const lastReset = record.lastReset || 0;
 
-        // Check if window has expired
-        const windowStart = entry ? new Date(entry.windowStart).getTime() : now;
-        const windowExpired = now - windowStart >= windowMs;
-
-        if (!entry || windowExpired) {
-          // Start new window
-          const newEntry: RateLimitEntry = {
-            PK: rateLimitKey,
-            SK: 'COUNTER',
-            requestCount: 1,
-            windowStart: new Date(now).toISOString(),
-            ttl: Math.floor((now + windowMs * 2) / 1000), // TTL: 2x window for cleanup
-          };
-
+          // Check if window has expired
+          if (lastReset < windowStart) {
+            // Reset counter
+            await dynamodb.send(
+              new PutItemCommand({
+                TableName: tableName,
+                Item: marshall({
+                  PK: rateLimitKey,
+                  SK: 'COUNTER',
+                  requestCount: 1,
+                  lastReset: now,
+                  ttl: Math.floor((now + (windowHours * 60 * 60 * 1000)) / 1000),
+                }),
+              })
+            );
+          } else if (requestCount >= maxRequests) {
+            // Rate limit exceeded
+            const resetTime = new Date(lastReset + (windowHours * 60 * 60 * 1000)).toISOString();
+            const error: any = new Error('Rate limit exceeded');
+            error.statusCode = 429;
+            error.body = JSON.stringify({
+              error: 'Rate limit exceeded',
+              message: `Maximum ${maxRequests} requests per ${windowHours} hour(s) allowed`,
+              retryAfter: resetTime,
+            });
+            throw error;
+          } else {
+            // Increment counter
+            await dynamodb.send(
+              new UpdateItemCommand({
+                TableName: tableName,
+                Key: marshall({
+                  PK: rateLimitKey,
+                  SK: 'COUNTER',
+                }),
+                UpdateExpression: 'SET requestCount = requestCount + :inc',
+                ExpressionAttributeValues: marshall({
+                  ':inc': 1,
+                }),
+              })
+            );
+          }
+        } else {
+          // First request in window
           await dynamodb.send(
             new PutItemCommand({
               TableName: tableName,
-              Item: marshall(newEntry),
+              Item: marshall({
+                PK: rateLimitKey,
+                SK: 'COUNTER',
+                requestCount: 1,
+                lastReset: now,
+                ttl: Math.floor((now + (windowHours * 60 * 60 * 1000)) / 1000),
+              }),
             })
           );
-
-          // Add rate limit headers
-          request.internal = request.internal || {};
-          request.internal.rateLimitHeaders = {
-            'X-RateLimit-Limit': String(maxRequests),
-            'X-RateLimit-Remaining': String(maxRequests - 1),
-            'X-RateLimit-Reset': String(Math.floor((now + windowMs) / 1000)),
-          };
-          return;
         }
-
-        // Check if limit exceeded
-        if (entry.requestCount >= maxRequests) {
-          const resetAt = windowStart + windowMs;
-          const retryAfter = Math.ceil((resetAt - now) / 1000);
-
-          return {
-            statusCode: 429,
-            headers: {
-              'Content-Type': 'application/json',
-              'Retry-After': String(retryAfter),
-              'X-RateLimit-Limit': String(maxRequests),
-              'X-RateLimit-Remaining': '0',
-              'X-RateLimit-Reset': String(Math.floor(resetAt / 1000)),
-            },
-            body: JSON.stringify({
-              error: 'Rate limit exceeded',
-              message: `Maximum ${maxRequests} data requests per ${windowHours} hour(s). Try again in ${retryAfter} seconds.`,
-              retryAfter,
-            }),
-          };
+      } catch (error: any) {
+        // If it's our rate limit error, rethrow it
+        if (error.statusCode === 429) {
+          throw error;
         }
-
-        // Increment counter
-        const updatedEntry: RateLimitEntry = {
-          ...entry,
-          requestCount: entry.requestCount + 1,
-        };
-
-        await dynamodb.send(
-          new PutItemCommand({
-            TableName: tableName,
-            Item: marshall(updatedEntry),
-          })
-        );
-
-        // Add rate limit headers
-        request.internal = request.internal || {};
-        request.internal.rateLimitHeaders = {
-          'X-RateLimit-Limit': String(maxRequests),
-          'X-RateLimit-Remaining': String(maxRequests - updatedEntry.requestCount),
-          'X-RateLimit-Reset': String(Math.floor((windowStart + windowMs) / 1000)),
-        };
-      } catch (error) {
-        // Log but don't block on rate limit errors
+        // Otherwise, log and allow request (fail open)
         console.error('Rate limit check failed:', error);
       }
     },
-
-    after: async (request) => {
-      // Add rate limit headers to response
-      if (request.internal?.rateLimitHeaders && request.response) {
-        request.response.headers = {
-          ...request.response.headers,
-          ...request.internal.rateLimitHeaders,
+    onError: async (request: any) => {
+      // Handle rate limit errors
+      if (request.error?.statusCode === 429) {
+        request.response = {
+          statusCode: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'Retry-After': '3600', // 1 hour in seconds
+          },
+          body: request.error.body,
         };
       }
     },
   };
-}
+};
