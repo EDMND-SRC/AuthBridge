@@ -1,3 +1,4 @@
+import middy from '@middy/core';
 import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { SignJWT } from 'jose';
 import { VerificationService } from '../services/verification';
@@ -5,6 +6,9 @@ import { IdempotencyService, IdempotencyConflictError } from '../services/idempo
 import { validateCreateVerificationRequest } from '../services/validation';
 import { logger } from '../utils/logger';
 import { createErrorResponse } from '../utils/errors';
+import { auditContextMiddleware } from '../middleware/audit-context';
+import { securityHeadersMiddleware } from '../middleware/security-headers';
+import { requirePermission } from '../middleware/rbac';
 
 const TABLE_NAME = process.env.TABLE_NAME || 'AuthBridgeTable';
 const REGION = process.env.AWS_REGION || 'af-south-1';
@@ -84,7 +88,7 @@ function buildResponseHeaders(event: APIGatewayProxyEvent): Record<string, strin
   };
 }
 
-export async function handler(
+export async function baseHandler(
   event: APIGatewayProxyEvent,
   context: Context
 ): Promise<APIGatewayProxyResult> {
@@ -303,3 +307,8 @@ export async function handler(
     };
   }
 }
+
+export const handler = middy(baseHandler)
+  .use(auditContextMiddleware())
+  .use(requirePermission('/api/v1/verifications', 'create'))
+  .use(securityHeadersMiddleware());

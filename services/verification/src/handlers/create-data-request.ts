@@ -7,8 +7,18 @@ import { randomUUID } from 'crypto';
 import { auditContextMiddleware, getAuditContext } from '../middleware/audit-context';
 import { securityHeadersMiddleware } from '../middleware/security-headers';
 import { rateLimitMiddleware } from '../middleware/rate-limit';
+import { requirePermission } from '../middleware/rbac.js';
 import { AuditService } from '../services/audit';
 import type { CreateDataRequestInput, DataRequestEntity } from '../types/data-request';
+
+/** Data request TTL in days (90 days) */
+const DATA_REQUEST_TTL_DAYS = 90;
+
+/** Hard delete delay in days after soft delete */
+const HARD_DELETE_DELAY_DAYS = 30;
+
+/** Export SLA in minutes */
+const EXPORT_SLA_MINUTES = 5;
 
 const dynamodb = new DynamoDBClient({ region: process.env.AWS_REGION });
 const lambda = new LambdaClient({ region: process.env.AWS_REGION });
@@ -65,8 +75,7 @@ async function baseHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
     // Create data request entity
     const requestId = `dsr_${randomUUID()}`;
     const now = new Date().toISOString();
-    const TTL_DAYS = 90;
-    const ttl = Math.floor(Date.now() / 1000) + (TTL_DAYS * 24 * 60 * 60);
+    const ttl = Math.floor(Date.now() / 1000) + (DATA_REQUEST_TTL_DAYS * 24 * 60 * 60);
 
     const dataRequest: DataRequestEntity = {
       PK: `DSR#${requestId}`,
@@ -87,7 +96,7 @@ async function baseHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
     // Add scheduled deletion date for deletion requests
     if (type === 'deletion') {
       const scheduledDate = new Date();
-      scheduledDate.setDate(scheduledDate.getDate() + 30); // 30 days from now
+      scheduledDate.setDate(scheduledDate.getDate() + HARD_DELETE_DELAY_DAYS);
       dataRequest.scheduledDeletionDate = scheduledDate.toISOString();
     }
 
@@ -133,7 +142,7 @@ async function baseHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
         type,
         status: 'processing',
         estimatedCompletionTime: type === 'export'
-          ? new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5 minutes
+          ? new Date(Date.now() + EXPORT_SLA_MINUTES * 60 * 1000).toISOString()
           : dataRequest.scheduledDeletionDate,
         meta: {
           requestId,
@@ -153,4 +162,5 @@ async function baseHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
 export const handler = middy(baseHandler)
   .use(rateLimitMiddleware({ maxRequests: 10, windowHours: 1 })) // 10 requests/hour per client
   .use(auditContextMiddleware())
+  .use(requirePermission('/api/v1/data-requests/*', 'create'))
   .use(securityHeadersMiddleware());

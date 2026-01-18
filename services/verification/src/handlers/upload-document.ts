@@ -1,3 +1,4 @@
+import middy from '@middy/core';
 import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { DynamoDBService } from '../services/dynamodb';
 import { S3Service } from '../services/s3';
@@ -18,6 +19,9 @@ import {
 } from '../services/file-validation';
 import { logger } from '../utils/logger';
 import { createErrorResponse } from '../utils/errors';
+import { auditContextMiddleware } from '../middleware/audit-context';
+import { securityHeadersMiddleware } from '../middleware/security-headers';
+import { requirePermission } from '../middleware/rbac';
 import {
   MAX_FILE_SIZE,
   type DocumentMetadata,
@@ -54,7 +58,7 @@ export function resetServices(): void {
   // No-op - services are singletons for Lambda optimization
 }
 
-export async function handler(
+export async function baseHandler(
   event: APIGatewayProxyEvent,
   context: Context
 ): Promise<APIGatewayProxyResult> {
@@ -545,3 +549,8 @@ function responseHeaders(): Record<string, string> {
     'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + 60),
   };
 }
+
+export const handler = middy(baseHandler)
+  .use(auditContextMiddleware())
+  .use(requirePermission('/api/v1/verifications/*/documents', 'create'))
+  .use(securityHeadersMiddleware());

@@ -390,6 +390,12 @@ importers:
       '@middy/core':
         specifier: ^7.0.2
         version: 7.0.2
+      casbin:
+        specifier: ^5.19.2
+        version: 5.48.0
+      casbin-dynamodb-adapter-v3:
+        specifier: ^0.1.1
+        version: 0.1.1
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
@@ -3937,6 +3943,9 @@ packages:
   cardinal@2.1.1:
     resolution: {integrity: sha512-JSr5eOgoEymtYHBjNWyjrMqet9Am2miJhlfKNdqLp6zoeAh0KN5dRAcxlecj5mAJrmQomgiOBj35xHLrFjqBpw==}
     hasBin: true
+
+  casbin-dynamodb-adapter-v3@0.1.1:
+    resolution: {integrity: sha512-oF3GfboHV569dlnHTxk8SryxpI6CvT+dKmmlUy5eddiBRPvgQ3H37zLTmJuMlXl2VmpvyYsLCGpXou97Qk9sOw==}
 
   casbin@5.48.0:
     resolution: {integrity: sha512-s5xGNHxb2sOXze7U6rewnkZPtIrTFQaHFKkjh73xYC9nEKwEoAiQ3nasGwpB55wWVRbHxSkjGLoMjocpZAy+iQ==}
@@ -14653,6 +14662,14 @@ snapshots:
       ansicolors: 0.3.2
       redeyed: 2.1.1
 
+  casbin-dynamodb-adapter-v3@0.1.1:
+    dependencies:
+      '@aws-sdk/client-dynamodb': 3.968.0
+      '@aws-sdk/lib-dynamodb': 3.968.0(@aws-sdk/client-dynamodb@3.968.0)
+      casbin: 5.48.0
+    transitivePeerDependencies:
+      - aws-crt
+
   casbin@5.48.0:
     dependencies:
       '@casbin/expression-eval': 5.3.0
@@ -16458,7 +16475,7 @@ snapshots:
       fs.realpath: 1.0.0
       inflight: 1.0.6
       inherits: 2.0.4
-      minimatch: 3.0.5
+      minimatch: 3.1.2
       once: 1.4.0
       path-is-absolute: 1.0.1
 

@@ -48,6 +48,10 @@ vi.mock('../middleware/rate-limit', () => ({
   rateLimitMiddleware: vi.fn(function() { return { before: vi.fn(), onError: vi.fn() }; }),
 }));
 
+vi.mock('../middleware/rbac.js', () => ({
+  requirePermission: vi.fn(function() { return { before: vi.fn() }; }),
+}));
+
 // Import the module once after mocks are set up
 import { handler } from './create-data-request';
 

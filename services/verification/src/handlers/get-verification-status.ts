@@ -1,8 +1,12 @@
+import middy from '@middy/core';
 import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { DynamoDBService } from '../services/dynamodb';
 import { logger } from '../utils/logger';
 import { createErrorResponse } from '../utils/errors';
 import { maskOmangNumber, maskAddress } from '../utils/masking';
+import { auditContextMiddleware } from '../middleware/audit-context';
+import { securityHeadersMiddleware } from '../middleware/security-headers';
+import { requirePermission } from '../middleware/rbac';
 import type { VerificationEntity } from '../types/verification';
 import type { DocumentEntity } from '../types/document';
 
@@ -18,7 +22,7 @@ import type { DocumentEntity } from '../types/document';
 
 const db = new DynamoDBService(process.env.TABLE_NAME || '', process.env.AWS_REGION || '');
 
-export async function handler(
+export async function baseHandler(
   event: APIGatewayProxyEvent,
   context: Context
 ): Promise<APIGatewayProxyResult> {
@@ -246,3 +250,8 @@ function mapDocumentStatusToOcrStatus(
       return 'pending';
   }
 }
+
+export const handler = middy(baseHandler)
+  .use(auditContextMiddleware())
+  .use(requirePermission('/api/v1/verifications/*', 'read'))
+  .use(securityHeadersMiddleware());

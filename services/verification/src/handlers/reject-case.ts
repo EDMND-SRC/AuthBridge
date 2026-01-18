@@ -1,7 +1,8 @@
 import middy from '@middy/core';
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { addSecurityHeaders } from '../middleware/security-headers';
+import { addSecurityHeaders, securityHeadersMiddleware } from '../middleware/security-headers';
 import { auditContextMiddleware, getAuditContext } from '../middleware/audit-context';
+import { requirePermission } from '../middleware/rbac.js';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
@@ -156,4 +157,6 @@ async function baseHandler(event: APIGatewayProxyEvent, context: any): Promise<A
 }
 
 export const handler = middy(baseHandler)
-  .use(auditContextMiddleware());
+  .use(auditContextMiddleware())
+  .use(requirePermission('/api/v1/cases/*/reject', 'update'))
+  .use(securityHeadersMiddleware());

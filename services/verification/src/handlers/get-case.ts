@@ -1,14 +1,17 @@
-import { APIGatewayProxyHandler } from 'aws-lambda';
+import middy from '@middy/core';
+import { APIGatewayProxyHandler, APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, QueryCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { addSecurityHeaders } from '../middleware/security-headers';
+import { auditContextMiddleware } from '../middleware/audit-context';
+import { securityHeadersMiddleware } from '../middleware/security-headers';
+import { requirePermission } from '../middleware/rbac';
 
 const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: process.env.AWS_REGION || 'af-south-1' }));
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'af-south-1' });
 
-export const handler: APIGatewayProxyHandler = async (event) => {
+async function baseHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   const { id } = event.pathParameters || {};
   const userId = event.requestContext?.authorizer?.claims?.sub || 'unknown';
   const ipAddress = event.requestContext?.identity?.sourceIp || 'unknown';
@@ -16,11 +19,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   const startTime = Date.now();
 
   if (!id) {
-    return addSecurityHeaders({
+    return {
       statusCode: 400,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Case ID required' }),
-    });
+    };
   }
 
   try {
@@ -33,11 +36,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     );
 
     if (!caseResult.Item) {
-      return addSecurityHeaders({
+      return {
         statusCode: 404,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ error: 'Case not found' }),
-      });
+      };
     }
 
     const caseData = caseResult.Item;
@@ -64,7 +67,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     const queryTimeMs = Date.now() - startTime;
 
-    return addSecurityHeaders({
+    return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -84,16 +87,21 @@ export const handler: APIGatewayProxyHandler = async (event) => {
           queryTimeMs,
         },
       }),
-    });
+    };
   } catch (error) {
     console.error('Error fetching case:', error);
-    return addSecurityHeaders({
+    return {
       statusCode: 500,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Internal server error' }),
-    });
+    };
   }
-};
+}
+
+export const handler = middy(baseHandler)
+  .use(auditContextMiddleware())
+  .use(requirePermission('/api/v1/cases/*', 'read'))
+  .use(securityHeadersMiddleware());
 
 async function generateDocumentUrls(docs: any) {
   const result: any = {};

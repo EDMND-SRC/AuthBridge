@@ -1,9 +1,13 @@
+import middy from '@middy/core';
 import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { DynamoDBService } from '../services/dynamodb';
 import { S3Service } from '../services/s3';
 import { VerificationService } from '../services/verification';
 import { logger } from '../utils/logger';
 import { createErrorResponse } from '../utils/errors';
+import { auditContextMiddleware } from '../middleware/audit-context';
+import { securityHeadersMiddleware } from '../middleware/security-headers';
+import { requirePermission } from '../middleware/rbac';
 
 const TABLE_NAME = process.env.TABLE_NAME || 'AuthBridgeTable';
 const BUCKET_NAME = process.env.BUCKET_NAME || 'authbridge-documents-staging';
@@ -13,7 +17,7 @@ const db = new DynamoDBService(TABLE_NAME, REGION);
 const s3 = new S3Service(BUCKET_NAME, REGION);
 const verificationService = new VerificationService(TABLE_NAME, REGION);
 
-export async function handler(
+export async function baseHandler(
   event: APIGatewayProxyEvent,
   context: Context
 ): Promise<APIGatewayProxyResult> {
@@ -138,3 +142,8 @@ function corsHeaders(): Record<string, string> {
     'Access-Control-Allow-Origin': '*',
   };
 }
+
+export const handler = middy(baseHandler)
+  .use(auditContextMiddleware())
+  .use(requirePermission('/api/v1/verifications/*/documents/*/url', 'create'))
+  .use(securityHeadersMiddleware());

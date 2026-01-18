@@ -128,14 +128,14 @@ development_status:
   # ═══════════════════════════════════════════════════════════════════════════
   # EPIC 5: Security & Compliance Foundation (MVP)
   # ═══════════════════════════════════════════════════════════════════════════
-  epic-5: in-progress
+  epic-5: done
   5-1-data-encryption-implementation: done  # Code review completed 2026-01-17, all 9 issues fixed
   5-2-comprehensive-audit-logging: done  # Code review completed 2026-01-17, all 13 issues fixed
   # Deployment metrics: 176KB total (18 functions), 172s deploy time, esbuild bundling enabled
   # Code review fixes: 20 missing audit methods, middleware integration, JSDoc, error logging, CloudWatch alarms
-  5-3-data-export-deletion: ready-for-dev  # Story created 2026-01-18, comprehensive context analysis complete
-  5-4-iam-access-control: backlog
-  epic-5-retrospective: optional
+  5-3-data-export-deletion: done  # Code review completed 2026-01-18, all issues fixed, Vitest 4.x upgrade complete
+  5-4-iam-access-control: done  # Code review completed 2026-01-18, all 9 issues fixed, RBAC with Casbin implemented
+  epic-5-retrospective: done  # Retrospective completed 2026-01-18
 
   # ═══════════════════════════════════════════════════════════════════════════
   # EPIC 6: Reporting & Analytics (MVP)

@@ -4,6 +4,9 @@ import { AuditService } from '../services/audit';
 import { updateRequestStatus } from '../utils/data-request-utils';
 import type { DeletionQueueItem, SubjectIdentifierType, SubjectIdentifier, DataRequestEntity } from '../types/data-request';
 
+/** Hard delete delay in days after soft delete */
+const HARD_DELETE_DELAY_DAYS = 30;
+
 /** Supported subject identifier types for data deletion */
 const SUPPORTED_IDENTIFIER_TYPES: SubjectIdentifierType[] = ['email', 'omangNumber', 'verificationId'];
 

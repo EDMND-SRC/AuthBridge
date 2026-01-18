@@ -4,6 +4,7 @@ import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 import { auditContextMiddleware } from '../middleware/audit-context';
 import { securityHeadersMiddleware } from '../middleware/security-headers';
+import { requirePermission } from '../middleware/rbac.js';
 
 const dynamodb = new DynamoDBClient({ region: process.env.AWS_REGION });
 const tableName = process.env.TABLE_NAME || 'AuthBridgeTable';
@@ -97,4 +98,5 @@ async function baseHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
 
 export const handler = middy(baseHandler)
   .use(auditContextMiddleware())
+  .use(requirePermission('/api/v1/data-requests/*', 'read'))
   .use(securityHeadersMiddleware());

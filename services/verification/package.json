@@ -8,7 +8,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:integration": "vitest run tests/integration"
+    "test:integration": "vitest run tests/integration",
+    "init-casbin": "tsx scripts/init-casbin-policies.ts"
   },
   "dependencies": {
     "@aws-sdk/client-cloudwatch": "^3.700.0",
@@ -25,6 +26,8 @@
     "@aws-sdk/s3-request-presigner": "^3.700.0",
     "@aws-sdk/util-dynamodb": "^3.971.0",
     "@middy/core": "^7.0.2",
+    "casbin": "^5.19.2",
+    "casbin-dynamodb-adapter-v3": "^0.1.1",
     "date-fns": "^4.1.0",
     "jose": "^5.2.0",
     "uuid": "^11.0.3",

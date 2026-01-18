@@ -24,6 +24,10 @@ vi.mock('../middleware/security-headers', () => ({
   securityHeadersMiddleware: vi.fn(function() { return { after: vi.fn() }; }),
 }));
 
+vi.mock('../middleware/rbac.js', () => ({
+  requirePermission: vi.fn(function() { return { before: vi.fn() }; }),
+}));
+
 // Import the module once after mocks are set up
 import { handler } from './get-data-request-status';
 

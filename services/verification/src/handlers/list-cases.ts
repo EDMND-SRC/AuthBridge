@@ -1,9 +1,12 @@
+import middy from '@middy/core';
 import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
-import { addSecurityHeaders } from '../middleware/security-headers';
 import { VerificationService } from '../services/verification';
 import { logger } from '../utils/logger';
 import { createErrorResponse } from '../utils/errors';
 import type { VerificationStatus } from '../types/verification';
+import { auditContextMiddleware } from '../middleware/audit-context';
+import { securityHeadersMiddleware } from '../middleware/security-headers';
+import { requirePermission, enforceClientIsolation } from '../middleware/rbac';
 
 const TABLE_NAME = process.env.TABLE_NAME || 'AuthBridgeTable';
 const REGION = process.env.AWS_REGION || 'af-south-1';
@@ -32,7 +35,7 @@ function maskOmangNumber(omangNumber: string | undefined): string | null {
  * - limit: Number of results per page (default: 20, max: 100)
  * - cursor: Pagination cursor for next page
  */
-export async function handler(
+async function baseHandler(
   event: APIGatewayProxyEvent,
   context: Context
 ): Promise<APIGatewayProxyResult> {
@@ -41,13 +44,14 @@ export async function handler(
   try {
     const startTime = Date.now();
 
-    // Extract clientId from authorizer context
-    const clientId = event.requestContext.authorizer?.clientId as string;
+    // Extract clientId from authorizer context or client isolation filter
+    const clientIdFilter = (event as any).clientIdFilter;
+    const clientId = clientIdFilter || (event.requestContext.authorizer?.clientId as string);
 
     if (!clientId) {
       logger.warn('Missing clientId in authorizer context', { requestId });
-      return addSecurityHeaders({
-      statusCode: 401,
+      return {
+        statusCode: 401,
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
@@ -59,7 +63,7 @@ export async function handler(
             requestId
           )
         ),
-      });
+      };
     }
 
     // Parse query parameters
@@ -175,7 +179,7 @@ export async function handler(
       resultCount: cases.length,
       totalCount: verifications.length,
     });
-    return addSecurityHeaders({
+    return {
       statusCode: 200,
       headers: {
         'Content-Type': 'application/json',
@@ -194,13 +198,13 @@ export async function handler(
           },
         },
       }),
-    });
+    };
   } catch (error) {
     logger.error('Failed to list cases', {
       requestId,
       error: error instanceof Error ? error.message : 'Unknown error',
     });
-    return addSecurityHeaders({
+    return {
       statusCode: 500,
       headers: {
         'Content-Type': 'application/json',
@@ -213,9 +217,15 @@ export async function handler(
           requestId
         )
       ),
-    });
+    };
   }
 }
+
+export const handler = middy(baseHandler)
+  .use(auditContextMiddleware())
+  .use(requirePermission('/api/v1/cases', 'read'))
+  .use(enforceClientIsolation())
+  .use(securityHeadersMiddleware());
 
 /**
  * Performance metrics for monitoring

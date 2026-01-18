@@ -1,6 +1,10 @@
+import middy from '@middy/core';
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { WebhookService } from '../services/webhook.js';
 import { DynamoDBService } from '../services/dynamodb.js';
+import { auditContextMiddleware } from '../middleware/audit-context';
+import { securityHeadersMiddleware } from '../middleware/security-headers';
+import { requirePermission } from '../middleware/rbac';
 import type { VerificationEntity } from '../types/verification.js';
 import type { ClientConfiguration } from '../types/webhook.js';
 
@@ -14,7 +18,7 @@ const getRateLimitHeaders = () => ({
   'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + 60),
 });
 
-export async function handler(
+export async function baseHandler(
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> {
   const baseHeaders = {
@@ -142,3 +146,8 @@ export async function handler(
     };
   }
 }
+
+export const handler = middy(baseHandler)
+  .use(auditContextMiddleware())
+  .use(requirePermission('/api/v1/webhooks/test', 'create'))
+  .use(securityHeadersMiddleware());

@@ -6,6 +6,9 @@ import { AuditService } from '../services/audit';
 import { updateRequestStatus } from '../utils/data-request-utils';
 import type { ExportData, SubjectIdentifierType, SubjectIdentifier, DataRequestEntity } from '../types/data-request';
 
+/** Presigned URL expiry time in seconds (1 hour) */
+const PRESIGNED_URL_EXPIRY_SECONDS = 3600;
+
 /** Supported subject identifier types for data export */
 const SUPPORTED_IDENTIFIER_TYPES: SubjectIdentifierType[] = ['email', 'omangNumber', 'verificationId'];
 
@@ -75,10 +78,10 @@ export async function processExport(event: { requestId: string }): Promise<void>
         Bucket: exportBucket,
         Key: exportKey,
       }),
-      { expiresIn: 3600 }
+      { expiresIn: PRESIGNED_URL_EXPIRY_SECONDS }
     );
 
-    const expiresAt = new Date(Date.now() + 3600 * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + PRESIGNED_URL_EXPIRY_SECONDS * 1000).toISOString();
 
     // Update request with download URL
     await dynamodb.send(
@@ -315,7 +318,7 @@ async function generatePresignedUrl(s3Key: string): Promise<string> {
       Bucket: documentsBucket,
       Key: s3Key,
     }),
-    { expiresIn: 3600 }
+    { expiresIn: PRESIGNED_URL_EXPIRY_SECONDS }
   );
 }
 

@@ -2,6 +2,7 @@ import middy from '@middy/core';
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { addSecurityHeaders } from '../middleware/security-headers';
 import { auditContextMiddleware, getAuditContext } from '../middleware/audit-context';
+import { requirePermission } from '../middleware/rbac.js';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
@@ -114,4 +115,5 @@ async function baseHandler(event: APIGatewayProxyEvent, context: any): Promise<A
 }
 
 export const handler = middy(baseHandler)
-  .use(auditContextMiddleware());
+  .use(auditContextMiddleware())
+  .use(requirePermission('/api/v1/cases/*/notes', 'create'));

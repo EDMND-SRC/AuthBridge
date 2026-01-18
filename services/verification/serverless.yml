@@ -20,6 +20,8 @@ provider:
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
     NODE_OPTIONS: '--enable-source-maps'
     TABLE_NAME: AuthBridgeTable
+    CASBIN_TABLE_NAME: AuthBridgeCasbinPolicies-${self:provider.stage}
+    CASBIN_MODEL_PATH: ./casbin-model.conf
     BUCKET_NAME: authbridge-documents-${self:provider.stage}
     # Use stage-aware CloudFormation references
     DATA_ENCRYPTION_KEY_ID: ${cf:authbridge-kms-${self:provider.stage}.DataEncryptionKeyId}
@@ -38,6 +40,18 @@ provider:
           Resource:
             - 'arn:aws:dynamodb:${self:provider.region}:*:table/AuthBridgeTable'
             - 'arn:aws:dynamodb:${self:provider.region}:*:table/AuthBridgeTable/index/*'
+        # Casbin RBAC table access
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:Query
+            - dynamodb:Scan
+          Resource:
+            - 'arn:aws:dynamodb:${self:provider.region}:*:table/AuthBridgeCasbinPolicies-${self:provider.stage}'
+            - 'arn:aws:dynamodb:${self:provider.region}:*:table/AuthBridgeCasbinPolicies-${self:provider.stage}/index/*'
         # Audit log immutability: Allow PutItem for audit logs, deny Update/Delete
         - Effect: Allow
           Action:
@@ -138,6 +152,7 @@ package:
     - '!*.config.ts'
     - '!*.config.js'
     - '!tsconfig*.json'
+    - 'casbin-model.conf'
 
 functions:
   listCases:
@@ -439,6 +454,75 @@ functions:
           enabled: true
           description: Daily hard delete job at 2 AM UTC
 
+  # Role Management Functions (Story 5.4)
+  assignRole:
+    handler: src/handlers/assign-role.handler
+    description: Assign role to user
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: /api/v1/users/{userId}/roles
+          method: post
+          cors: true
+          authorizer:
+            name: apiKeyAuthorizer
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authbridge-auth-${self:provider.stage}-apiKeyAuthorizer
+            type: request
+            identitySource: method.request.header.Authorization
+            resultTtlInSeconds: 300
+
+  removeRole:
+    handler: src/handlers/remove-role.handler
+    description: Remove role from user
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: /api/v1/users/{userId}/roles/{role}
+          method: delete
+          cors: true
+          authorizer:
+            name: apiKeyAuthorizer
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authbridge-auth-${self:provider.stage}-apiKeyAuthorizer
+            type: request
+            identitySource: method.request.header.Authorization
+            resultTtlInSeconds: 300
+
+  getUserRoles:
+    handler: src/handlers/get-user-roles.handler
+    description: Get roles assigned to user
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: /api/v1/users/{userId}/roles
+          method: get
+          cors: true
+          authorizer:
+            name: apiKeyAuthorizer
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authbridge-auth-${self:provider.stage}-apiKeyAuthorizer
+            type: request
+            identitySource: method.request.header.Authorization
+            resultTtlInSeconds: 300
+
+  listRoles:
+    handler: src/handlers/list-roles.handler
+    description: List all available roles
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: /api/v1/roles
+          method: get
+          cors: true
+          authorizer:
+            name: apiKeyAuthorizer
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:authbridge-auth-${self:provider.stage}-apiKeyAuthorizer
+            type: request
+            identitySource: method.request.header.Authorization
+            resultTtlInSeconds: 300
+
 resources:
   Resources:
     DocumentsBucket:
@@ -715,6 +799,49 @@ resources:
         TreatMissingData: notBreaching
         AlarmActions:
           - !Ref OcrAlertTopic
+
+    # Casbin RBAC Policies Table (Story 5.4)
+    CasbinPoliciesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: AuthBridgeCasbinPolicies-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+          - AttributeName: GSI1PK
+            AttributeType: S
+          - AttributeName: GSI1SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: GSI1-RoleUsers
+            KeySchema:
+              - AttributeName: GSI1PK
+                KeyType: HASH
+              - AttributeName: GSI1SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: true
+          SSEType: KMS
+          KMSMasterKeyId: ${cf:authbridge-kms-${self:provider.stage}.DataEncryptionKeyId}
+        Tags:
+          - Key: Environment
+            Value: ${self:provider.stage}
+          - Key: Service
+            Value: authbridge-verification
+          - Key: Purpose
+            Value: rbac-policies
 
   Outputs:
     OcrAlertTopicArn:

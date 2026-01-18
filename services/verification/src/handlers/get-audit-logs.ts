@@ -4,41 +4,16 @@ import { DynamoDBClient, QueryCommand } from '@aws-sdk/client-dynamodb';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 import { auditContextMiddleware, getAuditContext } from '../middleware/audit-context';
 import { securityHeadersMiddleware } from '../middleware/security-headers';
+import { requirePermission } from '../middleware/rbac.js';
 import { AuditService } from '../services/audit';
 
 const dynamodb = new DynamoDBClient({ region: process.env.AWS_REGION });
 const tableName = process.env.TABLE_NAME || 'AuthBridgeTable';
 const auditService = new AuditService();
 
-// Roles allowed to access audit logs (compliance requirement)
-const AUDIT_ACCESS_ROLES = ['admin', 'compliance_officer', 'auditor'];
-
 async function baseHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   try {
-    // Authorization check: Only admin, compliance_officer, and auditor roles can access audit logs
-    const userRole = event.requestContext.authorizer?.claims?.['custom:role'] ||
-                     event.requestContext.authorizer?.claims?.role;
-    const requestingUserId = event.requestContext.authorizer?.claims?.sub;
-
-    if (!userRole || !AUDIT_ACCESS_ROLES.includes(userRole)) {
-      // Log unauthorized access attempt
-      const ipAddress = event.requestContext.identity?.sourceIp || 'unknown';
-      await auditService.logPermissionDenied(
-        requestingUserId || 'unknown',
-        ipAddress,
-        '/api/v1/audit',
-        'query_audit_logs'
-      ).catch(err => console.error('Failed to log permission denied:', err));
-
-      return {
-        statusCode: 403,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          error: 'Access denied. Audit log access requires admin, compliance_officer, or auditor role.'
-        }),
-      };
-    }
-
+    // Authorization is handled by requirePermission middleware
     const { startDate, endDate, userId, action, resourceId, resourceType, limit = '100', nextToken } = event.queryStringParameters || {};
 
     // Validate required parameters
@@ -140,6 +115,7 @@ async function baseHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
 
 export const handler = middy(baseHandler)
   .use(auditContextMiddleware())
+  .use(requirePermission('/api/v1/audit', 'read'))
   .use(securityHeadersMiddleware());
 
 // Alias for backward compatibility
