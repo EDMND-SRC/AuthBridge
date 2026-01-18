@@ -1,0 +1,12 @@
+{
+  "pathParameters": {
+    "userId": "211c92b8-8081-70db-1582-ca86a6a21ef5"
+  },
+  "requestContext": {
+    "authorizer": {
+      "claims": {
+        "sub": "211c92b8-8081-70db-1582-ca86a6a21ef5"
+      }
+    }
+  }
+}

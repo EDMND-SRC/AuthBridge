@@ -501,7 +501,13 @@ Self-service signup, pay-as-you-go pricing (P3-5 per verification), days-to-week
 
 AuthBridge serves two distinct markets with appropriate pricing models:
 - **Enterprise Track:** Premium pricing reflecting value of local expertise, compliance support, and dedicated service
-- **API Access Track:** Accessible per-verification pricing for mid-market businesses with specific use cases
+- **Subscription Track:** Tiered monthly subscriptions for mid-market businesses with predictable verification needs
+
+**Strategic Pricing Rationale:**
+- All tiers maintain 90%+ profit margins (AWS cost ~P0.25/verification)
+- Competitive vs global providers (Sumsub $1.85 = P26, Veriff $0.80 = P11)
+- Matches SA Home Affairs peak pricing (R10 = ~P10) at Business tier
+- BWP pricing via Dodo Adaptive Currency (min P15 per transaction)
 
 **Dual-Track Revenue Model:**
 
@@ -517,25 +523,25 @@ flowchart TD
         Discovery --> Proposal[Custom Proposal]
         Proposal --> Pilot[Paid Pilot Program]
         Pilot --> Contract[Annual Contract]
-        Contract --> |P200K-1M/year| EntOnboard[Dedicated Onboarding]
+        Contract --> |P25,000+/month| EntOnboard[Dedicated Onboarding]
         EntOnboard --> EntSuccess[Customer Success Manager]
         EntSuccess --> QBR[Quarterly Business Reviews]
     end
 
-    subgraph APIAccess["Track 2: API Access (40% Revenue)"]
+    subgraph Subscriptions["Track 2: Subscriptions (40% Revenue)"]
         Assess --> |Mid-Market, Specific Use Case| SelfServe[Self-Service Signup]
-        SelfServe --> SelectUseCase[Select Use Case Package]
-        SelectUseCase --> |Tenant Verification| Package1[Real Estate Package]
-        SelectUseCase --> |Background Checks| Package2[HR Package]
-        SelectUseCase --> |Age Verification| Package3[Retail Package]
-        SelectUseCase --> |Client Onboarding| Package4[Legal/Accounting Package]
+        SelfServe --> SelectTier[Select Subscription Tier]
+        SelectTier --> |50 verifications| Starter[Starter P750/mo]
+        SelectTier --> |200 verifications| Professional[Professional P2,500/mo]
+        SelectTier --> |750 verifications| Business[Business P7,500/mo]
+        SelectTier --> |One-off| PayGo[Pay-As-You-Go P25/check]
 
-        Package1 --> Checkout[Dodo Checkout]
-        Package2 --> Checkout
-        Package3 --> Checkout
-        Package4 --> Checkout
+        Starter --> Checkout[Dodo Checkout]
+        Professional --> Checkout
+        Business --> Checkout
+        PayGo --> Checkout
 
-        Checkout --> |P3-5/verification| APIOnboard[API Keys Issued]
+        Checkout --> APIOnboard[API Keys Issued]
         APIOnboard --> Docs[Developer Docs]
         Docs --> Integrate[Self-Integration]
     end
@@ -564,55 +570,40 @@ flowchart TD
 1. Value-based pricing for enterprise, accessibility for mid-market
 2. Dual-track approach serves both high-touch and low-touch customers
 3. Professional services as additional revenue stream
-4. Clear upgrade path from API Access to Business to Enterprise
+4. Clear upgrade path from Starter to Professional to Business to Enterprise
 
 ### Pricing Tiers
 
-| Tier | Model | Target | Pricing |
-|------|-------|--------|---------|
-| **API Access** | Per-verification | Mid-market, specific use cases | P3-5/verification |
-| **Business** | Monthly subscription + usage | Growing companies | P5K-15K/month + P2-3/verification |
-| **Enterprise** | Annual contract | Banks, insurance, government | P200K-1M/year |
-| **AuthBridge Launchpad** | Credits program | Eligible startups | Subsidized (Year 3+) |
+| Tier | Monthly Price | Included | Per-Check | Overage |
+|------|---------------|----------|-----------|---------|
+| **Starter** | P750 | 50 verifications | P15 | P20 |
+| **Professional** | P2,500 | 200 verifications | P12.50 | P18 |
+| **Business** | P7,500 | 750 verifications | P10 | P15 |
+| **Enterprise** | P25,000+ | 3,000+ verifications | P8.33 | P12 |
+| **Pay-As-You-Go** | - | - | P25 | - |
+| **AuthBridge Launchpad** | Subsidized | Credits program | - | - |
 
 ### Track 1: Enterprise Pricing (High-Touch)
 
-**Model 1: Platform Subscription + Usage**
-Best for: Banks, large enterprises
-
-| Component | Pricing |
-|-----------|---------|
-| Platform Fee | P10,000-25,000/month |
-| Per Verification | P1.50-2.50 |
-| Included Verifications | 2,000-5,000/month |
-| Overage Rate | P2.00-3.00 |
-
-**Model 2: Annual Contract**
-Best for: Insurance, government
+**Annual Contract (Banks, Insurance, Government)**
 
 | Tier | Annual Fee | Included Verifications | Overage |
 |------|------------|------------------------|---------|
-| Business | P60K-180K/year | 2,500-7,500/month | P2.50 |
-| Enterprise | P200K-1M/year | Custom | Custom |
+| Business | P90K/year | 750/month | P15 |
+| Enterprise | P300K-1M/year | 3,000+/month | P12 |
 
-### Track 2: API Access Pricing (Low-Touch)
+### Track 2: Subscription Pricing (Self-Service)
 
-**Self-Service, Pay-As-You-Go**
-Best for: Mid-market businesses with specific verification needs
+**Monthly Subscriptions with Overage**
+Best for: Mid-market businesses with predictable verification needs
 
-| Volume/Month | Per Verification | Features |
-|--------------|------------------|----------|
-| 1-500 | P5.00 | API access, basic dashboard |
-| 501-2,000 | P4.00 | + Priority support |
-| 2,001-5,000 | P3.50 | + Custom branding |
-| 5,000+ | P3.00 | + Dedicated account manager |
+| Tier | Monthly | Included | Overage | Target |
+|------|---------|----------|---------|--------|
+| Starter | P750 | 50 | P20 | Small businesses, startups |
+| Professional | P2,500 | 200 | P18 | Real estate, microfinance |
+| Business | P7,500 | 750 | P15 | Banks, insurance, telcos |
 
-**Use Case Packages:**
-- Tenant Verification Package
-- Employee Background Check Package
-- Age Verification Package
-- Client Onboarding Package
-- Seller/Vendor Verification Package
+**Pay-As-You-Go:** P25/verification (no commitment, full features)
 
 ### Seat-Based Add-On (Dashboard Access)
 
@@ -646,10 +637,10 @@ Best for: Mid-market businesses with specific verification needs
 
 | Segment | Target Deal Size | Target Customers (Y1) | Track |
 |---------|------------------|----------------------|-------|
-| Banks | P500K-1M/year | 1-2 | Enterprise |
-| Insurance | P150K-400K/year | 2-3 | Enterprise |
-| Government | P300K-600K/year | 1-2 | Enterprise |
-| Mid-Market API | P36K-120K/year | 20-50 | API Access |
+| Banks | P300K-1M/year | 1-2 | Enterprise |
+| Insurance | P90K-300K/year | 2-3 | Enterprise |
+| Government | P200K-500K/year | 1-2 | Enterprise |
+| Mid-Market Subscriptions | P9K-90K/year | 20-50 | Subscriptions |
 | **Total Year 1** | **P1.5M-3M** | **25-60** |
 
 ---
@@ -1475,7 +1466,7 @@ Planned for Phase 2 implementation to support address verification:
   - Code in version control
   - Consider advisory board
   - Plan for early sales hire
-- **Contingency:** Identify potential co-founder or key hire
+- **Contingency:** Identify potential key hire
 
 ### Medium Risks
 

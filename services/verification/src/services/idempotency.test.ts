@@ -6,16 +6,26 @@ const mockSend = vi.fn();
 
 vi.mock('@aws-sdk/lib-dynamodb', () => ({
   DynamoDBDocumentClient: {
-    from: vi.fn(() => ({
-      send: mockSend,
-    })),
+    from: vi.fn(function() {
+      return {
+        send: mockSend,
+      };
+    }),
   },
-  PutCommand: vi.fn((params) => ({ type: 'Put', params })),
-  GetCommand: vi.fn((params) => ({ type: 'Get', params })),
+  PutCommand: vi.fn(function(params) {
+    this.type = 'Put';
+    this.params = params;
+  }),
+  GetCommand: vi.fn(function(params) {
+    this.type = 'Get';
+    this.params = params;
+  }),
 }));
 
 vi.mock('@aws-sdk/client-dynamodb', () => ({
-  DynamoDBClient: vi.fn(() => ({})),
+  DynamoDBClient: vi.fn(function() {
+    return {};
+  }),
 }));
 
 describe('IdempotencyService', () => {

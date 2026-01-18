@@ -8,21 +8,27 @@ const mockGeneratePresignedUrl = vi.fn();
 
 // Mock services before importing handler
 vi.mock('../services/dynamodb', () => ({
-  DynamoDBService: vi.fn().mockImplementation(() => ({
-    getDocument: mockGetDocument,
-  })),
+  DynamoDBService: vi.fn(function() {
+    return {
+      getDocument: mockGetDocument,
+    };
+  }),
 }));
 
 vi.mock('../services/s3', () => ({
-  S3Service: vi.fn().mockImplementation(() => ({
-    generatePresignedUrl: mockGeneratePresignedUrl,
-  })),
+  S3Service: vi.fn(function() {
+    return {
+      generatePresignedUrl: mockGeneratePresignedUrl,
+    };
+  }),
 }));
 
 vi.mock('../services/verification', () => ({
-  VerificationService: vi.fn().mockImplementation(() => ({
-    getVerification: mockGetVerification,
-  })),
+  VerificationService: vi.fn(function() {
+    return {
+      getVerification: mockGetVerification,
+    };
+  }),
 }));
 
 // Import handler after mocks are set up

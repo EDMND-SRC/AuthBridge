@@ -3,43 +3,17 @@ import type { SQSEvent } from 'aws-lambda';
 
 // Mock all dependencies before importing handler
 vi.mock('../services/rekognition', () => ({
-  createRekognitionClient: vi.fn(() => ({})),
-  RekognitionService: vi.fn().mockImplementation(() => ({
-    detectFaceLiveness: vi.fn().mockResolvedValue({
-      confidence: 98.5,
-      status: 'SUCCEEDED',
-      passed: true,
-      sessionId: 'session-123',
-      processedAt: '2026-01-15T10:00:00Z',
-    }),
-    compareFaces: vi.fn().mockResolvedValue({
-      similarity: 92.5,
-      passed: true,
-      sourceImageFace: {
-        confidence: 99.9,
-        boundingBox: { width: 0.3, height: 0.4, left: 0.35, top: 0.2 },
-      },
-      targetImageFace: {
-        confidence: 99.8,
-        boundingBox: { width: 0.3, height: 0.4, left: 0.35, top: 0.2 },
-      },
-      processedAt: '2026-01-15T10:00:01Z',
-    }),
-    isRetryableError: vi.fn().mockReturnValue(false),
-  })),
-}));
-
-vi.mock('../services/biometric', () => ({
-  BiometricService: vi.fn().mockImplementation(() => ({
-    processBiometric: vi.fn().mockResolvedValue({
-      liveness: {
+  createRekognitionClient: vi.fn(function() { return {}; }),
+  RekognitionService: vi.fn(function() {
+    return {
+      detectFaceLiveness: vi.fn().mockResolvedValue({
         confidence: 98.5,
         status: 'SUCCEEDED',
         passed: true,
         sessionId: 'session-123',
         processedAt: '2026-01-15T10:00:00Z',
-      },
-      faceComparison: {
+      }),
+      compareFaces: vi.fn().mockResolvedValue({
         similarity: 92.5,
         passed: true,
         sourceImageFace: {
@@ -51,60 +25,98 @@ vi.mock('../services/biometric', () => ({
           boundingBox: { width: 0.3, height: 0.4, left: 0.35, top: 0.2 },
         },
         processedAt: '2026-01-15T10:00:01Z',
-      },
-      overallScore: 94.3,
-      passed: true,
-      requiresManualReview: false,
-      processedAt: '2026-01-15T10:00:01Z',
-      processingTimeMs: 2500,
-    }),
-  })),
+      }),
+      isRetryableError: vi.fn().mockReturnValue(false),
+    };
+  }),
+}));
+
+vi.mock('../services/biometric', () => ({
+  BiometricService: vi.fn(function() {
+    return {
+      processBiometric: vi.fn().mockResolvedValue({
+        liveness: {
+          confidence: 98.5,
+          status: 'SUCCEEDED',
+          passed: true,
+          sessionId: 'session-123',
+          processedAt: '2026-01-15T10:00:00Z',
+        },
+        faceComparison: {
+          similarity: 92.5,
+          passed: true,
+          sourceImageFace: {
+            confidence: 99.9,
+            boundingBox: { width: 0.3, height: 0.4, left: 0.35, top: 0.2 },
+          },
+          targetImageFace: {
+            confidence: 99.8,
+            boundingBox: { width: 0.3, height: 0.4, left: 0.35, top: 0.2 },
+          },
+          processedAt: '2026-01-15T10:00:01Z',
+        },
+        overallScore: 94.3,
+        passed: true,
+        requiresManualReview: false,
+        processedAt: '2026-01-15T10:00:01Z',
+        processingTimeMs: 2500,
+      }),
+    };
+  }),
 }));
 
 vi.mock('../services/biometric-storage', () => ({
-  BiometricStorageService: vi.fn().mockImplementation(() => ({
-    storeBiometricResults: vi.fn().mockResolvedValue(undefined),
-    updateVerificationWithBiometricSummary: vi.fn().mockResolvedValue(undefined),
-  })),
+  BiometricStorageService: vi.fn(function() {
+    return {
+      storeBiometricResults: vi.fn().mockResolvedValue(undefined),
+      updateVerificationWithBiometricSummary: vi.fn().mockResolvedValue(undefined),
+    };
+  }),
 }));
 
 vi.mock('../services/dynamodb', () => ({
-  DynamoDBService: vi.fn().mockImplementation(() => ({
-    getItem: vi.fn().mockResolvedValue({
-      Item: {
-        s3Key: 'test-key',
-      },
-    }),
-    getVerification: vi.fn().mockResolvedValue({
-      verificationId: 'ver_123',
-      clientId: 'client_abc',
-      customerData: {
-        omangNumber: '123456789',
-      },
-    }),
-  })),
+  DynamoDBService: vi.fn(function() {
+    return {
+      getItem: vi.fn().mockResolvedValue({
+        Item: {
+          s3Key: 'test-key',
+        },
+      }),
+      getVerification: vi.fn().mockResolvedValue({
+        verificationId: 'ver_123',
+        clientId: 'client_abc',
+        customerData: {
+          omangNumber: '123456789',
+        },
+      }),
+    };
+  }),
 }));
 
 vi.mock('../services/duplicate-detection', () => ({
-  DuplicateDetectionService: vi.fn().mockImplementation(() => ({
-    checkDuplicates: vi.fn().mockResolvedValue({
-      checked: true,
-      checkedAt: '2026-01-15T10:00:00Z',
-      duplicatesFound: 0,
-      sameClientDuplicates: 0,
-      crossClientDuplicates: 0,
-      riskLevel: 'low',
-      riskScore: 0,
-      duplicateCases: [],
-      requiresManualReview: false,
-    }),
-  })),
+  DuplicateDetectionService: vi.fn(function() {
+    return {
+      checkDuplicates: vi.fn().mockResolvedValue({
+        checked: true,
+        checkedAt: '2026-01-15T10:00:00Z',
+        duplicatesFound: 0,
+        sameClientDuplicates: 0,
+        crossClientDuplicates: 0,
+        riskLevel: 'low',
+        riskScore: 0,
+        duplicateCases: [],
+        requiresManualReview: false,
+      }),
+    };
+  }),
 }));
 
 vi.mock('../services/duplicate-storage', () => ({
-  DuplicateStorageService: vi.fn().mockImplementation(() => ({
-    storeDuplicateResults: vi.fn().mockResolvedValue(undefined),
-  })),
+  DuplicateStorageService: vi.fn(function() {
+    return {
+      storeDuplicateResults: vi.fn().mockResolvedValue(undefined),
+    };
+  }),
 }));
 
 vi.mock('../utils/metrics', () => ({

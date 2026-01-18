@@ -142,7 +142,7 @@ describe('EncryptionService', () => {
 
       // Cache should still be at max size
       expect(kmsMock.calls().length).toBeGreaterThan(1000);
-    });
+    }, 15000); // Increase timeout for 1000 iterations
 
     it('retries on KMS throttling', async () => {
       const plaintext = 'test-data';

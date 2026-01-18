@@ -1,9 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
+
+vi.mock('../services/dynamodb.js', () => ({
+  DynamoDBService: vi.fn(function() {
+    return {
+      getItem: vi.fn(),
+      putItem: vi.fn(),
+    };
+  }),
+}));
+
 import { handler } from './configure-webhook.js';
 import { DynamoDBService } from '../services/dynamodb.js';
-
-vi.mock('../services/dynamodb.js');
 
 describe('configure-webhook handler', () => {
   const mockContext = {

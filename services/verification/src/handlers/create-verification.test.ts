@@ -36,17 +36,21 @@ describe('create-verification handler', () => {
 
     // Setup mocks before importing handler
     vi.doMock('../services/verification', () => ({
-      VerificationService: vi.fn(() => ({
-        createVerification: mockCreateVerification,
-        getVerification: mockGetVerification,
-      })),
+      VerificationService: vi.fn(function() {
+        return {
+          createVerification: mockCreateVerification,
+          getVerification: mockGetVerification,
+        };
+      }),
     }));
 
     vi.doMock('../services/idempotency', () => ({
-      IdempotencyService: vi.fn(() => ({
-        checkIdempotencyKey: mockCheckIdempotencyKey,
-        storeIdempotencyKey: mockStoreIdempotencyKey,
-      })),
+      IdempotencyService: vi.fn(function() {
+        return {
+          checkIdempotencyKey: mockCheckIdempotencyKey,
+          storeIdempotencyKey: mockStoreIdempotencyKey,
+        };
+      }),
       IdempotencyConflictError: class IdempotencyConflictError extends Error {
         constructor(public idempotencyKey: string) {
           super(`Idempotency key already exists: ${idempotencyKey}`);
@@ -57,6 +61,11 @@ describe('create-verification handler', () => {
 
     vi.doMock('../services/validation', () => ({
       validateCreateVerificationRequest: mockValidate,
+    }));
+
+    // Mock RBAC middleware
+    vi.doMock('../middleware/rbac', () => ({
+      rbacMiddleware: vi.fn((handler: any) => handler),
     }));
 
     // Default mock implementations

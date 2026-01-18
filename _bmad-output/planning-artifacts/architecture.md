@@ -53,7 +53,7 @@ lastUpdated: '2026-01-16'
 
 AuthBridge is a dual-track identity verification platform serving:
 - **Enterprise Track (60%):** Banks, insurance, government with annual contracts (P200K-1M/year)
-- **Mid-Market API Access Track (40%):** Self-service pay-as-you-go (P3-5/verification)
+- **Mid-Market Subscription Track (40%):** Tiered subscriptions (P750-P25,000+/month)
 
 **Core Capabilities:**
 - KYC Verification (Omang, Passport, Driver's License)
@@ -544,12 +544,14 @@ const countries = getSupportedCountries(); // ['BW']
 
 **Pricing Model Mapping:**
 
-| AuthBridge Tier | Dodo Product Type | Billing Model |
-|-----------------|-------------------|---------------|
-| API Access | On-Demand Subscription | Usage-based (mandate + charge) |
-| Business | Subscription | Monthly recurring + overage |
-| Enterprise | Subscription | Annual contract |
-| Launchpad | Customer Credits | Credit allocation |
+| AuthBridge Tier | Dodo Product Type | Billing Model | Price (BWP) |
+|-----------------|-------------------|---------------|-------------|
+| Starter | Subscription | Monthly (50 verifications) | P750/month |
+| Professional | Subscription | Monthly (200 verifications) | P2,500/month |
+| Business | Subscription | Monthly (750 verifications) | P7,500/month |
+| Enterprise | Subscription | Annual contract (3,000+) | P25,000+/month |
+| Pay-As-You-Go | On-Demand | Per-verification | P25/verification |
+| Launchpad | Customer Credits | Credit allocation | Subsidized |
 
 **Key Features Used:**
 
@@ -558,20 +560,23 @@ const countries = getSupportedCountries(); // ['BW']
    - Customer pays in BWP, settlement in USD
    - 2-4% FX fee charged to customer
 
-2. **On-Demand Subscriptions (API Access Tier)**
+2. **Subscription Tiers with Overage**
    ```typescript
-   // Create mandate for API Access customer
+   // Create subscription for Professional tier customer
    const subscription = await client.subscriptions.create({
-     product_id: "api_access_tier",
-     on_demand: { mandate_only: true },
-     billing_currency: "BWP"
+     product_id: "authbridge_professional",
+     billing_currency: "BWP",
+     customer: { email: customer.email, name: customer.name }
    });
 
-   // Charge for actual usage
-   await client.subscriptions.charge(subscription.subscription_id, {
-     product_price: verificationCount * 300,  // P3 per verification
-     product_description: `${verificationCount} verifications`
-   });
+   // Charge overage at end of billing period
+   if (verificationsUsed > 200) {
+     const overage = verificationsUsed - 200;
+     await client.subscriptions.charge(subscription.subscription_id, {
+       product_price: overage * 1800,  // P18 per overage verification
+       product_description: `${overage} overage verifications`
+     });
+   }
    ```
 
 3. **Usage-Based Billing (Event Ingestion)**
@@ -681,15 +686,19 @@ flowchart TD
 
 **Dodo Products to Create:**
 
-| Product Name | Type | Price (BWP) | Billing |
-|--------------|------|-------------|---------|
-| API Access - Pay As You Go | On-Demand Subscription | P0 (mandate) | Usage-based |
-| Business Monthly | Subscription | P5,000/month | Monthly |
-| Business Annual | Subscription | P50,000/year | Annual |
-| Enterprise Starter | Subscription | P200,000/year | Annual |
-| Enterprise Pro | Subscription | P500,000/year | Annual |
-| Verification Credit Pack - 100 | One-Time | P300 | One-time |
-| Verification Credit Pack - 500 | One-Time | P1,250 | One-time |
+| Product Name | Type | Price (BWP) | Included | Overage |
+|--------------|------|-------------|----------|---------|
+| Starter | Subscription | P750/month | 50 verifications | P20/verification |
+| Professional | Subscription | P2,500/month | 200 verifications | P18/verification |
+| Business | Subscription | P7,500/month | 750 verifications | P15/verification |
+| Enterprise | Subscription | P25,000+/month | 3,000+ verifications | P12/verification |
+| Pay-As-You-Go | On-Demand | P25/verification | N/A | N/A |
+
+**Pricing Rationale:**
+- All tiers maintain 90%+ profit margins
+- Competitive vs global providers (Sumsub $1.85 = P26, Veriff $0.80 = P11)
+- Matches SA Home Affairs peak pricing (R10 = ~P10) at Business tier
+- BWP pricing via Dodo Adaptive Currency (min P15 per transaction)
 
 **Analytics & Reporting:**
 - Built-in MRR/ARR tracking
@@ -1523,6 +1532,112 @@ amplitude.identify({
 1. **Make.com:** Downgrade to Core plan ($9/mo) - lose team features
 2. **Intercom:** Reduce seats, rely more on Fin AI self-service
 3. **Amplitude:** Use free tier (50K MTUs) - lose some advanced features
+
+---
+
+### ADR-016: Mintlify Documentation Platform
+
+**Decision:** Use Mintlify (Hobby/Free tier) as the documentation platform for AuthBridge.
+
+**Rationale:**
+- **Docs-as-code:** GitHub integration enables version-controlled documentation
+- **Free tier:** Hobby plan provides essential features at no cost
+- **Developer experience:** Beautiful, searchable docs with AI assistant
+- **OpenAPI integration:** Auto-generates API reference from `openapi.yaml`
+- **MDX support:** Rich content with React components
+- **Custom domain:** `docs.authbridge.io` via Netlify proxy
+
+**Key Features (Hobby Plan):**
+- Unlimited pages
+- GitHub sync (auto-deploy on push)
+- Search functionality
+- AI assistant (limited)
+- Custom branding
+- Analytics (basic)
+
+**Configuration:**
+- **Repository:** `BridgeArc/AuthBridge` (main branch)
+- **Docs folder:** `apps/docs/`
+- **Config file:** `apps/docs/docs.json`
+- **Deployment:** Auto-deploy via GitHub App
+
+**Documentation Structure:**
+```
+apps/docs/
+├── docs.json              # Mintlify configuration
+├── introduction.mdx       # Welcome page
+├── quickstart.mdx         # Getting started guide
+├── api-reference/         # Auto-generated from OpenAPI
+│   └── openapi.yaml       # Symlink to services/verification/openapi.yaml
+├── guides/
+│   ├── web-sdk.mdx        # SDK integration guide
+│   ├── webhooks.mdx       # Webhook setup guide
+│   └── authentication.mdx # API authentication guide
+├── concepts/
+│   ├── verification-flow.mdx
+│   └── case-lifecycle.mdx
+└── changelog.mdx          # Release notes
+```
+
+**Mintlify Configuration (`docs.json`):**
+```json
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "AuthBridge",
+  "logo": {
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#75AADB",
+    "light": "#A8D0F0",
+    "dark": "#4A8BC2"
+  },
+  "topbarLinks": [
+    { "name": "Dashboard", "url": "https://app.authbridge.io" }
+  ],
+  "tabs": [
+    { "name": "Documentation", "url": "docs" },
+    { "name": "API Reference", "url": "api-reference" }
+  ],
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": ["introduction", "quickstart"]
+    },
+    {
+      "group": "Guides",
+      "pages": ["guides/web-sdk", "guides/webhooks", "guides/authentication"]
+    },
+    {
+      "group": "API Reference",
+      "pages": ["api-reference/overview"]
+    }
+  ],
+  "openapi": "api-reference/openapi.yaml",
+  "footerSocials": {
+    "github": "https://github.com/BridgeArc/AuthBridge"
+  }
+}
+```
+
+**Credentials (stored in `.env.local`):**
+```bash
+MINTLIFY_PROJECT_ID=696cdead4252351c35ae88ba
+MINTLIFY_ADMIN_API_KEY=mint_EQefdCcuGcMDZeyjXYzyBC
+MINTLIFY_ASSISTANT_API_KEY=mint_dsc_PjYkc38QDS11nVQNdRLFsw
+```
+
+**Deployment URL:** `https://authbridge.mintlify.app` (redirects to `docs.authbridge.io`)
+
+**Cost:**
+| Plan | Monthly Cost | Features |
+|------|--------------|----------|
+| Hobby (Current) | $0 | Unlimited pages, GitHub sync, basic analytics |
+| Pro | $300/month | Custom domain, advanced analytics, priority support |
+
+**Note:** Hobby plan is sufficient for MVP. Upgrade to Pro only if advanced features needed.
 
 ---
 

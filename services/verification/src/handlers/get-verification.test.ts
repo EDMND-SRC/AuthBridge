@@ -24,9 +24,16 @@ describe('get-verification handler', () => {
     vi.clearAllMocks();
 
     vi.doMock('../services/verification', () => ({
-      VerificationService: vi.fn(() => ({
-        getVerification: mockGetVerification,
-      })),
+      VerificationService: vi.fn(function() {
+        return {
+          getVerification: mockGetVerification,
+        };
+      }),
+    }));
+
+    // Mock RBAC middleware to allow all requests
+    vi.doMock('../middleware/rbac', () => ({
+      rbacMiddleware: vi.fn((handler: any) => handler),
     }));
 
     // Default mock implementation

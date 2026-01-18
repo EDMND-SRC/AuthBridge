@@ -212,6 +212,15 @@ describe('RBAC Integration Tests', () => {
 
   describe('Role Management API', () => {
     it('should assign role via API handler', async () => {
+      const { checkPermission } = await import('../services/rbac-enforcer.js');
+      (checkPermission as any).mockResolvedValue({
+        allowed: true,
+        userId: 'user_123',
+        resource: '/api/v1/cases',
+        action: 'read',
+        roles: ['analyst'],
+      });
+
       const event = createMockEvent({
         pathParameters: { userId: 'user_api_test' },
         body: JSON.stringify({ role: 'analyst' }),
@@ -223,6 +232,35 @@ describe('RBAC Integration Tests', () => {
 
       const roles = await getUserRoles('user_api_test');
       expect(roles).toContain('analyst');
+    });
+
+    it('should reject invalid role name', async () => {
+      const event = createMockEvent({
+        pathParameters: { userId: 'user_test' },
+        body: JSON.stringify({ role: 'invalid_role' }),
+        authorizer: { userId: 'admin_user' },
+      });
+
+      const response = await assignRoleHandler(event, {} as any, {} as any);
+      expect(response.statusCode).toBe(400);
+
+      const body = JSON.parse(response.body);
+      expect(body.error).toBe('Invalid role');
+      expect(body.validRoles).toContain('admin');
+    });
+
+    it('should reject missing role in request body', async () => {
+      const event = createMockEvent({
+        pathParameters: { userId: 'user_test' },
+        body: JSON.stringify({}),
+        authorizer: { userId: 'admin_user' },
+      });
+
+      const response = await assignRoleHandler(event, {} as any, {} as any);
+      expect(response.statusCode).toBe(400);
+
+      const body = JSON.parse(response.body);
+      expect(body.error).toBe('role is required');
     });
 
     it('should remove role via API handler', async () => {
@@ -238,6 +276,17 @@ describe('RBAC Integration Tests', () => {
 
       const roles = await getUserRoles('user_remove_test');
       expect(roles).not.toContain('reviewer');
+    });
+
+    it('should handle removing role user does not have', async () => {
+      const event = createMockEvent({
+        pathParameters: { userId: 'user_no_role', role: 'analyst' },
+        authorizer: { userId: 'admin_user' },
+      });
+
+      const response = await removeRoleHandler(event, {} as any, {} as any);
+      // Should succeed (idempotent operation)
+      expect(response.statusCode).toBe(200);
     });
 
     it('should get user roles via API handler', async () => {

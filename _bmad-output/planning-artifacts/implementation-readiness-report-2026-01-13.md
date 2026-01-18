@@ -71,8 +71,8 @@ AuthBridge has completed comprehensive planning documentation and is **READY FOR
 | Gap | Severity | Recommendation |
 |-----|----------|----------------|
 | Omang checksum algorithm not confirmed | LOW | Research during implementation |
-| CIPA/BURS API availability uncertain | MEDIUM | Validate API access early in Phase 2 |
-| Orange Money integration details pending | LOW | Defer to Phase 2 as planned |
+| CIPA/BURS have NO API access | RESOLVED | Use document OCR + manual verification queue |
+| Orange Money integration | RESOLVED | Indefinitely deferred (Dodo handles local payments) |
 
 ---
 
@@ -108,6 +108,9 @@ AuthBridge has completed comprehensive planning documentation and is **READY FOR
 13. ADR-011: Dodo Payments Integration ✅
 14. ADR-012: Intercom Integration ✅
 15. ADR-013: Make.com Integration ✅
+16. ADR-014: Amplitude Integration ✅
+17. ADR-015: Integration Cost Milestones ✅
+18. ADR-016: Mintlify Documentation Platform ✅
 
 ### 2.3 Architecture Strengths
 
@@ -246,13 +249,17 @@ All documents reference consistent technology versions:
 - Svelte 5 ✅
 - AWS af-south-1 ✅
 
-### 5.3 Pricing Alignment ✅
+### 5.3 Pricing Alignment ✅ (Updated 2026-01-18)
 
-| Tier | PRD | Architecture | Product Brief |
-|------|-----|--------------|---------------|
-| API Access | P3-5/verification | ✅ | ✅ |
-| Business | P5K-15K/month | ✅ | ✅ |
-| Enterprise | P200K-1M/year | ✅ | ✅ |
+| Tier | Monthly | Included | Per-Check | Overage |
+|------|---------|----------|-----------|---------|
+| Starter | P750 | 50 | P15 | P20 |
+| Professional | P2,500 | 200 | P12.50 | P18 |
+| Business | P7,500 | 750 | P10 | P15 |
+| Enterprise | P25,000+ | 3,000+ | P8.33 | P12 |
+| Pay-As-You-Go | - | - | P25 | - |
+
+All tiers maintain 90%+ profit margins. BWP pricing via Dodo Adaptive Currency.
 
 ---
 
@@ -271,8 +278,8 @@ All documents reference consistent technology versions:
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
-| Enterprise sales cycle length | HIGH | MEDIUM | Parallel API Access track |
-| CIPA/BURS API unavailability | MEDIUM | HIGH | Manual fallback for Phase 2 |
+| Enterprise sales cycle length | HIGH | MEDIUM | Parallel subscription track |
+| CIPA/BURS API unavailability | RESOLVED | N/A | Document OCR + manual verification |
 | Competitor entry | LOW | MEDIUM | First-mover advantage, local expertise |
 
 ### 6.3 Compliance Risks

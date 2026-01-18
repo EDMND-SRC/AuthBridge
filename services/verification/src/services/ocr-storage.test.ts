@@ -1,21 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { OcrStorageService } from './ocr-storage';
-import { DynamoDBService } from './dynamodb';
 import { OcrResult } from '../types/ocr';
 
-vi.mock('./dynamodb');
+const mockDynamoDBService = {
+  updateItem: vi.fn(),
+  getItem: vi.fn(),
+};
+
+vi.mock('./dynamodb', () => ({
+  DynamoDBService: vi.fn(function() {
+    return mockDynamoDBService;
+  }),
+}));
 
 describe('OcrStorageService', () => {
   let ocrStorageService: OcrStorageService;
-  let mockDynamoDBService: any;
 
   beforeEach(() => {
-    mockDynamoDBService = {
-      updateItem: vi.fn(),
-      getItem: vi.fn(),
-    };
-    vi.mocked(DynamoDBService).mockImplementation(() => mockDynamoDBService);
-
+    vi.clearAllMocks();
+    mockDynamoDBService.updateItem.mockResolvedValue({});
+    mockDynamoDBService.getItem.mockResolvedValue({});
     ocrStorageService = new OcrStorageService();
   });
 

@@ -20,6 +20,8 @@
         "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
         "NODE_OPTIONS": "--enable-source-maps",
         "TABLE_NAME": "AuthBridgeTable",
+        "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+        "CASBIN_MODEL_PATH": "./casbin-model.conf",
         "BUCKET_NAME": "authbridge-documents-staging",
         "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
         "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
@@ -33,11 +35,27 @@
                 "dynamodb:GetItem",
                 "dynamodb:PutItem",
                 "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
                 "dynamodb:Query"
               ],
               "Resource": [
                 "arn:aws:dynamodb:af-south-1:*:table/AuthBridgeTable",
                 "arn:aws:dynamodb:af-south-1:*:table/AuthBridgeTable/index/*"
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:Query",
+                "dynamodb:Scan"
+              ],
+              "Resource": [
+                "arn:aws:dynamodb:af-south-1:*:table/AuthBridgeCasbinPolicies-staging",
+                "arn:aws:dynamodb:af-south-1:*:table/AuthBridgeCasbinPolicies-staging/index/*"
               ]
             },
             {
@@ -76,7 +94,10 @@
                 "s3:GetObject",
                 "s3:DeleteObject"
               ],
-              "Resource": "arn:aws:s3:::authbridge-documents-staging/*"
+              "Resource": [
+                "arn:aws:s3:::authbridge-documents-staging/*",
+                "arn:aws:s3:::authbridge-data-exports-staging/*"
+              ]
             },
             {
               "Effect": "Allow",
@@ -166,6 +187,16 @@
                 "kms:GenerateDataKey"
               ],
               "Resource": "arn:aws:kms:af-south-1:979237821231:key/40b9adc5-5f4b-4c12-94d3-5e6a8f7e4fc3"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "lambda:InvokeFunction"
+              ],
+              "Resource": [
+                "arn:aws:lambda:af-south-1:*:function:authbridge-verification-staging-processExport",
+                "arn:aws:lambda:af-south-1:*:function:authbridge-verification-staging-processDeletion"
+              ]
             }
           ]
         }
@@ -352,6 +383,60 @@
               "LogGroupName": "/aws/lambda/authbridge-verification-staging-processBiometric"
             }
           },
+          "CreateDataRequestLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-createDataRequest"
+            }
+          },
+          "GetDataRequestStatusLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-getDataRequestStatus"
+            }
+          },
+          "ProcessExportLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-processExport"
+            }
+          },
+          "ProcessDeletionLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-processDeletion"
+            }
+          },
+          "ScheduledHardDeleteLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-scheduledHardDelete"
+            }
+          },
+          "AssignRoleLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-assignRole"
+            }
+          },
+          "RemoveRoleLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-removeRole"
+            }
+          },
+          "GetUserRolesLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-getUserRoles"
+            }
+          },
+          "ListRolesLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/authbridge-verification-staging-listRoles"
+            }
+          },
           "IamRoleLambdaExecution": {
             "Type": "AWS::IAM::Role",
             "Properties": {
@@ -447,6 +532,12 @@
                         "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][11]"
                       },
                       {
+                        "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][12]"
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][13]"
+                      },
+                      {
                         "Effect": "Allow",
                         "Action": [
                           "sqs:ReceiveMessage",
@@ -501,7 +592,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/listCases.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/listCases.zip"
               },
               "Handler": "src/handlers/list-cases.handler",
               "Runtime": "nodejs20.x",
@@ -514,6 +605,8 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
                   "BUCKET_NAME": "authbridge-documents-staging",
                   "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
                   "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
@@ -537,7 +630,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/getCase.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/getCase.zip"
               },
               "Handler": "src/handlers/get-case.handler",
               "Runtime": "nodejs20.x",
@@ -550,6 +643,8 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
                   "BUCKET_NAME": "authbridge-documents-staging",
                   "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
                   "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
@@ -573,7 +668,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/approveCase.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/approveCase.zip"
               },
               "Handler": "src/handlers/approve-case.handler",
               "Runtime": "nodejs20.x",
@@ -586,6 +681,8 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
                   "BUCKET_NAME": "authbridge-documents-staging",
                   "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
                   "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
@@ -612,7 +709,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/rejectCase.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/rejectCase.zip"
               },
               "Handler": "src/handlers/reject-case.handler",
               "Runtime": "nodejs20.x",
@@ -625,6 +722,8 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
                   "BUCKET_NAME": "authbridge-documents-staging",
                   "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
                   "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
@@ -651,7 +750,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/sendWebhook.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/sendWebhook.zip"
               },
               "Handler": "src/handlers/send-webhook.handler",
               "Runtime": "nodejs20.x",
@@ -664,6 +763,8 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
                   "BUCKET_NAME": "authbridge-documents-staging",
                   "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
                   "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
@@ -690,7 +791,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/configureWebhook.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/configureWebhook.zip"
               },
               "Handler": "src/handlers/configure-webhook.handler",
               "Runtime": "nodejs20.x",
@@ -703,6 +804,8 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
                   "BUCKET_NAME": "authbridge-documents-staging",
                   "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
                   "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
@@ -726,7 +829,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/testWebhook.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/testWebhook.zip"
               },
               "Handler": "src/handlers/test-webhook.handler",
               "Runtime": "nodejs20.x",
@@ -739,6 +842,8 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
                   "BUCKET_NAME": "authbridge-documents-staging",
                   "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
                   "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
@@ -762,7 +867,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/addNote.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/addNote.zip"
               },
               "Handler": "src/handlers/add-note.handler",
               "Runtime": "nodejs20.x",
@@ -775,6 +880,8 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
                   "BUCKET_NAME": "authbridge-documents-staging",
                   "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
                   "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
@@ -798,7 +905,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/getNotes.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/getNotes.zip"
               },
               "Handler": "src/handlers/get-notes.handler",
               "Runtime": "nodejs20.x",
@@ -811,6 +918,8 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
                   "BUCKET_NAME": "authbridge-documents-staging",
                   "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
                   "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
@@ -834,7 +943,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/getAuditLogs.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/getAuditLogs.zip"
               },
               "Handler": "src/handlers/get-audit-logs.getAuditLogs",
               "Runtime": "nodejs20.x",
@@ -847,6 +956,8 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
                   "BUCKET_NAME": "authbridge-documents-staging",
                   "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
                   "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
@@ -870,7 +981,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/bulkApprove.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/bulkApprove.zip"
               },
               "Handler": "src/handlers/bulk-approve.handler",
               "Runtime": "nodejs20.x",
@@ -883,6 +994,8 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
                   "BUCKET_NAME": "authbridge-documents-staging",
                   "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
                   "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
@@ -909,7 +1022,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/bulkReject.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/bulkReject.zip"
               },
               "Handler": "src/handlers/bulk-reject.handler",
               "Runtime": "nodejs20.x",
@@ -922,6 +1035,8 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
                   "BUCKET_NAME": "authbridge-documents-staging",
                   "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
                   "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
@@ -948,7 +1063,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/createVerification.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/createVerification.zip"
               },
               "Handler": "src/handlers/create-verification.handler",
               "Runtime": "nodejs20.x",
@@ -961,6 +1076,8 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
                   "BUCKET_NAME": "authbridge-documents-staging",
                   "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
                   "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
@@ -988,7 +1105,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/getVerificationStatus.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/getVerificationStatus.zip"
               },
               "Handler": "src/handlers/get-verification-status.handler",
               "Runtime": "nodejs20.x",
@@ -1001,6 +1118,8 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
                   "BUCKET_NAME": "authbridge-documents-staging",
                   "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
                   "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
@@ -1024,7 +1143,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/uploadDocument.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/uploadDocument.zip"
               },
               "Handler": "src/handlers/upload-document.handler",
               "Runtime": "nodejs20.x",
@@ -1037,6 +1156,8 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
                   "BUCKET_NAME": "authbridge-documents-staging",
                   "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
                   "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
@@ -1063,7 +1184,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/refreshDocumentUrl.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/refreshDocumentUrl.zip"
               },
               "Handler": "src/handlers/refresh-document-url.handler",
               "Runtime": "nodejs20.x",
@@ -1076,6 +1197,8 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
                   "BUCKET_NAME": "authbridge-documents-staging",
                   "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
                   "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
@@ -1099,7 +1222,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/processOCR.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/processOCR.zip"
               },
               "Handler": "src/handlers/process-ocr.handler",
               "Runtime": "nodejs20.x",
@@ -1112,6 +1235,8 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
                   "BUCKET_NAME": "authbridge-documents-staging",
                   "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
                   "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
@@ -1141,7 +1266,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z/processBiometric.zip"
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/processBiometric.zip"
               },
               "Handler": "src/handlers/process-biometric.handler",
               "Runtime": "nodejs20.x",
@@ -1154,6 +1279,8 @@
                   "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
                   "NODE_OPTIONS": "--enable-source-maps",
                   "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
                   "BUCKET_NAME": "authbridge-documents-staging",
                   "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
                   "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
@@ -1173,202 +1300,691 @@
               "ProcessBiometricLogGroup"
             ]
           },
-          "ListCasesLambdaVersionlFeNsnM8AIa1aZbJFm3We0dR4YAQvykUrw10": {
-            "Type": "AWS::Lambda::Version",
-            "DeletionPolicy": "Retain",
+          "CreateDataRequestLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
             "Properties": {
-              "FunctionName": {
-                "Ref": "ListCasesLambdaFunction"
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/createDataRequest.zip"
               },
-              "CodeSha256": "9eZyF+z42shjMVG1/KvW//nFhvORyaQQNi37/Xuib0I=",
-              "Description": "List verification cases with filtering and pagination"
-            }
+              "Handler": "src/handlers/create-data-request.handler",
+              "Runtime": "nodejs20.x",
+              "FunctionName": "authbridge-verification-staging-createDataRequest",
+              "MemorySize": 256,
+              "Timeout": 30,
+              "Description": "Create data export or deletion request",
+              "Environment": {
+                "Variables": {
+                  "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
+                  "NODE_OPTIONS": "--enable-source-maps",
+                  "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
+                  "EXPORT_BUCKET": {
+                    "Ref": "DataExportBucket"
+                  },
+                  "STAGE": "staging"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "CreateDataRequestLogGroup"
+            ]
           },
-          "GetCaseLambdaVersionbG6SPKwWHzq6PyGkrQb1KPyaWm73VNqGAZGZj1FMY": {
-            "Type": "AWS::Lambda::Version",
-            "DeletionPolicy": "Retain",
+          "GetDataRequestStatusLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
             "Properties": {
-              "FunctionName": {
-                "Ref": "GetCaseLambdaFunction"
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/getDataRequestStatus.zip"
               },
-              "CodeSha256": "z8i/ARft0I3Crwf0/d60zMOF1DJ01RCWsXPA7ZhVPkY=",
-              "Description": "Get case detail by ID"
-            }
+              "Handler": "src/handlers/get-data-request-status.handler",
+              "Runtime": "nodejs20.x",
+              "FunctionName": "authbridge-verification-staging-getDataRequestStatus",
+              "MemorySize": 256,
+              "Timeout": 10,
+              "Description": "Get status of data export or deletion request",
+              "Environment": {
+                "Variables": {
+                  "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
+                  "NODE_OPTIONS": "--enable-source-maps",
+                  "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "GetDataRequestStatusLogGroup"
+            ]
           },
-          "ApproveCaseLambdaVersionA2Pk5ce7ubkezUnd0cWhYWvYDrRogUDKHaT7SV863eE": {
-            "Type": "AWS::Lambda::Version",
-            "DeletionPolicy": "Retain",
+          "ProcessExportLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
             "Properties": {
-              "FunctionName": {
-                "Ref": "ApproveCaseLambdaFunction"
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/processExport.zip"
               },
-              "CodeSha256": "v4j8+mVTStQTPTqyDp0s1I2/cfIQrCrx8f6eqQE1esY=",
-              "Description": "Approve a verification case"
-            }
+              "Handler": "src/handlers/process-export.handler",
+              "Runtime": "nodejs20.x",
+              "FunctionName": "authbridge-verification-staging-processExport",
+              "MemorySize": 512,
+              "Timeout": 300,
+              "Description": "Background worker to generate data export",
+              "Environment": {
+                "Variables": {
+                  "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
+                  "NODE_OPTIONS": "--enable-source-maps",
+                  "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
+                  "EXPORT_BUCKET": {
+                    "Ref": "DataExportBucket"
+                  },
+                  "DOCUMENTS_BUCKET": "authbridge-documents-staging"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "ProcessExportLogGroup"
+            ]
           },
-          "RejectCaseLambdaVersionxyzJ3u2sbv6dssTAKF5eYtnvda4zL9P4kXsdgHx53Q": {
-            "Type": "AWS::Lambda::Version",
-            "DeletionPolicy": "Retain",
+          "ProcessDeletionLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
             "Properties": {
-              "FunctionName": {
-                "Ref": "RejectCaseLambdaFunction"
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/processDeletion.zip"
               },
-              "CodeSha256": "VMuR4OAtyh2dZqAuuLMLKhZS2Y27TvsYbd1CRCdcSb8=",
-              "Description": "Reject a verification case with reason"
-            }
+              "Handler": "src/handlers/process-deletion.handler",
+              "Runtime": "nodejs20.x",
+              "FunctionName": "authbridge-verification-staging-processDeletion",
+              "MemorySize": 512,
+              "Timeout": 300,
+              "Description": "Background worker to process data deletion (soft delete)",
+              "Environment": {
+                "Variables": {
+                  "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
+                  "NODE_OPTIONS": "--enable-source-maps",
+                  "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DOCUMENTS_BUCKET": "authbridge-documents-staging"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "ProcessDeletionLogGroup"
+            ]
           },
-          "SendWebhookLambdaVersion9dGKyrgxeDX0hdFIYJOTrm4h7j35KiBbqQ3TNLT8E": {
+          "ScheduledHardDeleteLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/scheduledHardDelete.zip"
+              },
+              "Handler": "src/handlers/scheduled-hard-delete.handler",
+              "Runtime": "nodejs20.x",
+              "FunctionName": "authbridge-verification-staging-scheduledHardDelete",
+              "MemorySize": 512,
+              "Timeout": 900,
+              "Description": "Scheduled job to perform hard deletion of data",
+              "Environment": {
+                "Variables": {
+                  "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
+                  "NODE_OPTIONS": "--enable-source-maps",
+                  "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DOCUMENTS_BUCKET": "authbridge-documents-staging"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "ScheduledHardDeleteLogGroup"
+            ]
+          },
+          "AssignRoleLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/assignRole.zip"
+              },
+              "Handler": "src/handlers/assign-role.handler",
+              "Runtime": "nodejs20.x",
+              "FunctionName": "authbridge-verification-staging-assignRole",
+              "MemorySize": 256,
+              "Timeout": 10,
+              "Description": "Assign role to user",
+              "Environment": {
+                "Variables": {
+                  "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
+                  "NODE_OPTIONS": "--enable-source-maps",
+                  "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "AssignRoleLogGroup"
+            ]
+          },
+          "RemoveRoleLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/removeRole.zip"
+              },
+              "Handler": "src/handlers/remove-role.handler",
+              "Runtime": "nodejs20.x",
+              "FunctionName": "authbridge-verification-staging-removeRole",
+              "MemorySize": 256,
+              "Timeout": 10,
+              "Description": "Remove role from user",
+              "Environment": {
+                "Variables": {
+                  "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
+                  "NODE_OPTIONS": "--enable-source-maps",
+                  "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "RemoveRoleLogGroup"
+            ]
+          },
+          "GetUserRolesLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/getUserRoles.zip"
+              },
+              "Handler": "src/handlers/get-user-roles.handler",
+              "Runtime": "nodejs20.x",
+              "FunctionName": "authbridge-verification-staging-getUserRoles",
+              "MemorySize": 256,
+              "Timeout": 10,
+              "Description": "Get roles assigned to user",
+              "Environment": {
+                "Variables": {
+                  "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
+                  "NODE_OPTIONS": "--enable-source-maps",
+                  "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "GetUserRolesLogGroup"
+            ]
+          },
+          "ListRolesLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z/listRoles.zip"
+              },
+              "Handler": "src/handlers/list-roles.handler",
+              "Runtime": "nodejs20.x",
+              "FunctionName": "authbridge-verification-staging-listRoles",
+              "MemorySize": 256,
+              "Timeout": 10,
+              "Description": "List all available roles",
+              "Environment": {
+                "Variables": {
+                  "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
+                  "NODE_OPTIONS": "--enable-source-maps",
+                  "TABLE_NAME": "AuthBridgeTable",
+                  "CASBIN_TABLE_NAME": "AuthBridgeCasbinPolicies-staging",
+                  "CASBIN_MODEL_PATH": "./casbin-model.conf",
+                  "BUCKET_NAME": "authbridge-documents-staging",
+                  "DATA_ENCRYPTION_KEY_ID": "dd242797-bf9b-4058-a079-3588989dd79b",
+                  "DATA_ENCRYPTION_KEY_ARN": "arn:aws:kms:af-south-1:979237821231:key/dd242797-bf9b-4058-a079-3588989dd79b"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "ListRolesLogGroup"
+            ]
+          },
+          "SendWebhookLambdaVersionFH1KbKYxSgjhsHeTvxzRWvioujtJxiwg7qKkDVAomQs": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "SendWebhookLambdaFunction"
               },
-              "CodeSha256": "Qkk0kQ+yp61Djl9qf7V13/C82mr+z7zRFDgHzf6jBGA=",
+              "CodeSha256": "qk7I4ZCSfUBxaHi9gwtfno//5Xq1/jPdCWMm+HSjB0g=",
               "Description": "Send webhook notifications for case decisions"
             }
           },
-          "ConfigureWebhookLambdaVersionIUwiAiO2rv6w33q2gTnDctQBCsl6hCnVYOd4l9vpi8": {
+          "GetCaseLambdaVersionX0QMrHP4Yyq2nq6UEgg8gN6RY27Ntm8sdh7AyyE38zQ": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "GetCaseLambdaFunction"
+              },
+              "CodeSha256": "X3v6xNGtc66encXHzUPJmshvf1bY+TjIwvdewzgengA=",
+              "Description": "Get case detail by ID"
+            }
+          },
+          "ApproveCaseLambdaVersionzkEYYSBtTr8mMbhwNmGrTkCfoWuKW6zguAR59oLPUKg": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "ApproveCaseLambdaFunction"
+              },
+              "CodeSha256": "Iut+ppZwavpdikwLQg8TRTn2VWrEaEKWMAs2DreE3cs=",
+              "Description": "Approve a verification case"
+            }
+          },
+          "ConfigureWebhookLambdaVersionjTI3OtCHPCs3FHn9ntO60Kb4oH39F8ylX1FisCaR4": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "ConfigureWebhookLambdaFunction"
               },
-              "CodeSha256": "aZ16Vz4sYlAz1J5Re0t1PpMFJD2xdKWsgVlWXrgcmiY=",
+              "CodeSha256": "z75NTMdkjFm8RVsD9W7dYRLSN6A3RU2QaGJlAu0VDj4=",
               "Description": "Configure webhook URL and settings for client"
             }
           },
-          "TestWebhookLambdaVersion1sLGbBdiRKGG5TucjQwTfQbiYIpGS20z1MkPuIcFPA": {
+          "RejectCaseLambdaVersion7ZHD0YA6hZknoFVLmR6XycGuUfr06DLXuMy7AcB4": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "RejectCaseLambdaFunction"
+              },
+              "CodeSha256": "mfv2Bus2dDUe9Da03ZLtCJJGnLJ6tQY1ig/0Zc/sUwg=",
+              "Description": "Reject a verification case with reason"
+            }
+          },
+          "TestWebhookLambdaVersioncm5M7jQhfvVAIfBTDsZGnXdP0z3KfsoFKcXAdzn4JM": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "TestWebhookLambdaFunction"
               },
-              "CodeSha256": "XlbQSV1o8n6jIcmAPE0PmOJVAQev8HMcklSIUGYAX3Q=",
+              "CodeSha256": "3k7Mwjul1rEjRrTTydPf87tg6QjNMP7BQieznvTv0Qs=",
               "Description": "Send test webhook notification to verify configuration"
             }
           },
-          "AddNoteLambdaVersiontD8bsiFDPWESaWvoyxdt9QUKtvldUjWhIxdMD5MaFQ": {
+          "AddNoteLambdaVersionf6SzhR9HIDWrS6IXudbjjhmKOxcNtA3zuo5T68LQ": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "AddNoteLambdaFunction"
               },
-              "CodeSha256": "V2g5oZCe+7K06n23HEda7ZwADnbwt8/OLAn+tT6i2eQ=",
+              "CodeSha256": "aYmVBPaM9dCYeFgP/5Czo5QduTdyh+75W0pUDzw8VbE=",
               "Description": "Add note to case"
             }
           },
-          "GetNotesLambdaVersionL6fn1AWqMnf5trrnUWceXBgBs0LiQ9bAknC1Peiteao": {
+          "GetNotesLambdaVersionXEcwqyTYHwH9Io2rlRiTDeQQKs8ED4DWARHQwGsQI": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "GetNotesLambdaFunction"
               },
-              "CodeSha256": "ciJ1pxkNbrcKiuEiE5as8IlYFFbwz9zz/HTOFtI+neg=",
+              "CodeSha256": "qvLEyk8LQDZItX9FLmYiJlRqYwXX5fLHYyVHclbVjK4=",
               "Description": "Get all notes for a case"
             }
           },
-          "GetAuditLogsLambdaVersionV8VRJnqQlgbIlfknGcdpkq99eTHaY0Fa0ToUCWcIDk": {
+          "GetAuditLogsLambdaVersioneBPqNbZr2XEuRYHE4sejXIZycgdrJDKzGXcofXo7u0": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "GetAuditLogsLambdaFunction"
               },
-              "CodeSha256": "lPAXAnxKCvyAxbxqR/p2LuMsmDx+YMdRMj128dikaYM=",
+              "CodeSha256": "8+R9utKGG8QAaaDyFrYYdWmFM/Ye0W/vbXsXOkPlA/E=",
               "Description": "Query audit logs with filters (date, user, action, resource)"
             }
           },
-          "BulkApproveLambdaVersionY1B6OdBNLj3l87cwKa8vzC7agbIjhFB4xQQHxwkX8k": {
+          "BulkApproveLambdaVersionsGByqGVMG0LkhzYX7W0YDxR51Qnl5yYA3JCAhZ0J8UA": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "BulkApproveLambdaFunction"
               },
-              "CodeSha256": "o4cfz+VCr37GjHlU8Xx2oSIFlwQxHRCCcfNUc5DvkpY=",
+              "CodeSha256": "UQQ5Z8TqDWwZFhtuDZrl05GIp9AROeAOrrzmzmzCSFs=",
               "Description": "Bulk approve multiple verification cases"
             }
           },
-          "BulkRejectLambdaVersionfR3OH6SLnSyZI8srJ0ERDERVP1VukERyQKXhXK7xM": {
+          "BulkRejectLambdaVersion4n9usqXumegXiY9l64O6b8kq2rKJRxLI1B2xYk": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "BulkRejectLambdaFunction"
               },
-              "CodeSha256": "IYjAOYc6CbRxPN5C0oqMUjhbCIOM9BAfs2sYiKQ4k18=",
+              "CodeSha256": "iqQPVVcE+V2cJ5EXLMvm4jmiXOIeXu8UTv12hfcpjH4=",
               "Description": "Bulk reject multiple verification cases with reason"
             }
           },
-          "CreateVerificationLambdaVersionFmZTKJ4Pl9o4Zk6M6jBPpjWcDISWuq9QcfskeFxQOLc": {
-            "Type": "AWS::Lambda::Version",
-            "DeletionPolicy": "Retain",
-            "Properties": {
-              "FunctionName": {
-                "Ref": "CreateVerificationLambdaFunction"
-              },
-              "CodeSha256": "rwVMORsshb7aLuo9WcSaxq6yz4on47ww2V1OBDPOh1M=",
-              "Description": "Create new verification case"
-            }
-          },
-          "UploadDocumentLambdaVersionjtX2WX4HoMXbjSbn408Y13vTloN4kNQThhJAaUhYc": {
-            "Type": "AWS::Lambda::Version",
-            "DeletionPolicy": "Retain",
-            "Properties": {
-              "FunctionName": {
-                "Ref": "UploadDocumentLambdaFunction"
-              },
-              "CodeSha256": "GkL/EH4cDLqAy2yhDf42yMbEd/akNbswKXri6V7kMiE=",
-              "Description": "Upload document to verification case"
-            }
-          },
-          "GetVerificationStatusLambdaVersionPZAgUNyoBLUyyaEv1AQTXWhlVUkP2tJ8gWrV4tDSDE": {
+          "GetVerificationStatusLambdaVersion99FkQot38abOzeY7jSZgMvBoxOjGFmpYl2Ylkwez2k": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "GetVerificationStatusLambdaFunction"
               },
-              "CodeSha256": "bWtq2vG98Fh9rEuvHx0ew+UsjVbiOa/buW6eHq8/ve0=",
+              "CodeSha256": "8I3Y+lWp/yycXG7V1ZoRIYs+2X/p5c6fJMlK4WmRIek=",
               "Description": "Get verification status and details"
             }
           },
-          "ProcessOCRLambdaVersionPwhByq9rWMpRovavE0A9KadPTWe64HBM4rkrMzrJlno": {
-            "Type": "AWS::Lambda::Version",
-            "DeletionPolicy": "Retain",
-            "Properties": {
-              "FunctionName": {
-                "Ref": "ProcessOCRLambdaFunction"
-              },
-              "CodeSha256": "G5/N8qPR1RGLNxwsATmVeL6RHsznvVV8ofsHFKTO/7Q=",
-              "Description": "Process OCR extraction from document images"
-            }
-          },
-          "RefreshDocumentUrlLambdaVersionrCNxBUH1kCQpf9cmAvnkTtl6oLHW9hRfV5eJSrZRcEc": {
+          "RefreshDocumentUrlLambdaVersion4PwyYZIxzcrE0189QchMu7Kmn5SD3YRDEa7PMI": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "RefreshDocumentUrlLambdaFunction"
               },
-              "CodeSha256": "9ak930YwAP08jEFsiZON593lOjZ/vxlLQobRjWfAYZw=",
+              "CodeSha256": "JVtIwNlrBrL2YnVhiRvJnPoA8KO3SaxKvc+5dYUhbmc=",
               "Description": "Refresh presigned URL for document access"
             }
           },
-          "ProcessBiometricLambdaVersionYmsSuwHgABxsEexzNEWWKg1i41ya74QL2ZO4I2yszE": {
+          "CreateDataRequestLambdaVersionLuJjvVqfBxMmnyOJIljbJbLk0nWELFqSEDBBHAdY": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "CreateDataRequestLambdaFunction"
+              },
+              "CodeSha256": "xh4mJJ81CtmPI2UEeyDW4iuSIE+ZUKHx51UZBjmho8o=",
+              "Description": "Create data export or deletion request"
+            }
+          },
+          "ProcessBiometricLambdaVersionnOrODfaSiiKKxSYx0QZ0sE1d1dfMxCOOmI3NibyWV0": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "ProcessBiometricLambdaFunction"
               },
-              "CodeSha256": "icMWCPphTOVh3ltiH0LFFRHko7ECoMCuhetls2VR+O4=",
+              "CodeSha256": "qjzCFAoM1tkUzjTRKc6eS/wWpRT1eSfgqaWOv/fyk1s=",
               "Description": "Process biometric face matching (liveness + comparison)"
+            }
+          },
+          "ProcessOCRLambdaVersion59VN2IFCAuHZPXOpfXHZu50aYrMZqL2kDHvrAmgA": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "ProcessOCRLambdaFunction"
+              },
+              "CodeSha256": "eZg7bSx+tgvVnnRi9wwJOJY9NLZUi7K59CBshkxZBaE=",
+              "Description": "Process OCR extraction from document images"
+            }
+          },
+          "ProcessExportLambdaVersionBfzIXLQYC2OWlsxJnzA1V6J3ClzrpMNS0SN3sv8BpGU": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "ProcessExportLambdaFunction"
+              },
+              "CodeSha256": "XY0NJ+cPi0mOMxBtNGqDJuyb6FxlPyWSJKWIS2jzQJ4=",
+              "Description": "Background worker to generate data export"
+            }
+          },
+          "ProcessDeletionLambdaVersionIpKrMJ7JGVXkIw6v5eePFqvjV0B5QuHoucnlEzc": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "ProcessDeletionLambdaFunction"
+              },
+              "CodeSha256": "60C42aR9cx1rwu7LKWRUYfGgnDmuqCy2HslgdaP1nNs=",
+              "Description": "Background worker to process data deletion (soft delete)"
+            }
+          },
+          "GetDataRequestStatusLambdaVersion0SGi3A3UmA0Z2nDOerTovxbxketPzmlhrL0jjNoQk": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "GetDataRequestStatusLambdaFunction"
+              },
+              "CodeSha256": "zPTJ2P8Laajb+qJmRrGhPSf3lX4tbIuTu5bK4Cah+tU=",
+              "Description": "Get status of data export or deletion request"
+            }
+          },
+          "ScheduledHardDeleteLambdaVersionW4FAqRpgEL5WukOYdtzLqEXSVAxPpTB9DgQbqfgg": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "ScheduledHardDeleteLambdaFunction"
+              },
+              "CodeSha256": "UA2cggg5LWIad9imtjFZtxx9jOikUTriBN8nyYB4cVU=",
+              "Description": "Scheduled job to perform hard deletion of data"
+            }
+          },
+          "AssignRoleLambdaVersion7aLsFsRfKrPuuu1iiEMQMSXcGyZIm4akKt8UUqyho": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "AssignRoleLambdaFunction"
+              },
+              "CodeSha256": "F2B0Cy9eT2mMR6th6zWKTqsdCZyfQ5wzO51Qw2pGt2E=",
+              "Description": "Assign role to user"
+            }
+          },
+          "RemoveRoleLambdaVersions5vfBpElorTzqwR7JqJez3f71kVBkAzGY1fDck60": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "RemoveRoleLambdaFunction"
+              },
+              "CodeSha256": "XzCc5Qemwrzw2asmCDQS77MdPGWy2FsWFhyGo1OQcng=",
+              "Description": "Remove role from user"
+            }
+          },
+          "ListRolesLambdaVersionAP28PkPVEBnuf4mnfUxa6Kfx36SqjOgS2VHswLFTY": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "ListRolesLambdaFunction"
+              },
+              "CodeSha256": "psAxZshdtz2g2TuNHU4bgukpk9f21XcG+OoifOftBH0=",
+              "Description": "List all available roles"
+            }
+          },
+          "GetUserRolesLambdaVersion2mrVlBfJxWsXu5dc1dNWvcLBWOtJ2MlUJwQ57YxIZQ": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "GetUserRolesLambdaFunction"
+              },
+              "CodeSha256": "Fj8haVWAQe/wQq5ghxE7TzwFoSoH/iKhYDxU4w/LpOc=",
+              "Description": "Get roles assigned to user"
+            }
+          },
+          "CreateVerificationLambdaVersion3Q2slVY6yeDWSES3Tei7vddNz5eXlyoRjZtDJmvqkxg": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "CreateVerificationLambdaFunction"
+              },
+              "CodeSha256": "k3QD1ZhUWwxA6psmmZh+irFF9TwhgEg/2z5Pefl7l6g=",
+              "Description": "Create new verification case"
+            }
+          },
+          "UploadDocumentLambdaVersionXdb9ot3eeoakXUYzbD5alvC4NN7AtShfVLB4lHFXXo": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "UploadDocumentLambdaFunction"
+              },
+              "CodeSha256": "+nwLN80lgCOLBduSaiZz/n/TK7urFe4joTMQf/NcozE=",
+              "Description": "Upload document to verification case"
+            }
+          },
+          "ListCasesLambdaVersion0VSjWnRGQZXSHWkgOmSqCZb9gETbjz5M00vt26M": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "ListCasesLambdaFunction"
+              },
+              "CodeSha256": "l6/RE9KcuNwTTRKI9uSbytqFewFlxc1mtl5PS/VVQoY=",
+              "Description": "List verification cases with filtering and pagination"
+            }
+          },
+          "ScheduledHardDeleteEventsRuleSchedule1": {
+            "Type": "AWS::Events::Rule",
+            "Properties": {
+              "ScheduleExpression": "cron(0 2 * * ? *)",
+              "State": "ENABLED",
+              "Description": "Daily hard delete job at 2 AM UTC",
+              "Targets": [
+                {
+                  "Arn": {
+                    "Fn::GetAtt": [
+                      "ScheduledHardDeleteLambdaFunction",
+                      "Arn"
+                    ]
+                  },
+                  "Id": "scheduledHardDeleteSchedule"
+                }
+              ]
+            }
+          },
+          "ScheduledHardDeleteLambdaPermissionEventsRuleSchedule1": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "ScheduledHardDeleteLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "events.amazonaws.com",
+              "SourceArn": {
+                "Fn::GetAtt": [
+                  "ScheduledHardDeleteEventsRuleSchedule1",
+                  "Arn"
+                ]
+              }
             }
           },
           "ApiGatewayRestApi": {
@@ -1598,6 +2214,90 @@
                 "Ref": "ApiGatewayResourceApiV1VerificationsVerificationidVarDocumentsDocumentidVar"
               },
               "PathPart": "url",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceApiV1DataDashrequests": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceApiV1"
+              },
+              "PathPart": "data-requests",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceApiV1DataDashrequestsRequestidVar": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceApiV1DataDashrequests"
+              },
+              "PathPart": "{requestId}",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceApiV1Users": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceApiV1"
+              },
+              "PathPart": "users",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceApiV1UsersUseridVar": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceApiV1Users"
+              },
+              "PathPart": "{userId}",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceApiV1UsersUseridVarRoles": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceApiV1UsersUseridVar"
+              },
+              "PathPart": "roles",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceApiV1UsersUseridVarRolesRoleVar": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceApiV1UsersUseridVarRoles"
+              },
+              "PathPart": "{role}",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceApiV1Roles": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceApiV1"
+              },
+              "PathPart": "roles",
               "RestApiId": {
                 "Ref": "ApiGatewayRestApi"
               }
@@ -2227,6 +2927,231 @@
               },
               "ResourceId": {
                 "Ref": "ApiGatewayResourceApiV1VerificationsVerificationidVarDocumentsDocumentidVarUrl"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodApiV1DataDashrequestsOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": ""
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceApiV1DataDashrequests"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodApiV1DataDashrequestsRequestidVarOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": ""
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceApiV1DataDashrequestsRequestidVar"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodApiV1UsersUseridVarRolesOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET,POST'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": ""
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceApiV1UsersUseridVarRoles"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodApiV1UsersUseridVarRolesRoleVarOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,DELETE'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": ""
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceApiV1UsersUseridVarRolesRoleVar"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodApiV1RolesOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": ""
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceApiV1Roles"
               },
               "RestApiId": {
                 "Ref": "ApiGatewayRestApi"
@@ -2938,6 +3863,300 @@
               "RefreshDocumentUrlLambdaPermissionApiGateway"
             ]
           },
+          "ApiGatewayMethodApiV1DataDashrequestsPost": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "POST",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceApiV1DataDashrequests"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "CUSTOM",
+              "AuthorizerId": {
+                "Ref": "ApiKeyAuthorizerApiGatewayAuthorizer"
+              },
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "CreateDataRequestLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "ApiKeyAuthorizerApiGatewayAuthorizer"
+            ]
+          },
+          "ApiGatewayMethodApiV1DataDashrequestsRequestidVarGet": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "GET",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceApiV1DataDashrequestsRequestidVar"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "CUSTOM",
+              "AuthorizerId": {
+                "Ref": "ApiKeyAuthorizerApiGatewayAuthorizer"
+              },
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "GetDataRequestStatusLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "ApiKeyAuthorizerApiGatewayAuthorizer"
+            ]
+          },
+          "ApiGatewayMethodApiV1UsersUseridVarRolesPost": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "POST",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceApiV1UsersUseridVarRoles"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "CUSTOM",
+              "AuthorizerId": {
+                "Ref": "ApiKeyAuthorizerApiGatewayAuthorizer"
+              },
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "AssignRoleLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "ApiKeyAuthorizerApiGatewayAuthorizer"
+            ]
+          },
+          "ApiGatewayMethodApiV1UsersUseridVarRolesRoleVarDelete": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "DELETE",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceApiV1UsersUseridVarRolesRoleVar"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "CUSTOM",
+              "AuthorizerId": {
+                "Ref": "ApiKeyAuthorizerApiGatewayAuthorizer"
+              },
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "RemoveRoleLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "ApiKeyAuthorizerApiGatewayAuthorizer"
+            ]
+          },
+          "ApiGatewayMethodApiV1UsersUseridVarRolesGet": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "GET",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceApiV1UsersUseridVarRoles"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "CUSTOM",
+              "AuthorizerId": {
+                "Ref": "ApiKeyAuthorizerApiGatewayAuthorizer"
+              },
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "GetUserRolesLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "ApiKeyAuthorizerApiGatewayAuthorizer"
+            ]
+          },
+          "ApiGatewayMethodApiV1RolesGet": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "GET",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceApiV1Roles"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "CUSTOM",
+              "AuthorizerId": {
+                "Ref": "ApiKeyAuthorizerApiGatewayAuthorizer"
+              },
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "ListRolesLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "ApiKeyAuthorizerApiGatewayAuthorizer"
+            ]
+          },
           "ApiKeyAuthorizerApiGatewayAuthorizer": {
             "Type": "AWS::ApiGateway::Authorizer",
             "Properties": {
@@ -2968,7 +4187,7 @@
               "Type": "REQUEST"
             }
           },
-          "ApiGatewayDeployment1768682314434": {
+          "ApiGatewayDeployment1768778632767": {
             "Type": "AWS::ApiGateway::Deployment",
             "Properties": {
               "RestApiId": {
@@ -2991,6 +4210,11 @@
               "ApiGatewayMethodApiV1VerificationsVerificationidVarOptions",
               "ApiGatewayMethodApiV1VerificationsVerificationidVarDocumentsOptions",
               "ApiGatewayMethodApiV1VerificationsVerificationidVarDocumentsDocumentidVarUrlOptions",
+              "ApiGatewayMethodApiV1DataDashrequestsOptions",
+              "ApiGatewayMethodApiV1DataDashrequestsRequestidVarOptions",
+              "ApiGatewayMethodApiV1UsersUseridVarRolesOptions",
+              "ApiGatewayMethodApiV1UsersUseridVarRolesRoleVarOptions",
+              "ApiGatewayMethodApiV1RolesOptions",
               "ApiGatewayMethodApiV1CasesGet",
               "ApiGatewayMethodApiV1CasesIdVarGet",
               "ApiGatewayMethodApiV1CasesIdVarApprovePost",
@@ -3005,7 +4229,13 @@
               "ApiGatewayMethodApiV1VerificationsPost",
               "ApiGatewayMethodApiV1VerificationsVerificationidVarGet",
               "ApiGatewayMethodApiV1VerificationsVerificationidVarDocumentsPost",
-              "ApiGatewayMethodApiV1VerificationsVerificationidVarDocumentsDocumentidVarUrlPost"
+              "ApiGatewayMethodApiV1VerificationsVerificationidVarDocumentsDocumentidVarUrlPost",
+              "ApiGatewayMethodApiV1DataDashrequestsPost",
+              "ApiGatewayMethodApiV1DataDashrequestsRequestidVarGet",
+              "ApiGatewayMethodApiV1UsersUseridVarRolesPost",
+              "ApiGatewayMethodApiV1UsersUseridVarRolesRoleVarDelete",
+              "ApiGatewayMethodApiV1UsersUseridVarRolesGet",
+              "ApiGatewayMethodApiV1RolesGet"
             ]
           },
           "ListCasesLambdaPermissionApiGateway": {
@@ -3595,6 +4825,228 @@
               }
             }
           },
+          "CreateDataRequestLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "CreateDataRequestLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "GetDataRequestStatusLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "GetDataRequestStatusLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "AssignRoleLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "AssignRoleLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "RemoveRoleLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "RemoveRoleLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "GetUserRolesLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "GetUserRolesLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "ListRolesLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "ListRolesLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
           "SendWebhookEventSourceMappingSQSWebhookQueue": {
             "Type": "AWS::Lambda::EventSourceMapping",
             "DependsOn": [
@@ -3729,6 +5181,58 @@
               }
             }
           },
+          "DataExportBucket": {
+            "Type": "AWS::S3::Bucket",
+            "Properties": {
+              "BucketName": "authbridge-data-exports-staging",
+              "BucketEncryption": {
+                "ServerSideEncryptionConfiguration": [
+                  {
+                    "ServerSideEncryptionByDefault": {
+                      "SSEAlgorithm": "aws:kms",
+                      "KMSMasterKeyID": "dd242797-bf9b-4058-a079-3588989dd79b"
+                    }
+                  }
+                ]
+              },
+              "VersioningConfiguration": {
+                "Status": "Enabled"
+              },
+              "LifecycleConfiguration": {
+                "Rules": [
+                  {
+                    "Id": "DeleteExportsAfter7Days",
+                    "Status": "Enabled",
+                    "ExpirationInDays": 7
+                  }
+                ]
+              },
+              "CorsConfiguration": {
+                "CorsRules": [
+                  {
+                    "AllowedOrigins": [
+                      "https://app.authbridge.io",
+                      "https://backoffice.authbridge.io",
+                      "https://*.authbridge.io"
+                    ],
+                    "AllowedMethods": [
+                      "GET"
+                    ],
+                    "AllowedHeaders": [
+                      "*"
+                    ],
+                    "MaxAge": 3600
+                  }
+                ]
+              },
+              "PublicAccessBlockConfiguration": {
+                "BlockPublicAcls": true,
+                "BlockPublicPolicy": true,
+                "IgnorePublicAcls": true,
+                "RestrictPublicBuckets": true
+              }
+            }
+          },
           "OcrQueue": {
             "Type": "AWS::SQS::Queue",
             "Properties": {
@@ -3812,6 +5316,66 @@
             "Properties": {
               "TopicName": "authbridge-ocr-alerts-staging",
               "DisplayName": "AuthBridge OCR Alerts"
+            }
+          },
+          "AuditLogWriteFailureAlarm": {
+            "Type": "AWS::CloudWatch::Alarm",
+            "Properties": {
+              "AlarmName": "authbridge-audit-write-failure-staging",
+              "AlarmDescription": "Audit log write failures detected",
+              "MetricName": "AuditWriteFailures",
+              "Namespace": "AuthBridge/Audit",
+              "Statistic": "Sum",
+              "Period": 300,
+              "EvaluationPeriods": 1,
+              "Threshold": 10,
+              "ComparisonOperator": "GreaterThanThreshold",
+              "TreatMissingData": "notBreaching",
+              "AlarmActions": [
+                {
+                  "Ref": "OcrAlertTopic"
+                }
+              ]
+            }
+          },
+          "AuditLogVolumeAlarm": {
+            "Type": "AWS::CloudWatch::Alarm",
+            "Properties": {
+              "AlarmName": "authbridge-audit-volume-spike-staging",
+              "AlarmDescription": "Audit log volume spike detected (potential attack or system issue)",
+              "MetricName": "AuditLogEntries",
+              "Namespace": "AuthBridge/Audit",
+              "Statistic": "Sum",
+              "Period": 300,
+              "EvaluationPeriods": 2,
+              "Threshold": 10000,
+              "ComparisonOperator": "GreaterThanThreshold",
+              "TreatMissingData": "notBreaching",
+              "AlarmActions": [
+                {
+                  "Ref": "OcrAlertTopic"
+                }
+              ]
+            }
+          },
+          "RbacPermissionDeniedAlarm": {
+            "Type": "AWS::CloudWatch::Alarm",
+            "Properties": {
+              "AlarmName": "authbridge-rbac-permission-denied-staging",
+              "AlarmDescription": "RBAC permission denied spike detected (potential unauthorized access attempts)",
+              "MetricName": "PermissionDenied",
+              "Namespace": "AuthBridge/RBAC",
+              "Statistic": "Sum",
+              "Period": 300,
+              "EvaluationPeriods": 1,
+              "Threshold": 50,
+              "ComparisonOperator": "GreaterThanThreshold",
+              "TreatMissingData": "notBreaching",
+              "AlarmActions": [
+                {
+                  "Ref": "OcrAlertTopic"
+                }
+              ]
             }
           },
           "OcrSuccessRateAlarm": {
@@ -3966,19 +5530,19 @@
               "Name": "sls-authbridge-verification-staging-ServerlessDeploymentBucketName"
             }
           },
-          "ListCasesLambdaFunctionQualifiedArn": {
+          "SendWebhookLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ListCasesLambdaVersionlFeNsnM8AIa1aZbJFm3We0dR4YAQvykUrw10"
+              "Ref": "SendWebhookLambdaVersionFH1KbKYxSgjhsHeTvxzRWvioujtJxiwg7qKkDVAomQs"
             },
             "Export": {
-              "Name": "sls-authbridge-verification-staging-ListCasesLambdaFunctionQualifiedArn"
+              "Name": "sls-authbridge-verification-staging-SendWebhookLambdaFunctionQualifiedArn"
             }
           },
           "GetCaseLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "GetCaseLambdaVersionbG6SPKwWHzq6PyGkrQb1KPyaWm73VNqGAZGZj1FMY"
+              "Ref": "GetCaseLambdaVersionX0QMrHP4Yyq2nq6UEgg8gN6RY27Ntm8sdh7AyyE38zQ"
             },
             "Export": {
               "Name": "sls-authbridge-verification-staging-GetCaseLambdaFunctionQualifiedArn"
@@ -3987,43 +5551,34 @@
           "ApproveCaseLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ApproveCaseLambdaVersionA2Pk5ce7ubkezUnd0cWhYWvYDrRogUDKHaT7SV863eE"
+              "Ref": "ApproveCaseLambdaVersionzkEYYSBtTr8mMbhwNmGrTkCfoWuKW6zguAR59oLPUKg"
             },
             "Export": {
               "Name": "sls-authbridge-verification-staging-ApproveCaseLambdaFunctionQualifiedArn"
             }
           },
-          "RejectCaseLambdaFunctionQualifiedArn": {
-            "Description": "Current Lambda function version",
-            "Value": {
-              "Ref": "RejectCaseLambdaVersionxyzJ3u2sbv6dssTAKF5eYtnvda4zL9P4kXsdgHx53Q"
-            },
-            "Export": {
-              "Name": "sls-authbridge-verification-staging-RejectCaseLambdaFunctionQualifiedArn"
-            }
-          },
-          "SendWebhookLambdaFunctionQualifiedArn": {
-            "Description": "Current Lambda function version",
-            "Value": {
-              "Ref": "SendWebhookLambdaVersion9dGKyrgxeDX0hdFIYJOTrm4h7j35KiBbqQ3TNLT8E"
-            },
-            "Export": {
-              "Name": "sls-authbridge-verification-staging-SendWebhookLambdaFunctionQualifiedArn"
-            }
-          },
           "ConfigureWebhookLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ConfigureWebhookLambdaVersionIUwiAiO2rv6w33q2gTnDctQBCsl6hCnVYOd4l9vpi8"
+              "Ref": "ConfigureWebhookLambdaVersionjTI3OtCHPCs3FHn9ntO60Kb4oH39F8ylX1FisCaR4"
             },
             "Export": {
               "Name": "sls-authbridge-verification-staging-ConfigureWebhookLambdaFunctionQualifiedArn"
             }
           },
+          "RejectCaseLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "RejectCaseLambdaVersion7ZHD0YA6hZknoFVLmR6XycGuUfr06DLXuMy7AcB4"
+            },
+            "Export": {
+              "Name": "sls-authbridge-verification-staging-RejectCaseLambdaFunctionQualifiedArn"
+            }
+          },
           "TestWebhookLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "TestWebhookLambdaVersion1sLGbBdiRKGG5TucjQwTfQbiYIpGS20z1MkPuIcFPA"
+              "Ref": "TestWebhookLambdaVersioncm5M7jQhfvVAIfBTDsZGnXdP0z3KfsoFKcXAdzn4JM"
             },
             "Export": {
               "Name": "sls-authbridge-verification-staging-TestWebhookLambdaFunctionQualifiedArn"
@@ -4032,7 +5587,7 @@
           "AddNoteLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "AddNoteLambdaVersiontD8bsiFDPWESaWvoyxdt9QUKtvldUjWhIxdMD5MaFQ"
+              "Ref": "AddNoteLambdaVersionf6SzhR9HIDWrS6IXudbjjhmKOxcNtA3zuo5T68LQ"
             },
             "Export": {
               "Name": "sls-authbridge-verification-staging-AddNoteLambdaFunctionQualifiedArn"
@@ -4041,7 +5596,7 @@
           "GetNotesLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "GetNotesLambdaVersionL6fn1AWqMnf5trrnUWceXBgBs0LiQ9bAknC1Peiteao"
+              "Ref": "GetNotesLambdaVersionXEcwqyTYHwH9Io2rlRiTDeQQKs8ED4DWARHQwGsQI"
             },
             "Export": {
               "Name": "sls-authbridge-verification-staging-GetNotesLambdaFunctionQualifiedArn"
@@ -4050,7 +5605,7 @@
           "GetAuditLogsLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "GetAuditLogsLambdaVersionV8VRJnqQlgbIlfknGcdpkq99eTHaY0Fa0ToUCWcIDk"
+              "Ref": "GetAuditLogsLambdaVersioneBPqNbZr2XEuRYHE4sejXIZycgdrJDKzGXcofXo7u0"
             },
             "Export": {
               "Name": "sls-authbridge-verification-staging-GetAuditLogsLambdaFunctionQualifiedArn"
@@ -4059,7 +5614,7 @@
           "BulkApproveLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "BulkApproveLambdaVersionY1B6OdBNLj3l87cwKa8vzC7agbIjhFB4xQQHxwkX8k"
+              "Ref": "BulkApproveLambdaVersionsGByqGVMG0LkhzYX7W0YDxR51Qnl5yYA3JCAhZ0J8UA"
             },
             "Export": {
               "Name": "sls-authbridge-verification-staging-BulkApproveLambdaFunctionQualifiedArn"
@@ -4068,16 +5623,133 @@
           "BulkRejectLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "BulkRejectLambdaVersionfR3OH6SLnSyZI8srJ0ERDERVP1VukERyQKXhXK7xM"
+              "Ref": "BulkRejectLambdaVersion4n9usqXumegXiY9l64O6b8kq2rKJRxLI1B2xYk"
             },
             "Export": {
               "Name": "sls-authbridge-verification-staging-BulkRejectLambdaFunctionQualifiedArn"
             }
           },
+          "GetVerificationStatusLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "GetVerificationStatusLambdaVersion99FkQot38abOzeY7jSZgMvBoxOjGFmpYl2Ylkwez2k"
+            },
+            "Export": {
+              "Name": "sls-authbridge-verification-staging-GetVerificationStatusLambdaFunctionQualifiedArn"
+            }
+          },
+          "RefreshDocumentUrlLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "RefreshDocumentUrlLambdaVersion4PwyYZIxzcrE0189QchMu7Kmn5SD3YRDEa7PMI"
+            },
+            "Export": {
+              "Name": "sls-authbridge-verification-staging-RefreshDocumentUrlLambdaFunctionQualifiedArn"
+            }
+          },
+          "CreateDataRequestLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "CreateDataRequestLambdaVersionLuJjvVqfBxMmnyOJIljbJbLk0nWELFqSEDBBHAdY"
+            },
+            "Export": {
+              "Name": "sls-authbridge-verification-staging-CreateDataRequestLambdaFunctionQualifiedArn"
+            }
+          },
+          "ProcessBiometricLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "ProcessBiometricLambdaVersionnOrODfaSiiKKxSYx0QZ0sE1d1dfMxCOOmI3NibyWV0"
+            },
+            "Export": {
+              "Name": "sls-authbridge-verification-staging-ProcessBiometricLambdaFunctionQualifiedArn"
+            }
+          },
+          "ProcessOCRLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "ProcessOCRLambdaVersion59VN2IFCAuHZPXOpfXHZu50aYrMZqL2kDHvrAmgA"
+            },
+            "Export": {
+              "Name": "sls-authbridge-verification-staging-ProcessOCRLambdaFunctionQualifiedArn"
+            }
+          },
+          "ProcessExportLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "ProcessExportLambdaVersionBfzIXLQYC2OWlsxJnzA1V6J3ClzrpMNS0SN3sv8BpGU"
+            },
+            "Export": {
+              "Name": "sls-authbridge-verification-staging-ProcessExportLambdaFunctionQualifiedArn"
+            }
+          },
+          "ProcessDeletionLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "ProcessDeletionLambdaVersionIpKrMJ7JGVXkIw6v5eePFqvjV0B5QuHoucnlEzc"
+            },
+            "Export": {
+              "Name": "sls-authbridge-verification-staging-ProcessDeletionLambdaFunctionQualifiedArn"
+            }
+          },
+          "GetDataRequestStatusLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "GetDataRequestStatusLambdaVersion0SGi3A3UmA0Z2nDOerTovxbxketPzmlhrL0jjNoQk"
+            },
+            "Export": {
+              "Name": "sls-authbridge-verification-staging-GetDataRequestStatusLambdaFunctionQualifiedArn"
+            }
+          },
+          "ScheduledHardDeleteLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "ScheduledHardDeleteLambdaVersionW4FAqRpgEL5WukOYdtzLqEXSVAxPpTB9DgQbqfgg"
+            },
+            "Export": {
+              "Name": "sls-authbridge-verification-staging-ScheduledHardDeleteLambdaFunctionQualifiedArn"
+            }
+          },
+          "AssignRoleLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "AssignRoleLambdaVersion7aLsFsRfKrPuuu1iiEMQMSXcGyZIm4akKt8UUqyho"
+            },
+            "Export": {
+              "Name": "sls-authbridge-verification-staging-AssignRoleLambdaFunctionQualifiedArn"
+            }
+          },
+          "RemoveRoleLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "RemoveRoleLambdaVersions5vfBpElorTzqwR7JqJez3f71kVBkAzGY1fDck60"
+            },
+            "Export": {
+              "Name": "sls-authbridge-verification-staging-RemoveRoleLambdaFunctionQualifiedArn"
+            }
+          },
+          "ListRolesLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "ListRolesLambdaVersionAP28PkPVEBnuf4mnfUxa6Kfx36SqjOgS2VHswLFTY"
+            },
+            "Export": {
+              "Name": "sls-authbridge-verification-staging-ListRolesLambdaFunctionQualifiedArn"
+            }
+          },
+          "GetUserRolesLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "GetUserRolesLambdaVersion2mrVlBfJxWsXu5dc1dNWvcLBWOtJ2MlUJwQ57YxIZQ"
+            },
+            "Export": {
+              "Name": "sls-authbridge-verification-staging-GetUserRolesLambdaFunctionQualifiedArn"
+            }
+          },
           "CreateVerificationLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "CreateVerificationLambdaVersionFmZTKJ4Pl9o4Zk6M6jBPpjWcDISWuq9QcfskeFxQOLc"
+              "Ref": "CreateVerificationLambdaVersion3Q2slVY6yeDWSES3Tei7vddNz5eXlyoRjZtDJmvqkxg"
             },
             "Export": {
               "Name": "sls-authbridge-verification-staging-CreateVerificationLambdaFunctionQualifiedArn"
@@ -4086,46 +5758,19 @@
           "UploadDocumentLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "UploadDocumentLambdaVersionjtX2WX4HoMXbjSbn408Y13vTloN4kNQThhJAaUhYc"
+              "Ref": "UploadDocumentLambdaVersionXdb9ot3eeoakXUYzbD5alvC4NN7AtShfVLB4lHFXXo"
             },
             "Export": {
               "Name": "sls-authbridge-verification-staging-UploadDocumentLambdaFunctionQualifiedArn"
             }
           },
-          "GetVerificationStatusLambdaFunctionQualifiedArn": {
+          "ListCasesLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "GetVerificationStatusLambdaVersionPZAgUNyoBLUyyaEv1AQTXWhlVUkP2tJ8gWrV4tDSDE"
+              "Ref": "ListCasesLambdaVersion0VSjWnRGQZXSHWkgOmSqCZb9gETbjz5M00vt26M"
             },
             "Export": {
-              "Name": "sls-authbridge-verification-staging-GetVerificationStatusLambdaFunctionQualifiedArn"
-            }
-          },
-          "ProcessOCRLambdaFunctionQualifiedArn": {
-            "Description": "Current Lambda function version",
-            "Value": {
-              "Ref": "ProcessOCRLambdaVersionPwhByq9rWMpRovavE0A9KadPTWe64HBM4rkrMzrJlno"
-            },
-            "Export": {
-              "Name": "sls-authbridge-verification-staging-ProcessOCRLambdaFunctionQualifiedArn"
-            }
-          },
-          "RefreshDocumentUrlLambdaFunctionQualifiedArn": {
-            "Description": "Current Lambda function version",
-            "Value": {
-              "Ref": "RefreshDocumentUrlLambdaVersionrCNxBUH1kCQpf9cmAvnkTtl6oLHW9hRfV5eJSrZRcEc"
-            },
-            "Export": {
-              "Name": "sls-authbridge-verification-staging-RefreshDocumentUrlLambdaFunctionQualifiedArn"
-            }
-          },
-          "ProcessBiometricLambdaFunctionQualifiedArn": {
-            "Description": "Current Lambda function version",
-            "Value": {
-              "Ref": "ProcessBiometricLambdaVersionYmsSuwHgABxsEexzNEWWKg1i41ya74QL2ZO4I2yszE"
-            },
-            "Export": {
-              "Name": "sls-authbridge-verification-staging-ProcessBiometricLambdaFunctionQualifiedArn"
+              "Name": "sls-authbridge-verification-staging-ListCasesLambdaFunctionQualifiedArn"
             }
           },
           "ServiceEndpoint": {
@@ -4316,7 +5961,7 @@
         "timeout": 30,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "ListCasesLambdaVersionlFeNsnM8AIa1aZbJFm3We0dR4YAQvykUrw10"
+        "versionLogicalId": "ListCasesLambdaVersion0VSjWnRGQZXSHWkgOmSqCZb9gETbjz5M00vt26M"
       },
       "getCase": {
         "handler": "src/handlers/get-case.handler",
@@ -4355,7 +6000,7 @@
         "timeout": 30,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "GetCaseLambdaVersionbG6SPKwWHzq6PyGkrQb1KPyaWm73VNqGAZGZj1FMY"
+        "versionLogicalId": "GetCaseLambdaVersionX0QMrHP4Yyq2nq6UEgg8gN6RY27Ntm8sdh7AyyE38zQ"
       },
       "approveCase": {
         "handler": "src/handlers/approve-case.handler",
@@ -4399,7 +6044,7 @@
         "timeout": 30,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "ApproveCaseLambdaVersionA2Pk5ce7ubkezUnd0cWhYWvYDrRogUDKHaT7SV863eE"
+        "versionLogicalId": "ApproveCaseLambdaVersionzkEYYSBtTr8mMbhwNmGrTkCfoWuKW6zguAR59oLPUKg"
       },
       "rejectCase": {
         "handler": "src/handlers/reject-case.handler",
@@ -4443,7 +6088,7 @@
         "timeout": 30,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "RejectCaseLambdaVersionxyzJ3u2sbv6dssTAKF5eYtnvda4zL9P4kXsdgHx53Q"
+        "versionLogicalId": "RejectCaseLambdaVersion7ZHD0YA6hZknoFVLmR6XycGuUfr06DLXuMy7AcB4"
       },
       "sendWebhook": {
         "handler": "src/handlers/send-webhook.handler",
@@ -4459,7 +6104,7 @@
           {
             "sqs": {
               "arn": {
-                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"IamRoleLambdaExecution\"][\"Properties\"][\"Policies\"][0][\"PolicyDocument\"][\"Statement\"][14][\"Resource\"][0]"
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"IamRoleLambdaExecution\"][\"Properties\"][\"Policies\"][0][\"PolicyDocument\"][\"Statement\"][16][\"Resource\"][0]"
               },
               "batchSize": 10
             }
@@ -4472,7 +6117,7 @@
         "memory": 256,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "SendWebhookLambdaVersion9dGKyrgxeDX0hdFIYJOTrm4h7j35KiBbqQ3TNLT8E"
+        "versionLogicalId": "SendWebhookLambdaVersionFH1KbKYxSgjhsHeTvxzRWvioujtJxiwg7qKkDVAomQs"
       },
       "configureWebhook": {
         "handler": "src/handlers/configure-webhook.handler",
@@ -4521,7 +6166,7 @@
         "memory": 256,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "ConfigureWebhookLambdaVersionIUwiAiO2rv6w33q2gTnDctQBCsl6hCnVYOd4l9vpi8"
+        "versionLogicalId": "ConfigureWebhookLambdaVersionjTI3OtCHPCs3FHn9ntO60Kb4oH39F8ylX1FisCaR4"
       },
       "testWebhook": {
         "handler": "src/handlers/test-webhook.handler",
@@ -4570,7 +6215,7 @@
         "memory": 256,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "TestWebhookLambdaVersion1sLGbBdiRKGG5TucjQwTfQbiYIpGS20z1MkPuIcFPA"
+        "versionLogicalId": "TestWebhookLambdaVersioncm5M7jQhfvVAIfBTDsZGnXdP0z3KfsoFKcXAdzn4JM"
       },
       "addNote": {
         "handler": "src/handlers/add-note.handler",
@@ -4609,7 +6254,7 @@
         "timeout": 30,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "AddNoteLambdaVersiontD8bsiFDPWESaWvoyxdt9QUKtvldUjWhIxdMD5MaFQ"
+        "versionLogicalId": "AddNoteLambdaVersionf6SzhR9HIDWrS6IXudbjjhmKOxcNtA3zuo5T68LQ"
       },
       "getNotes": {
         "handler": "src/handlers/get-notes.handler",
@@ -4648,7 +6293,7 @@
         "timeout": 30,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "GetNotesLambdaVersionL6fn1AWqMnf5trrnUWceXBgBs0LiQ9bAknC1Peiteao"
+        "versionLogicalId": "GetNotesLambdaVersionXEcwqyTYHwH9Io2rlRiTDeQQKs8ED4DWARHQwGsQI"
       },
       "getAuditLogs": {
         "handler": "src/handlers/get-audit-logs.getAuditLogs",
@@ -4687,7 +6332,7 @@
         "timeout": 30,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "GetAuditLogsLambdaVersionV8VRJnqQlgbIlfknGcdpkq99eTHaY0Fa0ToUCWcIDk"
+        "versionLogicalId": "GetAuditLogsLambdaVersioneBPqNbZr2XEuRYHE4sejXIZycgdrJDKzGXcofXo7u0"
       },
       "bulkApprove": {
         "handler": "src/handlers/bulk-approve.handler",
@@ -4732,7 +6377,7 @@
         "memory": 512,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "BulkApproveLambdaVersionY1B6OdBNLj3l87cwKa8vzC7agbIjhFB4xQQHxwkX8k"
+        "versionLogicalId": "BulkApproveLambdaVersionsGByqGVMG0LkhzYX7W0YDxR51Qnl5yYA3JCAhZ0J8UA"
       },
       "bulkReject": {
         "handler": "src/handlers/bulk-reject.handler",
@@ -4777,7 +6422,7 @@
         "memory": 512,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "BulkRejectLambdaVersionfR3OH6SLnSyZI8srJ0ERDERVP1VukERyQKXhXK7xM"
+        "versionLogicalId": "BulkRejectLambdaVersion4n9usqXumegXiY9l64O6b8kq2rKJRxLI1B2xYk"
       },
       "createVerification": {
         "handler": "src/handlers/create-verification.handler",
@@ -4831,7 +6476,7 @@
         "timeout": 30,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "CreateVerificationLambdaVersionFmZTKJ4Pl9o4Zk6M6jBPpjWcDISWuq9QcfskeFxQOLc"
+        "versionLogicalId": "CreateVerificationLambdaVersion3Q2slVY6yeDWSES3Tei7vddNz5eXlyoRjZtDJmvqkxg"
       },
       "getVerificationStatus": {
         "handler": "src/handlers/get-verification-status.handler",
@@ -4880,7 +6525,7 @@
         "memory": 512,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "GetVerificationStatusLambdaVersionPZAgUNyoBLUyyaEv1AQTXWhlVUkP2tJ8gWrV4tDSDE"
+        "versionLogicalId": "GetVerificationStatusLambdaVersion99FkQot38abOzeY7jSZgMvBoxOjGFmpYl2Ylkwez2k"
       },
       "uploadDocument": {
         "handler": "src/handlers/upload-document.handler",
@@ -4934,7 +6579,7 @@
         "memory": 1024,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "UploadDocumentLambdaVersionjtX2WX4HoMXbjSbn408Y13vTloN4kNQThhJAaUhYc"
+        "versionLogicalId": "UploadDocumentLambdaVersionXdb9ot3eeoakXUYzbD5alvC4NN7AtShfVLB4lHFXXo"
       },
       "refreshDocumentUrl": {
         "handler": "src/handlers/refresh-document-url.handler",
@@ -4973,7 +6618,7 @@
         "timeout": 30,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "RefreshDocumentUrlLambdaVersionrCNxBUH1kCQpf9cmAvnkTtl6oLHW9hRfV5eJSrZRcEc"
+        "versionLogicalId": "RefreshDocumentUrlLambdaVersion4PwyYZIxzcrE0189QchMu7Kmn5SD3YRDEa7PMI"
       },
       "processOCR": {
         "handler": "src/handlers/process-ocr.handler",
@@ -4992,7 +6637,7 @@
           {
             "sqs": {
               "arn": {
-                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"IamRoleLambdaExecution\"][\"Properties\"][\"Policies\"][0][\"PolicyDocument\"][\"Statement\"][14][\"Resource\"][1]"
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"IamRoleLambdaExecution\"][\"Properties\"][\"Policies\"][0][\"PolicyDocument\"][\"Statement\"][16][\"Resource\"][1]"
               },
               "batchSize": 1,
               "functionResponseType": "ReportBatchItemFailures"
@@ -5006,7 +6651,7 @@
         "memory": 512,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "ProcessOCRLambdaVersionPwhByq9rWMpRovavE0A9KadPTWe64HBM4rkrMzrJlno"
+        "versionLogicalId": "ProcessOCRLambdaVersion59VN2IFCAuHZPXOpfXHZu50aYrMZqL2kDHvrAmgA"
       },
       "processBiometric": {
         "handler": "src/handlers/process-biometric.handler",
@@ -5022,7 +6667,7 @@
           {
             "sqs": {
               "arn": {
-                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"IamRoleLambdaExecution\"][\"Properties\"][\"Policies\"][0][\"PolicyDocument\"][\"Statement\"][14][\"Resource\"][2]"
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"IamRoleLambdaExecution\"][\"Properties\"][\"Policies\"][0][\"PolicyDocument\"][\"Statement\"][16][\"Resource\"][2]"
               },
               "batchSize": 1,
               "functionResponseType": "ReportBatchItemFailures"
@@ -5036,7 +6681,374 @@
         "memory": 1024,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "ProcessBiometricLambdaVersionYmsSuwHgABxsEexzNEWWKg1i41ya74QL2ZO4I2yszE"
+        "versionLogicalId": "ProcessBiometricLambdaVersionnOrODfaSiiKKxSYx0QZ0sE1d1dfMxCOOmI3NibyWV0"
+      },
+      "createDataRequest": {
+        "handler": "src/handlers/create-data-request.handler",
+        "description": "Create data export or deletion request",
+        "memorySize": 256,
+        "timeout": 30,
+        "environment": {
+          "EXPORT_BUCKET": {
+            "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"CreateDataRequestLambdaFunction\"][\"Properties\"][\"Environment\"][\"Variables\"][\"EXPORT_BUCKET\"]"
+          },
+          "STAGE": "staging"
+        },
+        "events": [
+          {
+            "http": {
+              "path": "api/v1/data-requests",
+              "method": "post",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "POST"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "authorizer": {
+                "type": "request",
+                "name": "apiKeyAuthorizer",
+                "arn": "arn:aws:lambda:af-south-1:979237821231:function:authbridge-auth-staging-apiKeyAuthorizer",
+                "managedExternally": false,
+                "resultTtlInSeconds": 300,
+                "identitySource": "method.request.header.Authorization",
+                "claims": []
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "authbridge-verification-staging-createDataRequest",
+        "package": {
+          "artifact": ".serverless/createDataRequest.zip"
+        },
+        "memory": 256,
+        "runtime": "nodejs20.x",
+        "vpc": {},
+        "versionLogicalId": "CreateDataRequestLambdaVersionLuJjvVqfBxMmnyOJIljbJbLk0nWELFqSEDBBHAdY"
+      },
+      "getDataRequestStatus": {
+        "handler": "src/handlers/get-data-request-status.handler",
+        "description": "Get status of data export or deletion request",
+        "memorySize": 256,
+        "timeout": 10,
+        "events": [
+          {
+            "http": {
+              "path": "api/v1/data-requests/{requestId}",
+              "method": "get",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "GET"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "authorizer": {
+                "type": "request",
+                "name": "apiKeyAuthorizer",
+                "arn": "arn:aws:lambda:af-south-1:979237821231:function:authbridge-auth-staging-apiKeyAuthorizer",
+                "managedExternally": false,
+                "resultTtlInSeconds": 300,
+                "identitySource": "method.request.header.Authorization",
+                "claims": []
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "authbridge-verification-staging-getDataRequestStatus",
+        "package": {
+          "artifact": ".serverless/getDataRequestStatus.zip"
+        },
+        "memory": 256,
+        "runtime": "nodejs20.x",
+        "vpc": {},
+        "versionLogicalId": "GetDataRequestStatusLambdaVersion0SGi3A3UmA0Z2nDOerTovxbxketPzmlhrL0jjNoQk"
+      },
+      "processExport": {
+        "handler": "src/handlers/process-export.handler",
+        "description": "Background worker to generate data export",
+        "memorySize": 512,
+        "timeout": 300,
+        "environment": {
+          "EXPORT_BUCKET": {
+            "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"ProcessExportLambdaFunction\"][\"Properties\"][\"Environment\"][\"Variables\"][\"EXPORT_BUCKET\"]"
+          },
+          "DOCUMENTS_BUCKET": "authbridge-documents-staging"
+        },
+        "events": [],
+        "name": "authbridge-verification-staging-processExport",
+        "package": {
+          "artifact": ".serverless/processExport.zip"
+        },
+        "memory": 512,
+        "runtime": "nodejs20.x",
+        "vpc": {},
+        "versionLogicalId": "ProcessExportLambdaVersionBfzIXLQYC2OWlsxJnzA1V6J3ClzrpMNS0SN3sv8BpGU"
+      },
+      "processDeletion": {
+        "handler": "src/handlers/process-deletion.handler",
+        "description": "Background worker to process data deletion (soft delete)",
+        "memorySize": 512,
+        "timeout": 300,
+        "environment": {
+          "DOCUMENTS_BUCKET": "authbridge-documents-staging"
+        },
+        "events": [],
+        "name": "authbridge-verification-staging-processDeletion",
+        "package": {
+          "artifact": ".serverless/processDeletion.zip"
+        },
+        "memory": 512,
+        "runtime": "nodejs20.x",
+        "vpc": {},
+        "versionLogicalId": "ProcessDeletionLambdaVersionIpKrMJ7JGVXkIw6v5eePFqvjV0B5QuHoucnlEzc"
+      },
+      "scheduledHardDelete": {
+        "handler": "src/handlers/scheduled-hard-delete.handler",
+        "description": "Scheduled job to perform hard deletion of data",
+        "memorySize": 512,
+        "timeout": 900,
+        "environment": {
+          "DOCUMENTS_BUCKET": "authbridge-documents-staging"
+        },
+        "events": [
+          {
+            "schedule": {
+              "rate": [
+                "cron(0 2 * * ? *)"
+              ],
+              "enabled": true,
+              "description": "Daily hard delete job at 2 AM UTC"
+            }
+          }
+        ],
+        "name": "authbridge-verification-staging-scheduledHardDelete",
+        "package": {
+          "artifact": ".serverless/scheduledHardDelete.zip"
+        },
+        "memory": 512,
+        "runtime": "nodejs20.x",
+        "vpc": {},
+        "versionLogicalId": "ScheduledHardDeleteLambdaVersionW4FAqRpgEL5WukOYdtzLqEXSVAxPpTB9DgQbqfgg"
+      },
+      "assignRole": {
+        "handler": "src/handlers/assign-role.handler",
+        "description": "Assign role to user",
+        "memorySize": 256,
+        "timeout": 10,
+        "events": [
+          {
+            "http": {
+              "path": "api/v1/users/{userId}/roles",
+              "method": "post",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "POST"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "authorizer": {
+                "type": "request",
+                "name": "apiKeyAuthorizer",
+                "arn": "arn:aws:lambda:af-south-1:979237821231:function:authbridge-auth-staging-apiKeyAuthorizer",
+                "managedExternally": false,
+                "resultTtlInSeconds": 300,
+                "identitySource": "method.request.header.Authorization",
+                "claims": []
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "authbridge-verification-staging-assignRole",
+        "package": {
+          "artifact": ".serverless/assignRole.zip"
+        },
+        "memory": 256,
+        "runtime": "nodejs20.x",
+        "vpc": {},
+        "versionLogicalId": "AssignRoleLambdaVersion7aLsFsRfKrPuuu1iiEMQMSXcGyZIm4akKt8UUqyho"
+      },
+      "removeRole": {
+        "handler": "src/handlers/remove-role.handler",
+        "description": "Remove role from user",
+        "memorySize": 256,
+        "timeout": 10,
+        "events": [
+          {
+            "http": {
+              "path": "api/v1/users/{userId}/roles/{role}",
+              "method": "delete",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "DELETE"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "authorizer": {
+                "type": "request",
+                "name": "apiKeyAuthorizer",
+                "arn": "arn:aws:lambda:af-south-1:979237821231:function:authbridge-auth-staging-apiKeyAuthorizer",
+                "managedExternally": false,
+                "resultTtlInSeconds": 300,
+                "identitySource": "method.request.header.Authorization",
+                "claims": []
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "authbridge-verification-staging-removeRole",
+        "package": {
+          "artifact": ".serverless/removeRole.zip"
+        },
+        "memory": 256,
+        "runtime": "nodejs20.x",
+        "vpc": {},
+        "versionLogicalId": "RemoveRoleLambdaVersions5vfBpElorTzqwR7JqJez3f71kVBkAzGY1fDck60"
+      },
+      "getUserRoles": {
+        "handler": "src/handlers/get-user-roles.handler",
+        "description": "Get roles assigned to user",
+        "memorySize": 256,
+        "timeout": 10,
+        "events": [
+          {
+            "http": {
+              "path": "api/v1/users/{userId}/roles",
+              "method": "get",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "GET"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "authorizer": {
+                "type": "request",
+                "name": "apiKeyAuthorizer",
+                "arn": "arn:aws:lambda:af-south-1:979237821231:function:authbridge-auth-staging-apiKeyAuthorizer",
+                "managedExternally": false,
+                "resultTtlInSeconds": 300,
+                "identitySource": "method.request.header.Authorization",
+                "claims": []
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "authbridge-verification-staging-getUserRoles",
+        "package": {
+          "artifact": ".serverless/getUserRoles.zip"
+        },
+        "memory": 256,
+        "runtime": "nodejs20.x",
+        "vpc": {},
+        "versionLogicalId": "GetUserRolesLambdaVersion2mrVlBfJxWsXu5dc1dNWvcLBWOtJ2MlUJwQ57YxIZQ"
+      },
+      "listRoles": {
+        "handler": "src/handlers/list-roles.handler",
+        "description": "List all available roles",
+        "memorySize": 256,
+        "timeout": 10,
+        "events": [
+          {
+            "http": {
+              "path": "api/v1/roles",
+              "method": "get",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "GET"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "authorizer": {
+                "type": "request",
+                "name": "apiKeyAuthorizer",
+                "arn": "arn:aws:lambda:af-south-1:979237821231:function:authbridge-auth-staging-apiKeyAuthorizer",
+                "managedExternally": false,
+                "resultTtlInSeconds": 300,
+                "identitySource": "method.request.header.Authorization",
+                "claims": []
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "authbridge-verification-staging-listRoles",
+        "package": {
+          "artifact": ".serverless/listRoles.zip"
+        },
+        "memory": 256,
+        "runtime": "nodejs20.x",
+        "vpc": {},
+        "versionLogicalId": "ListRolesLambdaVersionAP28PkPVEBnuf4mnfUxa6Kfx36SqjOgS2VHswLFTY"
       }
     },
     "resources": {
@@ -5100,6 +7112,58 @@
                   }
                 }
               ]
+            }
+          }
+        },
+        "DataExportBucket": {
+          "Type": "AWS::S3::Bucket",
+          "Properties": {
+            "BucketName": "authbridge-data-exports-staging",
+            "BucketEncryption": {
+              "ServerSideEncryptionConfiguration": [
+                {
+                  "ServerSideEncryptionByDefault": {
+                    "SSEAlgorithm": "aws:kms",
+                    "KMSMasterKeyID": "dd242797-bf9b-4058-a079-3588989dd79b"
+                  }
+                }
+              ]
+            },
+            "VersioningConfiguration": {
+              "Status": "Enabled"
+            },
+            "LifecycleConfiguration": {
+              "Rules": [
+                {
+                  "Id": "DeleteExportsAfter7Days",
+                  "Status": "Enabled",
+                  "ExpirationInDays": 7
+                }
+              ]
+            },
+            "CorsConfiguration": {
+              "CorsRules": [
+                {
+                  "AllowedOrigins": [
+                    "https://app.authbridge.io",
+                    "https://backoffice.authbridge.io",
+                    "https://*.authbridge.io"
+                  ],
+                  "AllowedMethods": [
+                    "GET"
+                  ],
+                  "AllowedHeaders": [
+                    "*"
+                  ],
+                  "MaxAge": 3600
+                }
+              ]
+            },
+            "PublicAccessBlockConfiguration": {
+              "BlockPublicAcls": true,
+              "BlockPublicPolicy": true,
+              "IgnorePublicAcls": true,
+              "RestrictPublicBuckets": true
             }
           }
         },
@@ -5186,6 +7250,66 @@
           "Properties": {
             "TopicName": "authbridge-ocr-alerts-staging",
             "DisplayName": "AuthBridge OCR Alerts"
+          }
+        },
+        "AuditLogWriteFailureAlarm": {
+          "Type": "AWS::CloudWatch::Alarm",
+          "Properties": {
+            "AlarmName": "authbridge-audit-write-failure-staging",
+            "AlarmDescription": "Audit log write failures detected",
+            "MetricName": "AuditWriteFailures",
+            "Namespace": "AuthBridge/Audit",
+            "Statistic": "Sum",
+            "Period": 300,
+            "EvaluationPeriods": 1,
+            "Threshold": 10,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "AlarmActions": [
+              {
+                "Ref": "OcrAlertTopic"
+              }
+            ]
+          }
+        },
+        "AuditLogVolumeAlarm": {
+          "Type": "AWS::CloudWatch::Alarm",
+          "Properties": {
+            "AlarmName": "authbridge-audit-volume-spike-staging",
+            "AlarmDescription": "Audit log volume spike detected (potential attack or system issue)",
+            "MetricName": "AuditLogEntries",
+            "Namespace": "AuthBridge/Audit",
+            "Statistic": "Sum",
+            "Period": 300,
+            "EvaluationPeriods": 2,
+            "Threshold": 10000,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "AlarmActions": [
+              {
+                "Ref": "OcrAlertTopic"
+              }
+            ]
+          }
+        },
+        "RbacPermissionDeniedAlarm": {
+          "Type": "AWS::CloudWatch::Alarm",
+          "Properties": {
+            "AlarmName": "authbridge-rbac-permission-denied-staging",
+            "AlarmDescription": "RBAC permission denied spike detected (potential unauthorized access attempts)",
+            "MetricName": "PermissionDenied",
+            "Namespace": "AuthBridge/RBAC",
+            "Statistic": "Sum",
+            "Period": 300,
+            "EvaluationPeriods": 1,
+            "Threshold": 50,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "TreatMissingData": "notBreaching",
+            "AlarmActions": [
+              {
+                "Ref": "OcrAlertTopic"
+              }
+            ]
           }
         },
         "OcrSuccessRateAlarm": {
@@ -5364,7 +7488,8 @@
           "!*.md",
           "!*.config.ts",
           "!*.config.js",
-          "!tsconfig*.json"
+          "!tsconfig*.json",
+          "casbin-model.conf"
         ],
         "artifactsS3KeyDirname": "serverless/authbridge-verification/staging/code-artifacts"
       },
@@ -5386,7 +7511,7 @@
   },
   "package": {
     "individually": true,
-    "artifactDirectoryName": "serverless/authbridge-verification/staging/1768682328055-2026-01-17T20:38:48.055Z",
+    "artifactDirectoryName": "serverless/authbridge-verification/staging/1768778654612-2026-01-18T23:24:14.612Z",
     "artifact": ""
   }
 }

@@ -1,19 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { OmangOcrService } from './omang-ocr';
-import { TextractService } from './textract';
 
-vi.mock('./textract');
+const mockTextractService = {
+  detectDocumentTextWithRetry: vi.fn(),
+};
+
+vi.mock('./textract', () => ({
+  TextractService: vi.fn(function() {
+    return mockTextractService;
+  }),
+}));
 
 describe('OmangOcrService', () => {
   let ocrService: OmangOcrService;
-  let mockTextractService: any;
 
   beforeEach(() => {
-    mockTextractService = {
-      detectDocumentTextWithRetry: vi.fn(),
-    };
-    vi.mocked(TextractService).mockImplementation(() => mockTextractService);
-
+    vi.clearAllMocks();
     ocrService = new OmangOcrService();
   });
 

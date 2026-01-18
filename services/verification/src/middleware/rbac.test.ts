@@ -9,9 +9,11 @@ vi.mock('../services/rbac-enforcer.js', () => ({
 }));
 
 vi.mock('../services/audit.js', () => ({
-  AuditService: vi.fn().mockImplementation(() => ({
-    logEvent: vi.fn(),
-  })),
+  AuditService: vi.fn(function() {
+    return {
+      logEvent: vi.fn().mockResolvedValue(undefined),
+    };
+  }),
 }));
 
 vi.mock('./audit-context.js', () => ({

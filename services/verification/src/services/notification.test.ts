@@ -1,19 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Mock SNS before any imports
-vi.mock('@aws-sdk/client-sns', () => {
-  const mockSend = vi.fn().mockResolvedValue({});
-  return {
-    SNSClient: vi.fn().mockImplementation(() => ({
+// Mock SNS before any imports - define mockSend at module level
+const mockSend = vi.fn().mockResolvedValue({});
+
+vi.mock('@aws-sdk/client-sns', () => ({
+  SNSClient: vi.fn(function() {
+    return {
       send: mockSend,
-    })),
-    PublishCommand: vi.fn(),
-    __mockSend: mockSend,
-  };
-});
+    };
+  }),
+  PublishCommand: vi.fn(),
+}));
 
 import { notifyOcrFailure, notifyPoorQualityImage, OcrFailureContext } from './notification';
-import * as snsMock from '@aws-sdk/client-sns';
 
 describe('notification', () => {
   const originalEnv = process.env;
@@ -101,7 +100,6 @@ describe('notification', () => {
       process.env.OCR_FAILURE_NOTIFICATION_THRESHOLD = '3';
 
       // Make the mock throw
-      const mockSend = (snsMock as any).__mockSend;
       mockSend.mockRejectedValueOnce(new Error('SNS error'));
 
       const context: OcrFailureContext = {

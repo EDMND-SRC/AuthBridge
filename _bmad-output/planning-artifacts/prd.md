@@ -74,7 +74,7 @@ AuthBridge is Botswana's first locally-focused identity verification platform, p
 
 **Dual-Track Strategy:**
 - **Enterprise Track (60% of revenue):** Banks, insurance companies, government ministries, pension funds with annual contracts (P200K-1M/year) and dedicated support
-- **Mid-Market API Access Track (40% of revenue):** Medium businesses with specific verification needs via self-service, pay-as-you-go pricing (P3-5/verification)
+- **Mid-Market Subscription Track (40% of revenue):** Medium businesses with specific verification needs via tiered subscriptions (P750-P25,000+/month)
 
 **Strategic Vision:** Build a profitable, sustainable business aligned with Botswana's Vision 2036 and NDP 12 priorities, funding long-term community contribution through startup support programs (AuthBridge Launchpad), educational fellowships, internship programs, and partnerships with government and academic institutions.
 
@@ -114,8 +114,10 @@ AuthBridge addresses these challenges through a dual-track approach:
 3. **Use Case Packages:** Tenant verification, employee background checks, age verification, client onboarding
 
 **Both Tracks:**
-- Botswana-Specific Features: Omang verification, CIPA/BURS integration, Setswana language support
+- Botswana-Specific Features: Omang verification, CIPA/BURS document verification (manual + OCR), Setswana language support
 - Regulatory Compliance: Data Protection Act 2024 compliant, AWS Cape Town data residency, FIA-aligned AML/KYC
+
+**Note:** CIPA and BURS have no public API access. AuthBridge uses document OCR extraction + assisted manual verification for KYB.
 
 ### 1.4 Market Opportunity
 
@@ -131,12 +133,16 @@ AuthBridge addresses these challenges through a dual-track approach:
 
 | Tier | Model | Target | Pricing |
 |------|-------|--------|---------|
-| **API Access** | Per-verification | Mid-market, specific use cases | P3-5/verification |
-| **Business** | Monthly subscription + usage | Growing companies | P5K-15K/month + P2-3/verification |
-| **Enterprise** | Annual contract | Banks, insurance, government | P200K-1M/year |
+| **Starter** | Monthly subscription | Small businesses, startups | P750/month (50 verifications) |
+| **Professional** | Monthly subscription | Real estate, microfinance | P2,500/month (200 verifications) |
+| **Business** | Monthly subscription | Banks, insurance, telcos | P7,500/month (750 verifications) |
+| **Enterprise** | Annual contract | Large banks, government | P25,000+/month (3,000+ verifications) |
+| **Pay-As-You-Go** | Per-verification | Occasional users, pilots | P25/verification |
 | **AuthBridge Launchpad** | Credits program | Eligible startups | Subsidized (Year 3+) |
 
-**Year 1 Revenue Target:** P1.5M-3M (60% Enterprise / 40% API Access)
+**Overage Pricing:** Starter P20, Professional P18, Business P15, Enterprise P12 per verification
+
+**Year 1 Revenue Target:** P1.5M-3M (60% Enterprise / 40% Subscriptions)
 
 ### 1.6 Success Criteria
 
@@ -839,13 +845,17 @@ Self-service signup, pay-as-you-go pricing (P3-5 per verification), days-to-week
 - Duplicate detection (same Omang used multiple times)
 - Fraud pattern detection
 
-#### 5.2.3 Orange Money Integration
+#### 5.2.3 ~~Orange Money Integration~~ (INDEFINITELY DEFERRED)
 
-**Requirements:**
-- Accept payments via Orange Money
-- Subscription billing
-- Usage-based billing
-- Payment webhooks
+**Status:** Indefinitely deferred
+
+**Rationale:**
+- Complex integration requirements with limited API documentation
+- Dodo Payments handles local payment methods automatically via Adaptive Currency
+- Focus on core verification features first
+- May revisit if significant customer demand emerges
+
+**Alternative:** Dodo Payments automatically detects customer location and shows relevant local payment options including cards, bank transfers, and mobile wallets where available.
 
 #### 5.2.4 Advanced Reporting & Analytics
 
@@ -927,7 +937,7 @@ Self-service signup, pay-as-you-go pricing (P3-5 per verification), days-to-week
 | Web SDK | HIGH | HIGH | P0 | MVP |
 | Compliance & Security | HIGH | HIGH | P0 | MVP |
 | KYB Verification | HIGH | MEDIUM | P1 | Phase 2 |
-| Orange Money | MEDIUM | LOW | P1 | Phase 2 |
+| ~~Orange Money~~ | ~~MEDIUM~~ | ~~LOW~~ | ~~P1~~ | DEFERRED |
 | Setswana Language | MEDIUM | MEDIUM | P1 | Phase 2 |
 | AML/PEP Screening | MEDIUM | HIGH | P2 | Phase 3 |
 | White-Label | MEDIUM | MEDIUM | P2 | Phase 3 |
@@ -1985,38 +1995,37 @@ AuditLog {
 **Dual-Track Pricing Philosophy:**
 AuthBridge serves two distinct markets with appropriate pricing models:
 - **Enterprise Track:** Premium pricing reflecting value of local expertise, compliance support, and dedicated service
-- **API Access Track:** Accessible per-verification pricing for mid-market businesses with specific use cases
+- **Subscription Track:** Tiered monthly subscriptions for mid-market businesses with predictable verification needs
+
+**Strategic Pricing Rationale:**
+- All tiers maintain 90%+ profit margins (AWS cost ~P0.25/verification)
+- Competitive vs global providers (Sumsub $1.85 = P26, Veriff $0.80 = P11)
+- Matches SA Home Affairs peak pricing (R10 = ~P10) at Business tier
+- BWP pricing via Dodo Adaptive Currency (min P15 per transaction)
 
 **Pricing Tiers:**
 
-| Tier | Model | Target | Pricing |
-|------|-------|--------|---------|
-| **API Access** | Per-verification | Mid-market, specific use cases | P3-5/verification |
-| **Business** | Monthly subscription + usage | Growing companies | P5K-15K/month + P2-3/verification |
-| **Enterprise** | Annual contract | Banks, insurance, government | P200K-1M/year |
-| **AuthBridge Launchpad** | Credits program | Eligible startups | Subsidized (Year 3+) |
+| Tier | Monthly Price | Included | Per-Check | Overage |
+|------|---------------|----------|-----------|---------|
+| **Starter** | P750 | 50 verifications | P15 | P20 |
+| **Professional** | P2,500 | 200 verifications | P12.50 | P18 |
+| **Business** | P7,500 | 750 verifications | P10 | P15 |
+| **Enterprise** | P25,000+ | 3,000+ verifications | P8.33 | P12 |
+| **Pay-As-You-Go** | - | - | P25 | - |
+| **AuthBridge Launchpad** | Subsidized | Credits program | - | - |
 
 **Track 1: Enterprise Pricing (High-Touch)**
 
-**Model 1: Platform Subscription + Usage (Banks, Large Enterprises)**
-
-| Component | Pricing |
-|-----------|---------|
-| Platform Fee | P10,000-25,000/month |
-| Per Verification | P1.50-2.50 |
-| Included Verifications | 2,000-5,000/month |
-| Overage Rate | P2.00-3.00 |
-
-**Model 2: Annual Contract (Insurance, Government)**
+**Annual Contract (Banks, Insurance, Government)**
 
 | Tier | Annual Fee | Included Verifications | Overage |
 |------|------------|------------------------|---------|
-| Business | P60K-180K/year | 2,500-7,500/month | P2.50 |
-| Enterprise | P200K-1M/year | Custom | Custom |
+| Business | P90K/year | 750/month | P15 |
+| Enterprise | P300K-1M/year | 3,000+/month | P12 |
 
-**Track 2: API Access Pricing (Low-Touch)**
+**Track 2: Subscription Pricing (Self-Service)**
 
-**Self-Service, Pay-As-You-Go:**
+**Monthly Subscriptions with Overage:**
 
 | Volume/Month | Per Verification | Features |
 |--------------|------------------|----------|
@@ -3249,15 +3258,16 @@ AuthBridge uses a country-based extractor architecture to support regional expan
 **Status:** Complete
 
 **Key Changes in v2.1:**
-- Balanced dual-track approach: Enterprise (60%) + Mid-Market API Access (40%)
+- Balanced dual-track approach: Enterprise (60%) + Mid-Market Subscriptions (40%)
 - Added National Development Alignment section (Vision 2036, NDP 12)
 - Added Strategic Opportunities section (Qatar-BDC $12B investment, BURS e-invoicing, Citizen Wallet)
 - Added Funding Strategy section (BDC, CEDA, BIF, LEA, BDIH)
-- Updated pricing to dual-track structure (API Access P3-5/verification + Enterprise annual contracts)
-- Added use case packages for API Access (Tenant Verification, Employee Background Checks, Age Verification, etc.)
-- Updated success metrics to include API Access customer targets
+- Updated pricing to tiered subscription structure (Starter P750, Professional P2,500, Business P7,500, Enterprise P25,000+)
+- Added use case packages for subscriptions (Tenant Verification, Employee Background Checks, Age Verification, etc.)
+- Updated success metrics to include subscription customer targets
 - Updated channel strategy for dual-track acquisition
-- Removed "freemium" language, replaced with "API Access tier"
+- Removed "freemium" language, replaced with tiered subscriptions
+- **v2.1.1 (2026-01-18):** Updated pricing to strategic BWP tiers based on African market research, marked Orange Money as indefinitely deferred, documented BURS/CIPA no API access reality
 
 **Key Changes in v2.0:**
 - Strategic pivot to enterprise-first approach

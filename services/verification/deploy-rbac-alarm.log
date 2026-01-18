@@ -1,0 +1,83 @@
+
+Deploying authbridge-verification to stage staging (af-south-1)
+
+before:package:createDeploymentArtifacts
+Compiling to node20 bundle with esbuild...
+Compiling with concurrency: 10
+Compiling completed.
+Zipping with concurrency: Infinity
+Function zipped: sendWebhook - 1.96 KB [850 ms]
+Function zipped: scheduledHardDelete - 4.78 KB [865 ms]
+Function zipped: processBiometric - 11.36 KB [869 ms]
+Function zipped: processDeletion - 4.73 KB [868 ms]
+Function zipped: processOCR - 22.89 KB [888 ms]
+Function zipped: processExport - 5.11 KB [881 ms]
+Function zipped: configureWebhook - 62.28 KB [929 ms]
+Function zipped: bulkReject - 60.37 KB [906 ms]
+Function zipped: getCase - 59.73 KB [942 ms]
+Function zipped: rejectCase - 59.84 KB [942 ms]
+Function zipped: getDataRequestStatus - 59.37 KB [905 ms]
+Function zipped: getVerificationStatus - 63.25 KB [917 ms]
+Function zipped: bulkApprove - 60.29 KB [939 ms]
+Function zipped: getAuditLogs - 59.58 KB [943 ms]
+Function zipped: refreshDocumentUrl - 63.96 KB [919 ms]
+Function zipped: listCases - 64.21 KB [954 ms]
+Function zipped: approveCase - 59.61 KB [951 ms]
+Function zipped: getNotes - 59.27 KB [947 ms]
+Function zipped: assignRole - 59.42 KB [911 ms]
+Function zipped: listRoles - 59.33 KB [910 ms]
+Function zipped: removeRole - 59.25 KB [911 ms]
+Function zipped: createDataRequest - 60.31 KB [927 ms]
+Function zipped: testWebhook - 63.71 KB [964 ms]
+Function zipped: uploadDocument - 86.23 KB [938 ms]
+Function zipped: addNote - 59.81 KB [965 ms]
+Function zipped: getUserRoles - 59.01 KB [928 ms]
+Function zipped: createVerification - 87.89 KB [944 ms]
+All functions zipped.
+after:package:createDeploymentArtifacts
+Uploading CloudFormation file to S3
+Uploading State file to S3
+Uploading service listCases.zip file to S3 (65.75 kB)
+Uploading service getCase.zip file to S3 (61.16 kB)
+Uploading service approveCase.zip file to S3 (61.04 kB)
+Uploading service rejectCase.zip file to S3 (61.27 kB)
+Uploading service sendWebhook.zip file to S3 (2.01 kB)
+Uploading service configureWebhook.zip file to S3 (63.78 kB)
+Uploading service testWebhook.zip file to S3 (65.23 kB)
+Uploading service addNote.zip file to S3 (61.25 kB)
+Uploading service getNotes.zip file to S3 (60.69 kB)
+Uploading service getAuditLogs.zip file to S3 (61.01 kB)
+Uploading service bulkApprove.zip file to S3 (61.73 kB)
+Uploading service bulkReject.zip file to S3 (61.82 kB)
+Uploading service createVerification.zip file to S3 (90 kB)
+Uploading service getVerificationStatus.zip file to S3 (64.77 kB)
+Uploading service uploadDocument.zip file to S3 (88.3 kB)
+Uploading service refreshDocumentUrl.zip file to S3 (65.49 kB)
+Uploading service processOCR.zip file to S3 (23.44 kB)
+Uploading service processBiometric.zip file to S3 (11.63 kB)
+Uploading service createDataRequest.zip file to S3 (61.76 kB)
+Uploading service getDataRequestStatus.zip file to S3 (60.8 kB)
+Uploading service processExport.zip file to S3 (5.24 kB)
+Uploading service processDeletion.zip file to S3 (4.84 kB)
+Uploading service scheduledHardDelete.zip file to S3 (4.89 kB)
+Uploading service assignRole.zip file to S3 (60.85 kB)
+Uploading service removeRole.zip file to S3 (60.67 kB)
+Uploading service getUserRoles.zip file to S3 (60.42 kB)
+Uploading service listRoles.zip file to S3 (60.76 kB)
+Creating new change set
+Waiting for new change set to be created
+Change Set did not reach desired state, retrying
+Change Set did not reach desired state, retrying
+Change Set did not reach desired state, retrying
+Change Set did not reach desired state, retrying
+Change Set did not reach desired state, retrying
+
+× Stack authbridge-verification-staging failed to deploy (80s)
+Environment: darwin, node 25.2.1, framework 3.40.0 (local), plugin 7.2.3, SDK 4.5.1
+Credentials: Local, "default" profile
+Docs:        docs.serverless.com
+Support:     forum.serverless.com
+Bugs:        github.com/serverless/serverless/issues
+
+Error:
+Could not create Change Set "authbridge-verification-staging-change-set" due to: The following hook(s)/validation failed: [AWS::EarlyValidation::ResourceExistenceCheck]. To troubleshoot Early Validation errors, use the DescribeEvents API for detailed failure information.

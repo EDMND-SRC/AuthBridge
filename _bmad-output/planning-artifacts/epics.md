@@ -803,39 +803,72 @@ So that I can manage my budget and forecast expenses.
 **And** usage history is shown by month
 **And** alerts can be configured for usage thresholds
 
+### Story 6.4: Mintlify Documentation Setup
+
+As a developer,
+I want comprehensive API documentation hosted on docs.authbridge.io,
+So that I can integrate AuthBridge into my application quickly.
+
+**Acceptance Criteria:**
+
+**Given** the Mintlify documentation site is configured
+**When** a developer visits docs.authbridge.io
+**Then** they see a professional documentation site with AuthBridge branding
+**And** the Getting Started guide explains the verification flow
+**And** API Reference is auto-generated from OpenAPI spec
+**And** SDK integration guides are available for Web SDK
+**And** Webhook setup documentation explains payload formats
+**And** Authentication guide covers API key management
+**And** Documentation auto-deploys on GitHub push to main branch
+
+**Technical Implementation:**
+- Mintlify Hobby plan (free tier)
+- GitHub App integration for auto-deploy
+- OpenAPI spec symlinked from `services/verification/openapi.yaml`
+- Custom domain: `docs.authbridge.io` via Netlify proxy
+- Branding: Botswana Blue (#75AADB) primary color
+
 ---
 
 ## Epic 7: KYB Business Verification
 
-**Goal:** Enable verification of businesses through CIPA and BURS integration with UBO identification.
+**Goal:** Enable verification of businesses through CIPA and BURS document verification with UBO identification.
 
-### Story 7.1: Business Registration Lookup
+**Important Context:** CIPA and BURS have NO public API access. AuthBridge uses document OCR extraction + assisted manual verification for KYB.
+
+### Story 7.1: Business Document OCR & Verification Queue
 
 As a compliance officer,
-I want to verify business registration via CIPA,
+I want to verify business registration via uploaded CIPA documents,
 So that I can confirm the business is legitimate.
 
 **Acceptance Criteria:**
 
-**Given** a CIPA registration number is provided (BW + 11 digits)
-**When** the lookup is performed
-**Then** business details are retrieved: Company Name, Registration Date, Status, Directors
-**And** invalid registration numbers return clear errors
-**And** results are cached for 24 hours
+**Given** a CIPA Certificate of Incorporation or Company Extract is uploaded
+**When** OCR extraction runs
+**Then** the following fields are extracted: UIN, Company Name, Company Type, Status, Incorporation Date, Directors, Shareholders
+**And** the case is queued for manual verification
+**And** portal deep links are provided for analyst verification
+**And** side-by-side view shows OCR data vs portal lookup
 
-### Story 7.2: Tax Compliance Verification
+**Note:** No direct CIPA API integration - uses document OCR + assisted manual verification workflow.
+
+### Story 7.2: Tax Compliance Document Verification
 
 As a compliance officer,
-I want to verify BURS TIN and tax status,
+I want to verify BURS Tax Clearance Certificates,
 So that I can confirm the business is tax compliant.
 
 **Acceptance Criteria:**
 
-**Given** a BURS TIN is provided
-**When** the verification runs
-**Then** TIN format is validated
-**And** tax clearance status is checked (if API available)
-**And** results are stored with the business verification case
+**Given** a BURS Tax Clearance Certificate (TCC) is uploaded
+**When** OCR extraction runs
+**Then** the following fields are extracted: Certificate No, TIN, Company Name, Issue Date, Valid From, Valid To
+**And** validity is automatically checked (validTo > today)
+**And** the case is queued for manual verification if needed
+**And** expired certificates are flagged automatically
+
+**Note:** No direct BURS API integration - uses document OCR + validity checking.
 
 ### Story 7.3: UBO Identification
 
@@ -855,7 +888,7 @@ So that I can comply with AML requirements.
 
 ## Epic 8: Enhanced Verification & Payments
 
-**Goal:** Add fraud detection, Orange Money payments, and Setswana language support.
+**Goal:** Add fraud detection and Setswana language support.
 
 ### Story 8.1: Fraud Pattern Detection
 
@@ -872,22 +905,28 @@ So that I can prevent fraud and protect clients.
 **And** suspicious patterns trigger manual review
 **And** fraud scores are logged for analysis
 
-### Story 8.2: Dodo Payments Integration
+### Story 8.2: ~~Dodo Payments Integration~~ (MOVED TO EPIC 6)
 
-As a customer,
-I want to pay for verifications using Dodo Payments,
-So that I can easily manage billing in Botswana Pula.
+**Status:** Completed as part of Epic 6 (Story 6.3)
 
-**Acceptance Criteria:**
+**Note:** Dodo Payments integration was implemented in Epic 6 with:
+- Adaptive Currency (BWP support, min P15)
+- Tiered subscription pricing (Starter P750, Professional P2,500, Business P7,500, Enterprise P25,000+)
+- Pay-As-You-Go option (P25/verification)
+- Webhook integration for payment events
+- Customer portal for billing management
 
-**Given** a customer signs up for API Access tier
-**When** they complete checkout via Dodo
-**Then** their account is activated automatically
-**And** usage is tracked and billed per verification
-**And** invoices are available in the customer portal
-**And** webhook events update account status
+### Story 8.3: ~~Orange Money Integration~~ (INDEFINITELY DEFERRED)
 
-### Story 8.3: Setswana Language Support
+**Status:** Indefinitely deferred
+
+**Rationale:**
+- Complex integration requirements with limited API documentation
+- Dodo Payments handles local payment methods automatically via Adaptive Currency
+- Focus on core verification features first
+- May revisit if significant customer demand emerges
+
+### Story 8.4: Setswana Language Support
 
 As a Setswana-speaking user,
 I want to use the SDK in my language,
@@ -992,14 +1031,14 @@ So that I can integrate verification into my Android app.
 | Epic 3: Case Management Dashboard | 5 | MVP |
 | Epic 4: REST API & Webhooks | 5 | MVP |
 | Epic 5: Security & Compliance | 4 | MVP |
-| Epic 6: Reporting & Analytics | 3 | MVP |
+| Epic 6: Reporting & Analytics | 4 | MVP |
 | Epic 7: KYB Business Verification | 3 | Phase 2 |
 | Epic 8: Enhanced Verification & Payments | 3 | Phase 2 |
 | Epic 9: Enterprise & Scale Features | 5 | Phase 3 |
-| **Total** | **42** | |
+| **Total** | **43** | |
 
-**MVP Stories:** 31 (including Epic 1.5)
+**MVP Stories:** 32 (including Epic 1.5)
 **Phase 2 Stories:** 6
 **Phase 3 Stories:** 5
 
-**Note:** Epic 1.5 (Backend Foundation) was added after Epic 1 retrospective to provide infrastructure required by Epic 2.
+**Note:** Epic 1.5 (Backend Foundation) was added after Epic 1 retrospective to provide infrastructure required by Epic 2. Story 6.4 (Mintlify Documentation) was added to Epic 6 for developer documentation.

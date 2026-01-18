@@ -10,10 +10,12 @@ global.fetch = mockFetch as unknown as typeof fetch;
 
 // Mock CloudWatch client
 vi.mock('@aws-sdk/client-cloudwatch', () => ({
-  CloudWatchClient: vi.fn().mockImplementation(() => ({
-    send: vi.fn().mockResolvedValue({}),
-  })),
-  PutMetricDataCommand: vi.fn(),
+  CloudWatchClient: vi.fn(function() {
+    return {
+      send: vi.fn().mockResolvedValue({}),
+    };
+  }),
+  PutMetricDataCommand: vi.fn(function(params) { return params; }),
 }));
 
 describe('WebhookService', () => {

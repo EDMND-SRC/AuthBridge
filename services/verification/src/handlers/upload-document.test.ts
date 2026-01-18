@@ -6,44 +6,75 @@ process.env.TABLE_NAME = 'TestTable';
 process.env.BUCKET_NAME = 'test-bucket';
 process.env.AWS_REGION = 'af-south-1';
 
-// Create mock functions
-const mockGetVerification = vi.fn();
-const mockUpdateStatus = vi.fn();
-const mockUploadDocument = vi.fn();
-const mockCountDocuments = vi.fn();
-const mockSendOcrMessage = vi.fn();
-const mockUpdateItem = vi.fn();
-
-// Mock services before importing handler
-vi.mock('../services/dynamodb', () => ({
-  DynamoDBService: vi.fn().mockImplementation(() => ({
-    updateItem: mockUpdateItem,
+// Mock RBAC middleware before importing handler
+vi.mock('../middleware/rbac', () => ({
+  requirePermission: vi.fn(() => ({
+    before: vi.fn(),
+    after: vi.fn(),
+    onError: vi.fn(),
   })),
 }));
+
+// Mock services before importing handler - use inline mocks to avoid hoisting issues
+vi.mock('../services/dynamodb', () => {
+  const mockUpdateItemFn = vi.fn();
+  return {
+    DynamoDBService: vi.fn(function() {
+      return {
+        updateItem: mockUpdateItemFn,
+      };
+    }),
+    __mockUpdateItem: mockUpdateItemFn,
+  };
+});
 
 vi.mock('../services/s3', () => ({
-  S3Service: vi.fn().mockImplementation(() => ({})),
+  S3Service: vi.fn(function() {
+    return {};
+  }),
 }));
 
-vi.mock('../services/sqs', () => ({
-  SqsService: vi.fn().mockImplementation(() => ({
-    sendOcrMessage: mockSendOcrMessage,
-  })),
-}));
+vi.mock('../services/sqs', () => {
+  const mockSendOcrMessageFn = vi.fn();
+  return {
+    SqsService: vi.fn(function() {
+      return {
+        sendOcrMessage: mockSendOcrMessageFn,
+      };
+    }),
+    __mockSendOcrMessage: mockSendOcrMessageFn,
+  };
+});
 
-vi.mock('../services/verification', () => ({
-  VerificationService: vi.fn().mockImplementation(() => ({
-    getVerification: mockGetVerification,
-    updateStatus: mockUpdateStatus,
-  })),
-}));
+vi.mock('../services/verification', () => {
+  const mockGetVerificationFn = vi.fn();
+  const mockUpdateStatusFn = vi.fn();
+  return {
+    VerificationService: vi.fn(function() {
+      return {
+        getVerification: mockGetVerificationFn,
+        updateStatus: mockUpdateStatusFn,
+      };
+    }),
+    __mockGetVerification: mockGetVerificationFn,
+    __mockUpdateStatus: mockUpdateStatusFn,
+  };
+});
 
-vi.mock('../services/document', () => ({
-  DocumentService: vi.fn().mockImplementation(() => ({
-    uploadDocument: mockUploadDocument,
-    countDocuments: mockCountDocuments,
-  })),
-}));
+vi.mock('../services/document', () => {
+  const mockUploadDocumentFn = vi.fn();
+  const mockCountDocumentsFn = vi.fn();
+  return {
+    DocumentService: vi.fn(function() {
+      return {
+        uploadDocument: mockUploadDocumentFn,
+        countDocuments: mockCountDocumentsFn,
+      };
+    }),
+    __mockUploadDocument: mockUploadDocumentFn,
+    __mockCountDocuments: mockCountDocumentsFn,
+  };
+});
 
 // Mock file validation - return valid results by default
 const mockValidateUploadDocumentRequest = vi.fn();
@@ -76,6 +107,18 @@ vi.mock('../utils/metrics', () => ({
 
 // Import handler after mocks are set up
 import { handler, resetServices } from './upload-document';
+import * as dynamodbMock from '../services/dynamodb';
+import * as sqsMock from '../services/sqs';
+import * as verificationMock from '../services/verification';
+import * as documentMock from '../services/document';
+
+// Extract mock functions
+const mockUpdateItem = (dynamodbMock as any).__mockUpdateItem;
+const mockSendOcrMessage = (sqsMock as any).__mockSendOcrMessage;
+const mockGetVerification = (verificationMock as any).__mockGetVerification;
+const mockUpdateStatus = (verificationMock as any).__mockUpdateStatus;
+const mockUploadDocument = (documentMock as any).__mockUploadDocument;
+const mockCountDocuments = (documentMock as any).__mockCountDocuments;
 
 describe('upload-document handler', () => {
   let mockEvent: APIGatewayProxyEvent;

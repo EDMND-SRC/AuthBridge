@@ -28,14 +28,14 @@ const tableName = process.env.TABLE_NAME || 'AuthBridgeTable';
 /**
  * Creates a data export or deletion request.
  * Validates input, stores request in DynamoDB, and invokes background worker.
- * @param event - API Gateway event with type in path parameters and subject identifier in body
+ * @param event - API Gateway event with type in request body
  * @returns 202 Accepted with request ID and estimated completion time
  */
 async function baseHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   try {
-    const { type } = event.pathParameters || {};
     const body: CreateDataRequestInput = JSON.parse(event.body || '{}');
     const auditContext = getAuditContext(event);
+    const { type } = body;
 
     // Validate request type
     if (type !== 'export' && type !== 'deletion') {

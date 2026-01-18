@@ -8,18 +8,34 @@ const mockSend = vi.fn();
 
 vi.mock('@aws-sdk/lib-dynamodb', () => ({
   DynamoDBDocumentClient: {
-    from: vi.fn(() => ({
-      send: mockSend,
-    })),
+    from: vi.fn(function() {
+      return {
+        send: mockSend,
+      };
+    }),
   },
-  PutCommand: vi.fn((params) => ({ type: 'Put', params })),
-  GetCommand: vi.fn((params) => ({ type: 'Get', params })),
-  QueryCommand: vi.fn((params) => ({ type: 'Query', params })),
-  UpdateCommand: vi.fn((params) => ({ type: 'Update', params })),
+  PutCommand: vi.fn(function(params) {
+    this.type = 'Put';
+    this.params = params;
+  }),
+  GetCommand: vi.fn(function(params) {
+    this.type = 'Get';
+    this.params = params;
+  }),
+  QueryCommand: vi.fn(function(params) {
+    this.type = 'Query';
+    this.params = params;
+  }),
+  UpdateCommand: vi.fn(function(params) {
+    this.type = 'Update';
+    this.params = params;
+  }),
 }));
 
 vi.mock('@aws-sdk/client-dynamodb', () => ({
-  DynamoDBClient: vi.fn(() => ({})),
+  DynamoDBClient: vi.fn(function() {
+    return {};
+  }),
 }));
 
 // Mock encryption service
@@ -28,11 +44,13 @@ const mockDecryptField = vi.fn();
 const mockHashField = vi.fn();
 
 vi.mock('./encryption', () => ({
-  EncryptionService: vi.fn(() => ({
-    encryptField: mockEncryptField,
-    decryptField: mockDecryptField,
-    hashField: mockHashField,
-  })),
+  EncryptionService: vi.fn(function() {
+    return {
+      encryptField: mockEncryptField,
+      decryptField: mockDecryptField,
+      hashField: mockHashField,
+    };
+  }),
 }));
 
 describe('DynamoDBService', () => {

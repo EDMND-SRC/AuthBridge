@@ -10,13 +10,15 @@ const mockQueryByDate = vi.fn();
 const mockUpdateVerificationStatus = vi.fn();
 
 vi.mock('./dynamodb', () => ({
-  DynamoDBService: vi.fn(() => ({
-    putVerification: mockPutVerification,
-    getVerification: mockGetVerification,
-    queryByClientAndStatus: mockQueryByClientAndStatus,
-    queryByDate: mockQueryByDate,
-    updateVerificationStatus: mockUpdateVerificationStatus,
-  })),
+  DynamoDBService: vi.fn(function() {
+    return {
+      putVerification: mockPutVerification,
+      getVerification: mockGetVerification,
+      queryByClientAndStatus: mockQueryByClientAndStatus,
+      queryByDate: mockQueryByDate,
+      updateVerificationStatus: mockUpdateVerificationStatus,
+    };
+  }),
 }));
 
 describe('VerificationService', () => {

@@ -284,13 +284,17 @@ Configure webhook endpoints to receive real-time status updates:
 | [Product Brief](/_bmad-output/planning-artifacts/product-brief-AuthBridge-2026-01-13.md) | Business strategy and roadmap |
 | [PRD](/_bmad-output/planning-artifacts/prd.md) | Complete product requirements |
 
-## Pricing
+## Pricing (BWP)
 
-| Tier | Model | Target |
-|------|-------|--------|
-| **API Access** | P3-5/verification | Mid-market, specific use cases |
-| **Business** | P5K-15K/month + usage | Growing companies |
-| **Enterprise** | P200K-1M/year | Banks, insurance, government |
+| Tier | Monthly | Included | Per-Check | Overage |
+|------|---------|----------|-----------|---------|
+| **Starter** | P750 | 50 verifications | P15 | P20 |
+| **Professional** | P2,500 | 200 verifications | P12.50 | P18 |
+| **Business** | P7,500 | 750 verifications | P10 | P15 |
+| **Enterprise** | P25,000+ | 3,000+ verifications | P8.33 | P12 |
+| **Pay-As-You-Go** | - | - | P25 | - |
+
+All tiers maintain 90%+ profit margins. Payments via Dodo Payments with Adaptive Currency (BWP).
 
 ## Compliance
 

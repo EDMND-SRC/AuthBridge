@@ -2525,23 +2525,28 @@ The Backoffice is the internal application used by AuthBridge staff and client c
 │ Choose Your Plan                                                            │
 │ ─────────────────────────────────────────────────────────────────────────── │
 │                                                                             │
-│ ┌─────────────────────┐ ┌─────────────────────┐ ┌─────────────────────────┐ │
-│ │ API Access          │ │ Business            │ │ Enterprise              │ │
-│ │                     │ │ ★ POPULAR           │ │                         │ │
-│ │ P3-5/verification   │ │ P15,000/month       │ │ Custom Pricing          │ │
-│ │                     │ │                     │ │                         │ │
-│ │ Pay as you go       │ │ 5,000 verifications │ │ Unlimited verifications │ │
-│ │                     │ │ included            │ │                         │ │
-│ │ ✓ KYC verification  │ │ ✓ Everything in API │ │ ✓ Everything in Business│ │
-│ │ ✓ API access        │ │ ✓ KYB verification  │ │ ✓ White-label solution  │ │
-│ │ ✓ Basic dashboard   │ │ ✓ Priority support  │ │ ✓ Dedicated support     │ │
-│ │ ✓ Email support     │ │ ✓ Custom branding   │ │ ✓ SLA guarantee         │ │
-│ │                     │ │ ✓ Team access (5)   │ │ ✓ On-premise option     │ │
-│ │                     │ │ ✓ Reporting         │ │ ✓ Custom integrations   │ │
-│ │                     │ │                     │ │ ✓ Compliance consulting │ │
-│ │                     │ │                     │ │                         │ │
-│ │ [Get Started]       │ │ [Current Plan]      │ │ [Contact Sales]         │ │
-│ └─────────────────────┘ └─────────────────────┘ └─────────────────────────┘ │
+│ ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌───────────────────┐ │
+│ │ Starter       │ │ Professional  │ │ Business      │ │ Enterprise        │ │
+│ │               │ │ ★ POPULAR     │ │               │ │                   │ │
+│ │ P750/month    │ │ P2,500/month  │ │ P7,500/month  │ │ P25,000+/month    │ │
+│ │               │ │               │ │               │ │                   │ │
+│ │ 50 checks     │ │ 200 checks    │ │ 750 checks    │ │ 3,000+ checks     │ │
+│ │ P20 overage   │ │ P18 overage   │ │ P15 overage   │ │ P12 overage       │ │
+│ │               │ │               │ │               │ │                   │ │
+│ │ ✓ KYC verify  │ │ ✓ Everything  │ │ ✓ Everything  │ │ ✓ Everything      │ │
+│ │ ✓ API access  │ │   in Starter  │ │   in Pro      │ │   in Business     │ │
+│ │ ✓ Dashboard   │ │ ✓ Priority    │ │ ✓ KYB verify  │ │ ✓ White-label     │ │
+│ │ ✓ Email       │ │   support     │ │ ✓ Custom      │ │ ✓ Dedicated       │ │
+│ │   support     │ │ ✓ 3 team      │ │   branding    │ │   support         │ │
+│ │               │ │   members     │ │ ✓ 5 team      │ │ ✓ SLA guarantee   │ │
+│ │               │ │               │ │   members     │ │ ✓ On-premise      │ │
+│ │               │ │               │ │ ✓ Reporting   │ │ ✓ Compliance      │ │
+│ │               │ │               │ │               │ │   consulting      │ │
+│ │               │ │               │ │               │ │                   │ │
+│ │ [Get Started] │ │ [Get Started] │ │ [Get Started] │ │ [Contact Sales]   │ │
+│ └───────────────┘ └───────────────┘ └───────────────┘ └───────────────────┘ │
+│                                                                             │
+│ Pay-As-You-Go: P25/verification (no commitment)                             │
 │                                                                             │
 │ All plans include:                                                          │
 │ • Omang, Passport, Driver's Licence verification                            │
@@ -3710,28 +3715,35 @@ window.location.href = session.url;
 │                                                                             │
 │                        Simple, Transparent Pricing                          │
 │                                                                             │
-│              No hidden fees. No surprises. Pay for what you use.            │
+│              No hidden fees. No surprises. Predictable monthly costs.       │
 │                                                                             │
-│ ┌─────────────────────┐ ┌─────────────────────┐ ┌─────────────────────────┐ │
-│ │ API Access          │ │ Business            │ │ Enterprise              │ │
-│ │                     │ │ ★ MOST POPULAR      │ │                         │ │
-│ │ P3-5               │ │ P15,000             │ │ Custom                  │ │
-│ │ per verification    │ │ per month           │ │                         │ │
-│ │                     │ │                     │ │                         │ │
-│ │ Perfect for:        │ │ Perfect for:        │ │ Perfect for:            │ │
-│ │ Small businesses    │ │ Growing companies   │ │ Banks, Insurance, Govt  │ │
-│ │ with specific needs │ │ with regular volume │ │                         │ │
-│ │                     │ │                     │ │                         │ │
-│ │ ✓ KYC verification  │ │ ✓ Everything in API │ │ ✓ Everything in Business│ │
-│ │ ✓ API access        │ │ ✓ 5,000 verifications│ │ ✓ Unlimited volume     │ │
-│ │ ✓ Basic dashboard   │ │ ✓ KYB verification  │ │ ✓ White-label          │ │
-│ │ ✓ Email support     │ │ ✓ Priority support  │ │ ✓ Dedicated support    │ │
-│ │                     │ │ ✓ Custom branding   │ │ ✓ SLA guarantee        │ │
-│ │                     │ │ ✓ 5 team members    │ │ ✓ On-premise option    │ │
-│ │                     │ │ ✓ Reporting         │ │ ✓ Compliance consulting│ │
-│ │                     │ │                     │ │                         │ │
-│ │ [Get Started]       │ │ [Start Free Trial]  │ │ [Contact Sales]         │ │
-│ └─────────────────────┘ └─────────────────────┘ └─────────────────────────┘ │
+│ ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌───────────────────┐ │
+│ │ Starter       │ │ Professional  │ │ Business      │ │ Enterprise        │ │
+│ │               │ │ ★ POPULAR     │ │               │ │                   │ │
+│ │ P750          │ │ P2,500        │ │ P7,500        │ │ P25,000+          │ │
+│ │ per month     │ │ per month     │ │ per month     │ │ per month         │ │
+│ │               │ │               │ │               │ │                   │ │
+│ │ 50 checks     │ │ 200 checks    │ │ 750 checks    │ │ 3,000+ checks     │ │
+│ │ P20 overage   │ │ P18 overage   │ │ P15 overage   │ │ P12 overage       │ │
+│ │               │ │               │ │               │ │                   │ │
+│ │ Perfect for:  │ │ Perfect for:  │ │ Perfect for:  │ │ Perfect for:      │ │
+│ │ Small biz     │ │ Real estate,  │ │ Banks,        │ │ Large banks,      │ │
+│ │ testing       │ │ microfinance  │ │ insurance     │ │ government        │ │
+│ │               │ │               │ │               │ │                   │ │
+│ │ ✓ KYC verify  │ │ ✓ Everything  │ │ ✓ Everything  │ │ ✓ Everything      │ │
+│ │ ✓ API access  │ │   in Starter  │ │   in Pro      │ │   in Business     │ │
+│ │ ✓ Dashboard   │ │ ✓ Priority    │ │ ✓ KYB verify  │ │ ✓ White-label     │ │
+│ │ ✓ Email       │ │   support     │ │ ✓ Custom      │ │ ✓ Dedicated       │ │
+│ │   support     │ │ ✓ 3 team      │ │   branding    │ │   support         │ │
+│ │               │ │   members     │ │ ✓ 5 team      │ │ ✓ SLA guarantee   │ │
+│ │               │ │               │ │   members     │ │ ✓ On-premise      │ │
+│ │               │ │               │ │ ✓ Reporting   │ │ ✓ Compliance      │ │
+│ │               │ │               │ │               │ │   consulting      │ │
+│ │               │ │               │ │               │ │                   │ │
+│ │ [Get Started] │ │ [Get Started] │ │ [Get Started] │ │ [Contact Sales]   │ │
+│ └───────────────┘ └───────────────┘ └───────────────┘ └───────────────────┘ │
+│                                                                             │
+│ Pay-As-You-Go: P25/verification (no commitment, full features)              │
 │                                                                             │
 │ ─────────────────────────────────────────────────────────────────────────── │
 │                                                                             │

@@ -5,9 +5,11 @@ import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
 const mockListVerificationsByClient = vi.fn();
 
 vi.mock('../services/verification', () => ({
-  VerificationService: vi.fn().mockImplementation(() => ({
-    listVerificationsByClient: mockListVerificationsByClient,
-  })),
+  VerificationService: vi.fn(function() {
+    return {
+      listVerificationsByClient: mockListVerificationsByClient,
+    };
+  }),
 }));
 
 // Mock logger

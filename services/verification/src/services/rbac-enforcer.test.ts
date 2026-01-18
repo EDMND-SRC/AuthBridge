@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   checkPermission,
   assignRole,
@@ -7,7 +7,7 @@ import {
   normalizeResourcePath,
 } from './rbac-enforcer.js';
 
-// Mock Casbin and DynamoDB adapter
+// Mock Casbin and DynamoDB adapter - must be inline, no external variables
 vi.mock('casbin', () => ({
   newEnforcer: vi.fn().mockResolvedValue({
     loadPolicy: vi.fn().mockResolvedValue(undefined),
@@ -23,16 +23,29 @@ vi.mock('casbin', () => ({
 }));
 
 vi.mock('casbin-dynamodb-adapter-v3', () => ({
-  CasbinDynamoDBAdapter: vi.fn().mockImplementation(() => ({})),
+  CasbinDynamoDBAdapter: vi.fn(function() {
+    return {};
+  }),
 }));
 
 vi.mock('@aws-sdk/client-dynamodb', () => ({
-  DynamoDBClient: vi.fn().mockImplementation(() => ({})),
+  DynamoDBClient: vi.fn(function() {
+    return {
+      send: vi.fn().mockResolvedValue({
+        Table: { TableName: 'test-table' },
+      }),
+    };
+  }),
+  DescribeTableCommand: vi.fn(function(params) {
+    return { TableName: params.TableName };
+  }),
 }));
 
 vi.mock('@aws-sdk/lib-dynamodb', () => ({
   DynamoDBDocumentClient: {
-    from: vi.fn().mockReturnValue({}),
+    from: vi.fn().mockReturnValue({
+      send: vi.fn().mockResolvedValue({}),
+    }),
   },
 }));
 

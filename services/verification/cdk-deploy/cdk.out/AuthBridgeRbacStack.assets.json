@@ -1,0 +1,21 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "686721dead84abc2865762827a77399a5edfe4a6104677150627da6b6cbe275d": {
+      "displayName": "AuthBridgeRbacStack Template",
+      "source": {
+        "path": "AuthBridgeRbacStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "979237821231-af-south-1-5715b9d0": {
+          "bucketName": "cdk-hnb659fds-assets-979237821231-af-south-1",
+          "objectKey": "686721dead84abc2865762827a77399a5edfe4a6104677150627da6b6cbe275d.json",
+          "region": "af-south-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::979237821231:role/cdk-hnb659fds-file-publishing-role-979237821231-af-south-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

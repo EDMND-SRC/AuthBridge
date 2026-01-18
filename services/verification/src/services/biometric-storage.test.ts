@@ -4,9 +4,11 @@ import type { BiometricData } from '../types/biometric';
 
 // Mock DynamoDBService
 vi.mock('./dynamodb', () => ({
-  DynamoDBService: vi.fn().mockImplementation(() => ({
-    updateItem: vi.fn().mockResolvedValue({}),
-  })),
+  DynamoDBService: vi.fn(function() {
+    return {
+      updateItem: vi.fn().mockResolvedValue({}),
+    };
+  }),
 }));
 
 describe('BiometricStorageService', () => {

@@ -2,18 +2,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SqsService } from './sqs';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 
-vi.mock('@aws-sdk/client-sqs');
+const mockSend = vi.fn();
+
+vi.mock('@aws-sdk/client-sqs', () => ({
+  SQSClient: vi.fn(function() {
+    return {
+      send: mockSend,
+    };
+  }),
+  SendMessageCommand: vi.fn(function(params) { return params; }),
+}));
 
 describe('SqsService', () => {
   let sqsService: SqsService;
-  let mockSend: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSend = vi.fn().mockResolvedValue({});
-    vi.mocked(SQSClient).mockImplementation(() => ({
-      send: mockSend,
-    }) as any);
+    mockSend.mockResolvedValue({});
   });
 
   describe('sendOcrMessage', () => {

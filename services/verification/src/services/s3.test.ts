@@ -3,12 +3,14 @@ import { S3Service } from './s3';
 
 // Mock AWS SDK
 vi.mock('@aws-sdk/client-s3', () => ({
-  S3Client: vi.fn().mockImplementation(() => ({
-    send: vi.fn(),
-  })),
-  PutObjectCommand: vi.fn(),
-  DeleteObjectCommand: vi.fn(),
-  GetObjectCommand: vi.fn(),
+  S3Client: vi.fn(function() {
+    return {
+      send: vi.fn(),
+    };
+  }),
+  PutObjectCommand: vi.fn(function(params) { return params; }),
+  DeleteObjectCommand: vi.fn(function(params) { return params; }),
+  GetObjectCommand: vi.fn(function(params) { return params; }),
 }));
 
 vi.mock('@aws-sdk/s3-request-presigner', () => ({

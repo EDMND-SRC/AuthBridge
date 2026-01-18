@@ -6,10 +6,12 @@ const mockGetVerification = vi.fn();
 const mockQueryDocuments = vi.fn();
 
 vi.mock('../services/dynamodb', () => ({
-  DynamoDBService: vi.fn().mockImplementation(() => ({
-    getVerification: mockGetVerification,
-    queryDocuments: mockQueryDocuments,
-  })),
+  DynamoDBService: vi.fn(function() {
+    return {
+      getVerification: mockGetVerification,
+      queryDocuments: mockQueryDocuments,
+    };
+  }),
 }));
 
 vi.mock('../utils/logger', () => ({

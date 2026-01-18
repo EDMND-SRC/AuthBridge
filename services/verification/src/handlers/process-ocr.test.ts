@@ -4,8 +4,27 @@ import { OmangOcrService } from '../services/omang-ocr';
 import { OcrStorageService } from '../services/ocr-storage';
 import { SQSEvent } from 'aws-lambda';
 
-vi.mock('../services/omang-ocr');
-vi.mock('../services/ocr-storage');
+const mockOmangOcrService = {
+  extractOmangFront: vi.fn(),
+  extractOmangBack: vi.fn(),
+};
+
+const mockOcrStorageService = {
+  storeOcrResults: vi.fn(),
+  updateVerificationWithExtractedData: vi.fn(),
+};
+
+vi.mock('../services/omang-ocr', () => ({
+  OmangOcrService: vi.fn(function() {
+    return mockOmangOcrService;
+  }),
+}));
+
+vi.mock('../services/ocr-storage', () => ({
+  OcrStorageService: vi.fn(function() {
+    return mockOcrStorageService;
+  }),
+}));
 vi.mock('../services/image-quality', () => ({
   assessImageQuality: vi.fn().mockReturnValue({
     isReadable: true,
@@ -27,23 +46,14 @@ vi.mock('../utils/metrics', () => ({
 }));
 
 describe('process-ocr handler', () => {
-  let mockOmangOcrService: any;
-  let mockOcrStorageService: any;
-
   beforeEach(() => {
     vi.clearAllMocks();
 
-    mockOmangOcrService = {
-      extractOmangFront: vi.fn(),
-      extractOmangBack: vi.fn(),
-    };
-    mockOcrStorageService = {
-      storeOcrResults: vi.fn(),
-      updateVerificationWithExtractedData: vi.fn(),
-    };
-
-    vi.mocked(OmangOcrService).mockImplementation(() => mockOmangOcrService as any);
-    vi.mocked(OcrStorageService).mockImplementation(() => mockOcrStorageService as any);
+    // Reset mock implementations
+    mockOmangOcrService.extractOmangFront.mockReset();
+    mockOmangOcrService.extractOmangBack.mockReset();
+    mockOcrStorageService.storeOcrResults.mockReset();
+    mockOcrStorageService.updateVerificationWithExtractedData.mockReset();
   });
 
   it('should process OCR for omang_front document', async () => {

@@ -3,11 +3,7 @@ import { CasbinDynamoDBAdapter } from 'casbin-dynamodb-adapter-v3';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import type { RoleName, CasbinAction, PermissionCheckResult } from '../types/rbac.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 let enforcer: Enforcer | null = null;
 let policyLoadedAt: number = 0;
@@ -16,8 +12,7 @@ const MAX_INIT_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
 
 const CASBIN_TABLE_NAME = process.env.CASBIN_TABLE_NAME || 'AuthBridgeCasbinPolicies-staging';
-const CASBIN_MODEL_PATH =
-  process.env.CASBIN_MODEL_PATH || path.join(__dirname, '../../casbin-model.conf');
+const CASBIN_MODEL_PATH = process.env.CASBIN_MODEL_PATH || '/var/task/casbin-model.conf';
 
 /**
  * Get or create Casbin enforcer instance (singleton with TTL-based cache)
@@ -211,8 +206,11 @@ export async function removePolicy(
  * Examples:
  * - /api/v1/cases/case_abc123 to /api/v1/cases/*
  * - /api/v1/verifications/ver_xyz/documents to /api/v1/verifications/star/documents
+ *
+ * @param resource - Resource path to normalize
+ * @returns Normalized resource path with wildcards
  */
-function normalizeResourcePath(resource: string): string {
+export function normalizeResourcePath(resource: string): string {
   return (
     resource
       // Replace UUID-like patterns

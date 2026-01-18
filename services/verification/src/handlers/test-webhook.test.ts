@@ -1,11 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
-import { handler } from './test-webhook.js';
-import { DynamoDBService } from '../services/dynamodb.js';
-import { WebhookService } from '../services/webhook.js';
 
-vi.mock('../services/dynamodb.js');
-vi.mock('../services/webhook.js');
+const mockGetItem = vi.fn();
+const mockSendWebhook = vi.fn();
+
+vi.mock('../services/dynamodb.js', () => ({
+  DynamoDBService: vi.fn(function() {
+    return {
+      getItem: mockGetItem,
+    };
+  }),
+}));
+
+vi.mock('../services/webhook.js', () => ({
+  WebhookService: vi.fn(function() {
+    return {
+      sendWebhook: mockSendWebhook,
+    };
+  }),
+}));
+
+import { handler } from './test-webhook.js';
 
 describe('test-webhook handler', () => {
   const mockContext = {
@@ -29,6 +44,8 @@ describe('test-webhook handler', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetItem.mockReset();
+    mockSendWebhook.mockReset();
   });
 
   it('should send test webhook successfully', async () => {
@@ -41,10 +58,10 @@ describe('test-webhook handler', () => {
       },
     } as unknown as APIGatewayProxyEvent;
 
-    vi.mocked(DynamoDBService.prototype.getItem).mockResolvedValue({
+    mockGetItem.mockResolvedValue({
       Item: mockClientConfig,
     });
-    vi.mocked(WebhookService.prototype.sendWebhook).mockResolvedValue(undefined);
+    mockSendWebhook.mockResolvedValue(undefined);
 
     const result = await handler(event, mockContext);
 
@@ -52,7 +69,7 @@ describe('test-webhook handler', () => {
     const body = JSON.parse(result.body);
     expect(body.message).toBe('Test webhook sent successfully');
     expect(body.webhookUrl).toBe('https://webhook.example.com/authbridge');
-    expect(WebhookService.prototype.sendWebhook).toHaveBeenCalledWith(
+    expect(mockSendWebhook).toHaveBeenCalledWith(
       expect.objectContaining({
         status: 'approved',
         documentType: 'omang',
@@ -86,7 +103,7 @@ describe('test-webhook handler', () => {
       },
     } as unknown as APIGatewayProxyEvent;
 
-    vi.mocked(DynamoDBService.prototype.getItem).mockResolvedValue({
+    mockGetItem.mockResolvedValue({
       Item: { ...mockClientConfig, webhookUrl: undefined },
     });
 
@@ -107,10 +124,10 @@ describe('test-webhook handler', () => {
       },
     } as unknown as APIGatewayProxyEvent;
 
-    vi.mocked(DynamoDBService.prototype.getItem).mockResolvedValue({
+    mockGetItem.mockResolvedValue({
       Item: mockClientConfig,
     });
-    vi.mocked(WebhookService.prototype.sendWebhook).mockResolvedValue(undefined);
+    mockSendWebhook.mockResolvedValue(undefined);
 
     const result = await handler(event, mockContext);
 
@@ -128,7 +145,7 @@ describe('test-webhook handler', () => {
       },
     } as unknown as APIGatewayProxyEvent;
 
-    vi.mocked(DynamoDBService.prototype.getItem).mockRejectedValue(
+    mockGetItem.mockRejectedValue(
       new Error('DynamoDB error')
     );
 

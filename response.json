@@ -1,0 +1,1 @@
+{"statusCode":403,"headers":{"Content-Type":"application/json"},"body":"{\"error\":\"User not authenticated\",\"details\":{\"resource\":\"/api/v1/users/*/roles\",\"action\":\"read\"},\"meta\":{\"timestamp\":\"2026-01-18T18:52:51.288Z\"}}"}

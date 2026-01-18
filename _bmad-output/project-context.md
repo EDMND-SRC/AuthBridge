@@ -1,13 +1,12 @@
 ---
 project_name: 'AuthBridge'
 user_name: 'Edmond'
-date: '2026-01-16'
-sections_completed: ['technology_stack', 'critical_implementation_rules', 'adrs', 'testing_rules', 'workflow_rules', 'mcp_servers']
+date: '2026-01-18'
+sections_completed: ['technology_stack', 'critical_implementation_rules', 'adrs', 'testing_rules', 'workflow_rules', 'mcp_servers', 'pricing_strategy', 'burs_cipa_reality']
 status: 'complete'
 rule_count: 54
 optimized_for_llm: true
-epic_3_complete: true
-epic_4_started: true
+epic_5_complete: true
 ---
 
 # Project Context for AI Agents
@@ -46,6 +45,41 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 ---
 
+## Business Context (Updated 2026-01-18)
+
+### Pricing Tiers (BWP)
+
+| Tier | Monthly | Included | Per-Check | Overage |
+|------|---------|----------|-----------|---------|
+| Starter | P750 | 50 | P15 | P20 |
+| Professional | P2,500 | 200 | P12.50 | P18 |
+| Business | P7,500 | 750 | P10 | P15 |
+| Enterprise | P25,000+ | 3,000+ | P8.33 | P12 |
+| Pay-As-You-Go | - | - | P25 | - |
+
+**Margin:** All tiers maintain 90%+ profit (AWS cost ~P0.25/verification)
+**Payment:** Dodo Payments with Adaptive Currency (BWP, min P15)
+
+### BURS/CIPA Reality
+
+**CRITICAL:** Neither BURS nor CIPA has public API access. Even if APIs existed, a startup would be unlikely to get access.
+
+**KYB Verification Approach:**
+1. **MVP:** Document OCR extraction + Manual verification queue
+2. **Phase 2:** Assisted manual verification (portal deep links, side-by-side view)
+3. **Phase 3:** Evaluate browser automation, verification partnerships
+
+**Supported KYB Documents:**
+- CIPA Certificate of Incorporation (OCR: UIN, Company Name, Inc. Date)
+- CIPA Company Extract (OCR: Full details, directors, shareholders)
+- BURS Tax Clearance Certificate (OCR: TIN, Validity dates)
+
+### Deferred Features
+
+- **Orange Money:** Indefinitely deferred (Dodo handles local payments via Adaptive Currency)
+
+---
+
 ## Deployment Configuration
 
 ### Domain: `authbridge.io`
@@ -59,21 +93,29 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 ### Environment URLs
 
-| Environment | API | Backoffice | SDK |
-|-------------|-----|------------|-----|
-| Production | `api.authbridge.io` | `app.authbridge.io` ✅ | `sdk.authbridge.io` |
-| Staging | `api-staging.authbridge.io` | `app-staging.authbridge.io` | `sdk-staging.authbridge.io` |
+| Environment | API | Backoffice | SDK | Docs |
+|-------------|-----|------------|-----|------|
+| Production | `api.authbridge.io` | `app.authbridge.io` ✅ | `sdk.authbridge.io` | `docs.authbridge.io` ✅ |
+| Staging | `api-staging.authbridge.io` | `app-staging.authbridge.io` | `sdk-staging.authbridge.io` | - |
 
 ### Hosting
 
 - **Backend:** AWS Lambda (Serverless Framework)
 - **Frontend:** Netlify (✅ LIVE: backoffice + docs)
 - **SDK CDN:** CloudFront
+- **Documentation:** Mintlify (✅ LIVE: Hobby plan)
 
 **Netlify Sites:**
 - Backoffice: `app.authbridge.io` → `authbridge-backoffice.netlify.app` ✅ LIVE
 - Docs: `docs.authbridge.io` → `authbridge-docs.netlify.app` ✅ LIVE
 - GitHub: `BridgeArc/AuthBridge` (main branch, auto-deploy enabled)
+
+**Mintlify Documentation:**
+- URL: `docs.authbridge.io` (via Mintlify)
+- Plan: Hobby (free tier)
+- Project ID: `696cdead4252351c35ae88ba`
+- Auto-deploy: GitHub App integration
+- Config: `apps/docs/docs.json`
 
 ---
 
@@ -119,60 +161,6 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - Prefer idempotent operations — running twice shouldn't break things
 - Provide rollback instructions for infrastructure changes
 
-### 🚨 CODE REVIEW WORKFLOW (MANDATORY)
-
-**When running `*code-review` workflow, agents MUST follow this exact sequence:**
-
-#### Step 1: Present ALL Issues
-- Identify and present ALL issues found (HIGH, MEDIUM, LOW severity)
-- Minimum 3 issues required — look harder if fewer found
-- Categorize by severity with clear descriptions and file:line references
-
-#### Step 2: Fix ALL Issues Automatically
-- **DO NOT ASK** — immediately fix ALL issues of ALL severities after presenting them
-- HIGH severity: Must fix (security, correctness, AC violations)
-- MEDIUM severity: Should fix (performance, maintainability, missing features)
-- LOW severity: Nice to fix (style, documentation, minor improvements)
-- Run tests after fixes to verify nothing broke
-
-#### Step 3: Update ALL Related Project Files
-After fixing issues, comprehensively update:
-- **Story file** (`_bmad-output/implementation-artifacts/<story>.md`):
-  - Update Status to `done` if all issues fixed
-  - Add "Senior Developer Review (AI)" section with issues found and fixed
-  - Update File List with any new/modified files
-  - Add entry to Change Log
-- **Sprint status** (`_bmad-output/implementation-artifacts/sprint-status.yaml`):
-  - Update story status from `review` → `done`
-- **Project context** (`_bmad-output/project-context.md`):
-  - Update if new patterns, ADRs, or rules emerged
-- **Any other affected documentation** (OpenAPI specs, README files, etc.)
-
-#### Step 4: Commit and Push to GitHub
-After all updates are complete:
-```bash
-git add -A
-git commit -m "fix(<scope>): code review fixes for Story X.Y - <brief description>"
-git push origin <current-branch>
-```
-
-**Example commit message:**
-```
-fix(verification): code review fixes for Story 4.2 - rate limit headers, type consistency
-
-- Fixed DocumentType enum mismatch (drivers_license → drivers_licence)
-- Added rate limit headers to all responses
-- Rewrote integration tests to be real tests
-- Added production JWT secret check
-- Added RateLimitExceeded response to OpenAPI spec
-```
-
-#### Summary
-```
-CODE REVIEW = Present Issues → Fix ALL → Update Files → Commit & Push
-```
-
-**This is non-negotiable. Never stop at presenting issues. Always complete the full cycle.**
 
 ### Available Credentials & Authorized Operations
 
@@ -557,18 +545,6 @@ pnpm test:changed      # Test only changed files
 ---
 
 ## Current Project Status
-
-### Completed Epics
-
-- ✅ **Epic 1:** Web SDK Verification Flow (6 stories)
-- ✅ **Epic 1.5:** Backend Foundation (4 stories)
-- ✅ **Epic 2:** Omang Document Processing (4 stories)
-- ✅ **Epic 3:** Case Management Dashboard (5 stories)
-
-### Active Epic
-
-- 🚧 **Epic 4:** REST API & Webhooks (5 stories)
-  - Story 4.1: API Authentication (ready-for-dev)
 
 ### Key Infrastructure
 
